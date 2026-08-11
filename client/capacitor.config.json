@@ -1,5 +1,5 @@
 {
-  "appId": "com.splitwise.app",
+  "appId": "com.expensetracker.app",
   "appName": "SplitWise",
   "webDir": "dist",
   "bundledWebRuntime": false,
@@ -8,7 +8,7 @@
   },
   "plugins": {
     "CapacitorUpdater": {
-      "autoUpdate": false
+      "autoUpdate": true
     }
   }
 }

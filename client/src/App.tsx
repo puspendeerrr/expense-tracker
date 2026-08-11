@@ -99,14 +99,8 @@ const ProtectedLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
       {/* Floating AI Assistant (for Normal Group Users) */}
       {!isSuperAdmin && group && (
         <>
-          <AIChatButton
-            onClick={() => setIsAIChatOpen(true)}
-            isOpen={isAIChatOpen}
-          />
-          <AIChatDrawer
-            isOpen={isAIChatOpen}
-            onClose={() => setIsAIChatOpen(false)}
-          />
+          <AIChatButton onClick={() => setIsAIChatOpen(true)} />
+          <AIChatDrawer isOpen={isAIChatOpen} onClose={() => setIsAIChatOpen(false)} />
         </>
       )}
     </div>
@@ -118,43 +112,32 @@ export const App: React.FC = () => {
     // 1. Confirm bundle boot to CapacitorUpdater (prevents rollback)
     notifyAppReady();
 
-    // 2. Non-blocking background update check
+    // 2. Automated background live update check & seamless application
     const performBackgroundCheck = async () => {
       try {
         const result = await checkForLiveUpdate();
         if (result.hasUpdate && result.manifest) {
-          const key = `update_notification_${Date.now()}`;
-          antdNotification.open({
+          const key = `update_auto_${Date.now()}`;
+          antdNotification.info({
             key,
-            message: 'SplitWise update available',
-            description: 'A new version of SplitWise is ready.',
+            message: 'Updating SplitWise automatically...',
+            description: `Downloading & applying latest update (v${result.manifest.version}).`,
             icon: <CloudDownloadOutlined style={{ color: '#2563eb' }} />,
-            duration: 0, // Keep until acted upon
-            btn: (
-              <Button
-                type="primary"
-                size="small"
-                icon={<CloudDownloadOutlined />}
-                onClick={async () => {
-                  antdNotification.destroy(key);
-                  const success = await applyLiveUpdate(result.manifest!);
-                  if (success) {
-                    antdNotification.success({
-                      message: 'SplitWise Updated',
-                      description: 'Restart the app to apply the new version.',
-                    });
-                  }
-                }}
-                style={{ backgroundColor: '#2563eb', borderRadius: 8 }}
-              >
-                Update Now
-              </Button>
-            ),
+            duration: 4,
           });
+
+          const success = await applyLiveUpdate(result.manifest);
+          if (success) {
+            antdNotification.success({
+              message: 'SplitWise Updated Automatically',
+              description: 'The app bundle has been updated to the latest version.',
+              duration: 6,
+            });
+          }
         } else if (result.requiresNativeUpdate) {
           antdNotification.warning({
-            message: 'SplitWise app update required',
-            description: 'A newer Android APK version is available for SplitWise.',
+            message: 'SplitWise App Update Available',
+            description: 'A newer Android APK version (v2.0.0) is available.',
             duration: 8,
           });
         }

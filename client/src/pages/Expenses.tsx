@@ -12,6 +12,9 @@ import {
   Spin,
   Pagination,
   Flex,
+  Row,
+  Col,
+  Statistic,
 } from 'antd';
 import {
   PlusOutlined,
@@ -22,6 +25,10 @@ import {
   MobileOutlined,
   ReloadOutlined,
   FileTextOutlined,
+  TeamOutlined,
+  UserOutlined,
+  WalletOutlined,
+  BankOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/ui/Toast';
@@ -138,6 +145,14 @@ export const Expenses: React.FC = () => {
     return processedExpenses.reduce((acc, curr) => acc + curr.amount, 0);
   }, [processedExpenses]);
 
+  const cashCount = useMemo(() => {
+    return processedExpenses.filter(e => e.paymentMode === 'cash').length;
+  }, [processedExpenses]);
+
+  const upiCount = useMemo(() => {
+    return processedExpenses.filter(e => e.paymentMode === 'upi').length;
+  }, [processedExpenses]);
+
   const paginatedExpenses = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return processedExpenses.slice(start, start + pageSize);
@@ -145,13 +160,13 @@ export const Expenses: React.FC = () => {
 
   const memberOptions = useMemo(() => {
     const opts = [
-      { label: '👥 All Members', value: 'all' },
-      { label: '👤 Involving Me (Paid or Owed)', value: 'me' },
+      { label: 'All Members', value: 'all' },
+      { label: 'Involving Me (Paid or Owed)', value: 'me' },
     ];
     members.forEach((m) => {
       if (m._id !== user?._id) {
         opts.push({
-          label: `👤 ${m.fullName}`,
+          label: m.fullName,
           value: m._id,
         });
       }
@@ -160,7 +175,7 @@ export const Expenses: React.FC = () => {
   }, [members, user]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 1200, margin: '0 auto', width: '100%' }}>
       {/* Top Controls Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
         <div>
@@ -276,12 +291,12 @@ export const Expenses: React.FC = () => {
                     <Tag
                       color={exp.paymentMode === 'upi' ? 'blue' : 'green'}
                       icon={exp.paymentMode === 'upi' ? <MobileOutlined /> : <DollarCircleOutlined />}
-                      style={{ margin: 0, fontSize: 10, padding: '0 4px', lineHeight: '16px', borderRadius: 4 }}
+                      style={{ margin: 0, fontSize: 10, padding: '0 6px', lineHeight: '18px', borderRadius: 6 }}
                     >
                       {exp.paymentMode === 'upi' ? 'UPI' : 'Cash'}
                     </Tag>
                     {exp.screenshotUrl && (
-                      <Tag color="cyan" style={{ margin: 0, fontSize: 10, padding: '0 4px', lineHeight: '16px', borderRadius: 4 }}>
+                      <Tag color="cyan" style={{ margin: 0, fontSize: 10, padding: '0 6px', lineHeight: '18px', borderRadius: 6 }}>
                         Receipt
                       </Tag>
                     )}
@@ -289,7 +304,7 @@ export const Expenses: React.FC = () => {
                 </div>
 
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div className="financial-num" style={{ fontSize: 15, color: '#2563eb' }}>
+                  <div className="financial-num" style={{ fontSize: 15, color: '#2563eb', fontWeight: 600 }}>
                     ₹{exp.amount.toFixed(2)}
                   </div>
                   <Text type="secondary" style={{ fontSize: 10 }}>
@@ -352,3 +367,5 @@ export const Expenses: React.FC = () => {
     </div>
   );
 };
+
+export default Expenses;

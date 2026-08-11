@@ -18,6 +18,8 @@ import {
   Statistic,
   Progress,
   Segmented,
+  Flex,
+  Pagination,
 } from 'antd';
 import {
   SafetyCertificateOutlined,
@@ -35,6 +37,7 @@ import {
   ReloadOutlined,
   ClearOutlined,
   BarChartOutlined,
+  MobileOutlined,
 } from '@ant-design/icons';
 import api from '../services/api';
 import { useToast } from '../components/ui/Toast';
@@ -66,21 +69,16 @@ export const InspectorDashboard: React.FC = () => {
   const [isLoadingDetails, setIsLoadingDetails] = useState<boolean>(false);
   const [isLoadingAnalytics, setIsLoadingAnalytics] = useState<boolean>(false);
 
-  // Group search state
-  const [groupSearchQuery, setGroupSearchQuery] = useState<string>('');
+  // Group audit filter states
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [filterMode, setFilterMode] = useState<string>('all'); // all, cash, upi
+  const [memberFilter, setMemberFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<string>('newest'); // newest, oldest, highest, lowest
 
-  // Person-wise breakdown filter states
-  const [memberSearchQuery, setMemberSearchQuery] = useState<string>('');
-  const [balanceFilter, setBalanceFilter] = useState<string>('all'); // all, owe, receive, settled
-
-  // Expense history filter states
-  const [expenseSearchQuery, setExpenseSearchQuery] = useState<string>('');
-  const [expensePaymentMode, setExpensePaymentMode] = useState<string>('all'); // all, cash, upi
-  const [expenseSortBy, setExpenseSortBy] = useState<string>('newest'); // newest, oldest, amount-high, amount-low
-
-  // Settlement history filter states
-  const [settlementSearchQuery, setSettlementSearchQuery] = useState<string>('');
-  const [settlementStatusFilter, setSettlementStatusFilter] = useState<string>('all'); // all, completed, pending, rejected
+  // Pagination states
+  const [expensePage, setExpensePage] = useState<number>(1);
+  const [settlementPage, setSettlementPage] = useState<number>(1);
+  const pageSize = 10;
 
   // Fetch all listed groups
   const fetchAllGroups = async () => {
@@ -136,6 +134,8 @@ export const InspectorDashboard: React.FC = () => {
   useEffect(() => {
     if (selectedGroupId) {
       fetchGroupDetails(selectedGroupId);
+      setExpensePage(1);
+      setSettlementPage(1);
     }
   }, [selectedGroupId]);
 
@@ -148,27 +148,84 @@ export const InspectorDashboard: React.FC = () => {
           day: 'numeric',
           month: 'short',
           year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
         });
   };
 
-  // Filtered groups based on search query
-  const filteredGroups = useMemo(() => {
-    if (!groupSearchQuery.trim()) return groups;
-    const q = groupSearchQuery.toLowerCase().trim();
-    return groups.filter(
-      (g) => g.name.toLowerCase().includes(q) || g.inviteCode.toLowerCase().includes(q)
-    );
-  }, [groups, groupSearchQuery]);
+  // Group Select Options
+  const groupSelectOptions = useMemo(() => {
+    return groups.map((g) => ({
+      label: `${g.name} (${g.memberCount} members · ₹${g.totalExpenseSum.toFixed(2)})`,
+      value: g._id,
+    }));
+  }, [groups]);
+
+  // Member Filter Options for selected group
+  const memberSelectOptions = useMemo(() => {
+    const opts = [{ label: 'All Members', value: 'all' }];
+    if (groupDetails?.members) {
+      groupDetails.members.forEach((m: any) => {
+        opts.push({
+          label: m.fullName || m.email,
+          value: m._id,
+        });
+      });
+    }
+    return opts;
+  }, [groupDetails]);
+
+  // Processed and filtered expenses
+  const processedExpenses = useMemo(() => {
+    if (!groupDetails?.expenses) return [];
+    let list = groupDetails.expenses.filter((exp: any) => {
+      const q = searchTerm.toLowerCase().trim();
+      const matchesSearch =
+        !q ||
+        exp.title?.toLowerCase().includes(q) ||
+        exp.paidBy?.fullName?.toLowerCase().includes(q) ||
+        (exp.notes && exp.notes.toLowerCase().includes(q));
+
+      const matchesMode = filterMode === 'all' || exp.paymentMode?.toLowerCase() === filterMode;
+
+      let matchesMember = true;
+      if (memberFilter !== 'all') {
+        const paidById = typeof exp.paidBy === 'object' ? exp.paidBy?._id : exp.paidBy;
+        const isPayer = paidById?.toString() === memberFilter;
+
+        let isParticipant = false;
+        if (exp.splitType === 'everyone') {
+          isParticipant = true;
+        } else if (exp.splitDetails && Array.isArray(exp.splitDetails)) {
+          isParticipant = exp.splitDetails.some((s: any) => {
+            const sId = typeof s.user === 'object' ? s.user?._id : s.user;
+            return sId?.toString() === memberFilter;
+          });
+        }
+        matchesMember = isPayer || isParticipant;
+      }
+
+      return matchesSearch && matchesMode && matchesMember;
+    });
+
+    list.sort((a: any, b: any) => {
+      const timeA = new Date(a.date || a.createdAt || 0).getTime();
+      const timeB = new Date(b.date || b.createdAt || 0).getTime();
+      if (sortBy === 'newest') return timeB - timeA;
+      if (sortBy === 'oldest') return timeA - timeB;
+      if (sortBy === 'highest') return b.amount - a.amount;
+      if (sortBy === 'lowest') return a.amount - b.amount;
+      return 0;
+    });
+
+    return list;
+  }, [groupDetails, searchTerm, filterMode, memberFilter, sortBy]);
 
   // Filtered person-wise breakdown
-  const filteredPersonBreakdown = useMemo(() => {
+  const processedPersonBreakdown = useMemo(() => {
     if (!groupDetails?.personWiseBreakdown) return [];
     let list = groupDetails.personWiseBreakdown;
 
-    if (memberSearchQuery.trim()) {
-      const q = memberSearchQuery.toLowerCase().trim();
+    if (searchTerm.trim()) {
+      const q = searchTerm.toLowerCase().trim();
       list = list.filter(
         (pw: any) =>
           pw.member.fullName?.toLowerCase().includes(q) ||
@@ -177,58 +234,20 @@ export const InspectorDashboard: React.FC = () => {
       );
     }
 
-    if (balanceFilter === 'owe') {
-      list = list.filter((pw: any) => pw.netBalance < -0.01);
-    } else if (balanceFilter === 'receive') {
-      list = list.filter((pw: any) => pw.netBalance > 0.01);
-    } else if (balanceFilter === 'settled') {
-      list = list.filter((pw: any) => Math.abs(pw.netBalance) <= 0.01);
+    if (memberFilter !== 'all') {
+      list = list.filter((pw: any) => pw.member._id === memberFilter);
     }
 
     return list;
-  }, [groupDetails, memberSearchQuery, balanceFilter]);
+  }, [groupDetails, searchTerm, memberFilter]);
 
-  // Filtered expense history
-  const filteredExpenses = useMemo(() => {
-    if (!groupDetails?.expenses) return [];
-    let list = [...groupDetails.expenses];
-
-    if (expenseSearchQuery.trim()) {
-      const q = expenseSearchQuery.toLowerCase().trim();
-      list = list.filter(
-        (exp: any) =>
-          exp.title?.toLowerCase().includes(q) ||
-          exp.paidBy?.fullName?.toLowerCase().includes(q)
-      );
-    }
-
-    if (expensePaymentMode !== 'all') {
-      list = list.filter((exp: any) => exp.paymentMode?.toLowerCase() === expensePaymentMode);
-    }
-
-    list.sort((a: any, b: any) => {
-      if (expenseSortBy === 'oldest') {
-        return new Date(a.date || a.createdAt).getTime() - new Date(b.date || b.createdAt).getTime();
-      }
-      if (expenseSortBy === 'amount-high') {
-        return b.amount - a.amount;
-      }
-      if (expenseSortBy === 'amount-low') {
-        return a.amount - b.amount;
-      }
-      return new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime();
-    });
-
-    return list;
-  }, [groupDetails, expenseSearchQuery, expensePaymentMode, expenseSortBy]);
-
-  // Filtered settlement history
-  const filteredSettlements = useMemo(() => {
+  // Filtered settlements
+  const processedSettlements = useMemo(() => {
     if (!groupDetails?.settlements) return [];
-    let list = [...groupDetails.settlements];
+    let list = groupDetails.settlements;
 
-    if (settlementSearchQuery.trim()) {
-      const q = settlementSearchQuery.toLowerCase().trim();
+    if (searchTerm.trim()) {
+      const q = searchTerm.toLowerCase().trim();
       list = list.filter(
         (s: any) =>
           s.payer?.fullName?.toLowerCase().includes(q) ||
@@ -236,113 +255,111 @@ export const InspectorDashboard: React.FC = () => {
       );
     }
 
-    if (settlementStatusFilter !== 'all') {
-      list = list.filter((s: any) => s.status?.toLowerCase() === settlementStatusFilter);
-    }
-
     return list;
-  }, [groupDetails, settlementSearchQuery, settlementStatusFilter]);
+  }, [groupDetails, searchTerm]);
 
-  const clearAllGroupFilters = () => {
-    setMemberSearchQuery('');
-    setBalanceFilter('all');
-    setExpenseSearchQuery('');
-    setExpensePaymentMode('all');
-    setExpenseSortBy('newest');
-    setSettlementSearchQuery('');
-    setSettlementStatusFilter('all');
-  };
+  // Paginated expenses
+  const paginatedExpenses = useMemo(() => {
+    const start = (expensePage - 1) * pageSize;
+    return processedExpenses.slice(start, start + pageSize);
+  }, [processedExpenses, expensePage]);
+
+  // Paginated settlements
+  const paginatedSettlements = useMemo(() => {
+    const start = (settlementPage - 1) * pageSize;
+    return processedSettlements.slice(start, start + pageSize);
+  }, [processedSettlements, settlementPage]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingBottom: 24, maxWidth: 1200, margin: '0 auto', width: '100%' }}>
-      {/* Header Audit Banner */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 1200, margin: '0 auto', width: '100%' }}>
+      {/* Inspector Banner */}
       <Alert
         message={
           <Space align="center" size={8}>
-            <SafetyCertificateOutlined style={{ fontSize: 20, color: '#722ed1' }} />
-            <Text strong style={{ fontSize: 15, color: '#581c87' }}>
+            <SafetyCertificateOutlined style={{ fontSize: 18, color: '#722ed1' }} />
+            <Text strong style={{ fontSize: 14, color: '#581c87' }}>
               Inspector Audit Console (Read-Only Mode)
             </Text>
           </Space>
         }
-        description="Logged in as inspect@gmail.com. You have global read-only access to inspect listed groups, aggregate system analytics, person-wise expense shares, and settlement audit logs."
+        description="Logged in as inspect@gmail.com. You have global audit access to inspect all listed groups, full expense history, person-wise expense shares, and settlement records."
         type="info"
         showIcon={false}
         style={{
           borderRadius: 14,
           background: 'linear-gradient(135deg, #f9f5ff 0%, #f3e8ff 100%)',
           border: '1px solid #d8b4fe',
-          boxShadow: '0 2px 8px rgba(114, 46, 209, 0.06)',
+          boxShadow: '0 2px 8px rgba(114, 46, 209, 0.05)',
         }}
       />
 
-      {/* Global Analytics Overview Cards */}
-      <Row gutter={[12, 12]}>
+      {/* Global Summary Statistics Row */}
+      <Row gutter={[10, 10]}>
         <Col xs={24} sm={12} lg={6}>
-          <Card style={{ borderRadius: 14, border: '1px solid #e2e8f0' }} styles={{ body: { padding: 14 } }}>
+          <Card style={{ borderRadius: 14, border: '1px solid #e2e8f0' }} styles={{ body: { padding: 12 } }}>
             <Statistic
-              title={<Text type="secondary" style={{ fontSize: 12 }}><DollarOutlined /> Total Platform Spend</Text>}
+              title={<Text type="secondary" style={{ fontSize: 11 }}><DollarOutlined /> Total Platform Spend</Text>}
               value={analytics?.summary?.totalExpenseVolume || 0}
               precision={2}
               prefix="₹"
-              valueStyle={{ color: '#2563eb', fontWeight: 700, fontSize: 20 }}
+              valueStyle={{ color: '#2563eb', fontWeight: 700, fontSize: 18 }}
             />
-            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
-              {analytics?.summary?.totalExpenseCount || 0} expenses across {analytics?.summary?.totalGroups || groups.length} groups
+            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 2 }}>
+              {analytics?.summary?.totalExpenseCount || 0} expenses across {groups.length} groups
             </Text>
           </Card>
         </Col>
 
         <Col xs={24} sm={12} lg={6}>
-          <Card style={{ borderRadius: 14, border: '1px solid #e2e8f0' }} styles={{ body: { padding: 14 } }}>
+          <Card style={{ borderRadius: 14, border: '1px solid #e2e8f0' }} styles={{ body: { padding: 12 } }}>
             <Statistic
-              title={<Text type="secondary" style={{ fontSize: 12 }}><FolderOutlined /> Active Groups Listed</Text>}
-              value={analytics?.summary?.totalGroups || groups.length}
-              valueStyle={{ color: '#0d9488', fontWeight: 700, fontSize: 20 }}
+              title={<Text type="secondary" style={{ fontSize: 11 }}><FolderOutlined /> Groups Listed</Text>}
+              value={groups.length}
+              valueStyle={{ color: '#0d9488', fontWeight: 700, fontSize: 18 }}
             />
-            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
-              {analytics?.summary?.totalUsers || 0} platform users registered
+            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 2 }}>
+              {analytics?.summary?.totalUsers || 0} platform users
             </Text>
           </Card>
         </Col>
 
         <Col xs={24} sm={12} lg={6}>
-          <Card style={{ borderRadius: 14, border: '1px solid #e2e8f0' }} styles={{ body: { padding: 14 } }}>
+          <Card style={{ borderRadius: 14, border: '1px solid #e2e8f0' }} styles={{ body: { padding: 12 } }}>
             <Statistic
-              title={<Text type="secondary" style={{ fontSize: 12 }}><HistoryOutlined /> Settlement Volume</Text>}
+              title={<Text type="secondary" style={{ fontSize: 11 }}><HistoryOutlined /> Settlement Volume</Text>}
               value={analytics?.settlementStats?.completedVolume || 0}
               precision={2}
               prefix="₹"
-              valueStyle={{ color: '#16a34a', fontWeight: 700, fontSize: 20 }}
+              valueStyle={{ color: '#16a34a', fontWeight: 700, fontSize: 18 }}
             />
-            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
+            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 2 }}>
               {analytics?.settlementStats?.completedCount || 0} completed settlements
             </Text>
           </Card>
         </Col>
 
         <Col xs={24} sm={12} lg={6}>
-          <Card style={{ borderRadius: 14, border: '1px solid #e2e8f0' }} styles={{ body: { padding: 14 } }}>
+          <Card style={{ borderRadius: 14, border: '1px solid #e2e8f0' }} styles={{ body: { padding: 12 } }}>
             <Statistic
-              title={<Text type="secondary" style={{ fontSize: 12 }}><BarChartOutlined /> Avg Expense Size</Text>}
+              title={<Text type="secondary" style={{ fontSize: 11 }}><BarChartOutlined /> Avg Expense Size</Text>}
               value={analytics?.summary?.avgExpenseAmount || 0}
               precision={2}
               prefix="₹"
-              valueStyle={{ color: '#7c3aed', fontWeight: 700, fontSize: 20 }}
+              valueStyle={{ color: '#7c3aed', fontWeight: 700, fontSize: 18 }}
             />
-            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
-              Calculated via MongoDB Aggregation
+            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 2 }}>
+              MongoDB Aggregation
             </Text>
           </Card>
         </Col>
       </Row>
 
-      {/* Main Navigation Segmented Control */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+      {/* Main View Segmented Selector & Refresh Button */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
         <Segmented
           value={activeTab}
           onChange={(val) => setActiveTab(val as string)}
-          size="large"
+          size="middle"
           options={[
             {
               label: (
@@ -357,7 +374,7 @@ export const InspectorDashboard: React.FC = () => {
               label: (
                 <Space size={6}>
                   <PieChartOutlined />
-                  <span>Platform Analytics & Spenders</span>
+                  <span>Platform Analytics</span>
                 </Space>
               ),
               value: 'analytics',
@@ -373,32 +390,35 @@ export const InspectorDashboard: React.FC = () => {
             if (selectedGroupId) fetchGroupDetails(selectedGroupId);
           }}
           loading={isLoadingGroups || isLoadingAnalytics}
+          size="middle"
+          style={{ borderRadius: 10 }}
         >
-          Refresh Data
+          Refresh
         </Button>
       </div>
 
       {activeTab === 'analytics' ? (
-        /* Platform Analytics View */
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <Row gutter={[16, 16]}>
-            {/* Payment Mode Distribution */}
+        /* Analytics View */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <Row gutter={[14, 14]}>
             <Col xs={24} md={12}>
               <Card
                 title={
                   <Space>
                     <WalletOutlined style={{ color: '#2563eb' }} />
-                    <span>Payment Mode Distribution (Aggregation)</span>
+                    <span>Payment Mode Breakdown (Aggregation)</span>
                   </Space>
                 }
                 style={{ borderRadius: 14, height: '100%' }}
               >
                 {analytics?.summary ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <Flex vertical gap={16}>
                     <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                         <Text strong><BankOutlined /> UPI / Online Payments</Text>
-                        <Text strong style={{ color: '#2563eb' }}>₹{analytics.summary.upiVolume.toFixed(2)} ({analytics.summary.upiCount} entries)</Text>
+                        <Text strong style={{ color: '#2563eb' }}>
+                          ₹{analytics.summary.upiVolume.toFixed(2)} ({analytics.summary.upiCount} entries)
+                        </Text>
                       </div>
                       <Progress
                         percent={
@@ -411,9 +431,11 @@ export const InspectorDashboard: React.FC = () => {
                     </div>
 
                     <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                         <Text strong><DollarOutlined /> Cash Payments</Text>
-                        <Text strong style={{ color: '#16a34a' }}>₹{analytics.summary.cashVolume.toFixed(2)} ({analytics.summary.cashCount} entries)</Text>
+                        <Text strong style={{ color: '#16a34a' }}>
+                          ₹{analytics.summary.cashVolume.toFixed(2)} ({analytics.summary.cashCount} entries)
+                        </Text>
                       </div>
                       <Progress
                         percent={
@@ -424,14 +446,13 @@ export const InspectorDashboard: React.FC = () => {
                         strokeColor="#16a34a"
                       />
                     </div>
-                  </div>
+                  </Flex>
                 ) : (
                   <Spin />
                 )}
               </Card>
             </Col>
 
-            {/* Top Spenders Leaderboard */}
             <Col xs={24} md={12}>
               <Card
                 title={
@@ -443,7 +464,7 @@ export const InspectorDashboard: React.FC = () => {
                 style={{ borderRadius: 14, height: '100%' }}
               >
                 {analytics?.topSpenders && analytics.topSpenders.length > 0 ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <Flex vertical gap={8}>
                     {analytics.topSpenders.map((sp: any, idx: number) => (
                       <div
                         key={sp._id || idx}
@@ -481,7 +502,7 @@ export const InspectorDashboard: React.FC = () => {
                         </Text>
                       </div>
                     ))}
-                  </div>
+                  </Flex>
                 ) : (
                   <Text type="secondary">No spending records available.</Text>
                 )}
@@ -489,12 +510,11 @@ export const InspectorDashboard: React.FC = () => {
             </Col>
           </Row>
 
-          {/* Group Comparison Table */}
           <Card
             title={
               <Space>
                 <FolderOutlined style={{ color: '#7c3aed' }} />
-                <span>All Groups Audit Comparison</span>
+                <span>All Listed Groups Audit</span>
               </Space>
             }
             style={{ borderRadius: 14 }}
@@ -535,17 +555,6 @@ export const InspectorDashboard: React.FC = () => {
                   ),
                 },
                 {
-                  title: 'Settlements Volume',
-                  dataIndex: 'completedSettlementSum',
-                  key: 'completedSettlementSum',
-                  render: (sum, record) => (
-                    <div>
-                      <Text strong style={{ color: '#16a34a' }}>₹{sum.toFixed(2)}</Text>
-                      <Text type="secondary" style={{ display: 'block', fontSize: 11 }}>{record.settlementCount} records</Text>
-                    </div>
-                  ),
-                },
-                {
                   title: 'Action',
                   key: 'action',
                   render: (_, record) => (
@@ -567,43 +576,93 @@ export const InspectorDashboard: React.FC = () => {
         </div>
       ) : (
         /* Group Inspection View */
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Group Selector & Search Header */}
-          <Card style={{ borderRadius: 14 }} styles={{ body: { padding: 14 } }}>
-            <Row gutter={[12, 12]} align="middle">
-              <Col xs={24} sm={10} md={8}>
-                <Input
-                  placeholder="Search group by name or code..."
-                  prefix={<SearchOutlined style={{ color: '#94a3b8' }} />}
-                  value={groupSearchQuery}
-                  onChange={(e) => setGroupSearchQuery(e.target.value)}
-                  allowClear
-                />
-              </Col>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Header Controls (Matching Expenses page design exactly) */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+            <div>
+              <Title level={4} style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
+                Group Audit: {groupDetails?.group?.name || 'Loading...'}
+              </Title>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Total Tracked: <strong className="financial-num" style={{ color: '#2563eb' }}>₹{(groupDetails?.totalGroupExpenses || 0).toFixed(2)}</strong>
+              </Text>
+            </div>
 
-              <Col xs={24} sm={14} md={12}>
+            <div style={{ minWidth: 260, flex: 1, maxWidth: 400 }}>
+              <Select
+                value={selectedGroupId}
+                onChange={(val) => setSelectedGroupId(val)}
+                loading={isLoadingGroups}
+                style={{ width: '100%' }}
+                size="middle"
+                options={groupSelectOptions}
+                placeholder="Select group to inspect"
+              />
+            </div>
+          </div>
+
+          {/* Filter & Search Bar (Matching Expenses page screenshot design) */}
+          <Card style={{ borderRadius: 14 }} styles={{ body: { padding: 12 } }}>
+            <Flex vertical gap={10}>
+              <Input
+                placeholder="Search bills, flatmates or notes..."
+                prefix={<SearchOutlined style={{ color: '#94a3b8' }} />}
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setExpensePage(1);
+                  setSettlementPage(1);
+                }}
+                allowClear
+                size="middle"
+                style={{ borderRadius: 10 }}
+              />
+
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <Segmented
+                  value={filterMode}
+                  onChange={(val) => {
+                    setFilterMode(val as string);
+                    setExpensePage(1);
+                  }}
+                  options={[
+                    { label: 'All', value: 'all' },
+                    { label: 'Cash', value: 'cash' },
+                    { label: 'UPI', value: 'upi' },
+                  ]}
+                  style={{ minWidth: 150 }}
+                  size="middle"
+                />
+
                 <Select
-                  value={selectedGroupId}
-                  onChange={(val) => setSelectedGroupId(val)}
-                  loading={isLoadingGroups}
-                  style={{ width: '100%' }}
-                  options={filteredGroups.map((g) => ({
-                    label: `${g.name} (${g.memberCount} members · ₹${g.totalExpenseSum.toFixed(2)})`,
-                    value: g._id,
-                  }))}
-                  placeholder="Select group to inspect"
+                  value={memberFilter}
+                  onChange={(val) => {
+                    setMemberFilter(val);
+                    setExpensePage(1);
+                  }}
+                  style={{ flex: 1, minWidth: 170 }}
+                  size="middle"
+                  options={memberSelectOptions}
+                  placeholder="Filter by Member"
                 />
-              </Col>
 
-              <Col xs={24} md={4} style={{ textAlign: 'right' }}>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  Showing {filteredGroups.length} of {groups.length} groups
-                </Text>
-              </Col>
-            </Row>
+                <Select
+                  value={sortBy}
+                  onChange={(val) => setSortBy(val)}
+                  style={{ width: 120 }}
+                  size="middle"
+                  options={[
+                    { label: 'Newest', value: 'newest' },
+                    { label: 'Oldest', value: 'oldest' },
+                    { label: 'Highest', value: 'highest' },
+                    { label: 'Lowest', value: 'lowest' },
+                  ]}
+                />
+              </div>
+            </Flex>
           </Card>
 
-          {/* Group Audit Detail Body */}
+          {/* Detailed Group Audit View */}
           {isLoadingDetails ? (
             <div style={{ textAlign: 'center', padding: '60px 0' }}>
               <Spin size="large" />
@@ -612,391 +671,251 @@ export const InspectorDashboard: React.FC = () => {
               </Text>
             </div>
           ) : groupDetails ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {/* Group Overview Quick Metrics */}
-              <Row gutter={[12, 12]}>
-                <Col xs={24} sm={8}>
-                  <Card style={{ borderRadius: 12, background: '#f0f7ff', border: '1px solid #bae6fd' }} styles={{ body: { padding: 12 } }}>
-                    <Text type="secondary" style={{ fontSize: 11 }}>Active Group</Text>
-                    <Title level={4} style={{ margin: '2px 0 0', fontSize: 16 }}>{groupDetails.group?.name}</Title>
-                    <Text type="secondary" style={{ fontSize: 11 }}>Invite Code: {groupDetails.group?.inviteCode}</Text>
-                  </Card>
-                </Col>
+            <Tabs
+              defaultActiveKey="full-expenses"
+              type="card"
+              style={{ borderRadius: 14 }}
+              items={[
+                {
+                  key: 'full-expenses',
+                  label: (
+                    <Space size={6}>
+                      <FileTextOutlined />
+                      <span>Full Expense History ({processedExpenses.length})</span>
+                    </Space>
+                  ),
+                  children: (
+                    <Card style={{ borderRadius: 14 }} styles={{ body: { padding: 0 } }}>
+                      <Flex vertical>
+                        {paginatedExpenses.length > 0 ? (
+                          paginatedExpenses.map((exp: any, idx: number) => (
+                            <div
+                              key={exp._id || idx}
+                              style={{
+                                padding: '12px 14px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                borderBottom: idx !== paginatedExpenses.length - 1 ? '1px solid #f1f5f9' : 'none',
+                              }}
+                            >
+                              <Flex align="center" gap={12}>
+                                <div>
+                                  <Text strong style={{ fontSize: 14, color: '#1e293b', display: 'block' }}>
+                                    {exp.title}
+                                  </Text>
 
-                <Col xs={24} sm={8}>
-                  <Card style={{ borderRadius: 12, background: '#fdf4ff', border: '1px solid #f5d0fe' }} styles={{ body: { padding: 12 } }}>
-                    <Text type="secondary" style={{ fontSize: 11 }}>Total Group Expenses</Text>
-                    <Title level={4} style={{ margin: '2px 0 0', fontSize: 18, color: '#2563eb' }}>
-                      ₹{groupDetails.totalGroupExpenses?.toFixed(2)}
-                    </Title>
-                    <Text type="secondary" style={{ fontSize: 11 }}>{groupDetails.expenses?.length || 0} total expense entries</Text>
-                  </Card>
-                </Col>
+                                  <Flex align="center" gap={6} style={{ marginTop: 2 }}>
+                                    <Text type="secondary" style={{ fontSize: 12 }}>
+                                      Paid by {exp.paidBy?.fullName || 'Flatmate'}
+                                    </Text>
+                                    <Text type="secondary" style={{ fontSize: 12 }}>•</Text>
+                                    <Text type="secondary" style={{ fontSize: 12 }}>
+                                      {formatDate(exp.date || exp.createdAt)}
+                                    </Text>
+                                    <Tag
+                                      color={exp.paymentMode?.toLowerCase() === 'upi' ? 'blue' : 'green'}
+                                      style={{ margin: 0, borderRadius: 6, fontSize: 10, padding: '0 6px' }}
+                                    >
+                                      {exp.paymentMode?.toLowerCase() === 'upi' ? (
+                                        <Space size={2}><MobileOutlined /> UPI</Space>
+                                      ) : (
+                                        <Space size={2}><DollarOutlined /> Cash</Space>
+                                      )}
+                                    </Tag>
+                                  </Flex>
+                                </div>
+                              </Flex>
 
-                <Col xs={24} sm={8}>
-                  <Card style={{ borderRadius: 12, background: '#f0fdf4', border: '1px solid #bbf7d0' }} styles={{ body: { padding: 12 } }}>
-                    <Text type="secondary" style={{ fontSize: 11 }}>Group Members</Text>
-                    <Title level={4} style={{ margin: '2px 0 0', fontSize: 18, color: '#16a34a' }}>
-                      {groupDetails.memberCount || 0} Persons
-                    </Title>
-                    <Text type="secondary" style={{ fontSize: 11 }}>Full breakdown available below</Text>
-                  </Card>
-                </Col>
-              </Row>
-
-              {/* Audit Tabs */}
-              <Tabs
-                defaultActiveKey="person-wise"
-                type="card"
-                style={{ borderRadius: 14 }}
-                items={[
-                  {
-                    key: 'person-wise',
-                    label: (
-                      <Space size={6}>
-                        <UserOutlined />
-                        <span>Person-Wise Breakdown ({filteredPersonBreakdown.length})</span>
-                      </Space>
-                    ),
-                    children: (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 6 }}>
-                        {/* Member Search & Net Balance Filter Bar */}
-                        <Card style={{ borderRadius: 12, background: '#f8fafc', border: '1px solid #e2e8f0' }} styles={{ body: { padding: 10 } }}>
-                          <Row gutter={[10, 10]} align="middle">
-                            <Col xs={24} sm={12} md={10}>
-                              <Input
-                                placeholder="Search member by name, email, phone..."
-                                prefix={<SearchOutlined style={{ color: '#94a3b8' }} />}
-                                value={memberSearchQuery}
-                                onChange={(e) => setMemberSearchQuery(e.target.value)}
-                                allowClear
-                                size="small"
-                              />
-                            </Col>
-
-                            <Col xs={24} sm={12} md={10}>
-                              <Select
-                                value={balanceFilter}
-                                onChange={(val) => setBalanceFilter(val)}
-                                size="small"
-                                style={{ width: '100%' }}
-                                options={[
-                                  { label: 'All Net Balances', value: 'all' },
-                                  { label: 'Owes Dues (Negative Net)', value: 'owe' },
-                                  { label: 'Receiving Dues (Positive Net)', value: 'receive' },
-                                  { label: 'Fully Settled (Zero Net)', value: 'settled' },
-                                ]}
-                              />
-                            </Col>
-
-                            <Col xs={24} md={4} style={{ textAlign: 'right' }}>
-                              <Button size="small" icon={<ClearOutlined />} onClick={clearAllGroupFilters}>
-                                Reset Filters
-                              </Button>
-                            </Col>
-                          </Row>
-                        </Card>
-
-                        {/* Person-Wise Cards */}
-                        {filteredPersonBreakdown.map((pw: any) => (
-                          <Card
-                            key={pw.member._id}
-                            style={{ borderRadius: 12, border: '1px solid #e2e8f0' }}
-                            styles={{ body: { padding: 14 } }}
-                          >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-                              <div>
-                                <Text strong style={{ fontSize: 15, display: 'block' }}>
-                                  <UserOutlined /> {pw.member.fullName}
+                              <div style={{ textAlign: 'right' }}>
+                                <Text strong className="financial-num" style={{ fontSize: 16, color: '#2563eb', display: 'block' }}>
+                                  ₹{exp.amount.toFixed(2)}
                                 </Text>
-                                <Text type="secondary" style={{ fontSize: 11 }}>
-                                  {pw.member.email} · Phone: {pw.member.phone || 'N/A'}
+                                <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
+                                  {exp.splitType === 'everyone' ? 'Split All' : `${exp.splitDetails?.length || 0} shares`}
                                 </Text>
                               </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div style={{ padding: '40px 0', textAlign: 'center' }}>
+                            <Text type="secondary">No expenses found matching the active filters.</Text>
+                          </div>
+                        )}
+                      </Flex>
 
-                              <Space size={8} wrap>
-                                <Tag color="blue" style={{ fontSize: 12, padding: '2px 8px' }}>
-                                  Paid: ₹{pw.paidTotal.toFixed(2)}
-                                </Tag>
-                                <Tag color="orange" style={{ fontSize: 12, padding: '2px 8px' }}>
-                                  Owed Share: ₹{pw.shareTotal.toFixed(2)}
-                                </Tag>
-                                <Tag
-                                  color={pw.netBalance >= 0.01 ? 'green' : pw.netBalance <= -0.01 ? 'red' : 'default'}
-                                  style={{ fontSize: 12, padding: '2px 8px', fontWeight: 700 }}
-                                >
-                                  Net Balance: {pw.netBalance >= 0 ? `+₹${pw.netBalance.toFixed(2)}` : `-₹${Math.abs(pw.netBalance).toFixed(2)}`}
-                                </Tag>
-                              </Space>
+                      {processedExpenses.length > pageSize && (
+                        <div style={{ padding: 12, display: 'flex', justifyContent: 'center', borderTop: '1px solid #f1f5f9' }}>
+                          <Pagination
+                            current={expensePage}
+                            pageSize={pageSize}
+                            total={processedExpenses.length}
+                            onChange={(p) => setExpensePage(p)}
+                            size="small"
+                          />
+                        </div>
+                      )}
+                    </Card>
+                  ),
+                },
+                {
+                  key: 'person-wise',
+                  label: (
+                    <Space size={6}>
+                      <UserOutlined />
+                      <span>Person-Wise Breakdown ({processedPersonBreakdown.length})</span>
+                    </Space>
+                  ),
+                  children: (
+                    <Flex vertical gap={12} style={{ paddingTop: 6 }}>
+                      {processedPersonBreakdown.map((pw: any) => (
+                        <Card
+                          key={pw.member._id}
+                          style={{ borderRadius: 12, border: '1px solid #e2e8f0' }}
+                          styles={{ body: { padding: 14 } }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                            <div>
+                              <Text strong style={{ fontSize: 15, display: 'block' }}>
+                                <UserOutlined /> {pw.member.fullName}
+                              </Text>
+                              <Text type="secondary" style={{ fontSize: 11 }}>
+                                {pw.member.email} · Phone: {pw.member.phone || 'N/A'}
+                              </Text>
                             </div>
 
-                            <Divider style={{ margin: '10px 0' }} />
+                            <Space size={8} wrap>
+                              <Tag color="blue" style={{ fontSize: 12, padding: '2px 8px' }}>
+                                Paid: ₹{pw.paidTotal.toFixed(2)}
+                              </Tag>
+                              <Tag color="orange" style={{ fontSize: 12, padding: '2px 8px' }}>
+                                Owed Share: ₹{pw.shareTotal.toFixed(2)}
+                              </Tag>
+                              <Tag
+                                color={pw.netBalance >= 0.01 ? 'green' : pw.netBalance <= -0.01 ? 'red' : 'default'}
+                                style={{ fontSize: 12, padding: '2px 8px', fontWeight: 700 }}
+                              >
+                                Net Balance: {pw.netBalance >= 0 ? `+₹${pw.netBalance.toFixed(2)}` : `-₹${Math.abs(pw.netBalance).toFixed(2)}`}
+                              </Tag>
+                            </Space>
+                          </div>
 
-                            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 6 }}>
-                              Expenses Involving {pw.member.fullName} ({pw.expenseCount}):
+                          <Divider style={{ margin: '10px 0' }} />
+
+                          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 6 }}>
+                            Expenses Involving {pw.member.fullName} ({pw.expenseCount}):
+                          </Text>
+
+                          {pw.expenses && pw.expenses.length > 0 ? (
+                            <Flex vertical gap={6}>
+                              {pw.expenses.map((exp: any, idx: number) => (
+                                <div
+                                  key={idx}
+                                  style={{
+                                    padding: '8px 10px',
+                                    borderRadius: 8,
+                                    background: '#f8fafc',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    fontSize: 12,
+                                  }}
+                                >
+                                  <div>
+                                    <Text strong>{exp.title}</Text>
+                                    <Text type="secondary" style={{ fontSize: 10, display: 'block' }}>
+                                      Role: {exp.role} · Mode: {exp.paymentMode?.toUpperCase()} · Date: {formatDate(exp.date)}
+                                    </Text>
+                                  </div>
+                                  <div style={{ textAlign: 'right' }}>
+                                    <Text strong style={{ color: '#2563eb' }}>
+                                      Total ₹{exp.amount.toFixed(2)}
+                                    </Text>
+                                    <Text type="secondary" style={{ fontSize: 10, display: 'block' }}>
+                                      Share: ₹{exp.memberShare.toFixed(2)}
+                                    </Text>
+                                  </div>
+                                </div>
+                              ))}
+                            </Flex>
+                          ) : (
+                            <Text type="secondary" style={{ fontSize: 11, fontStyle: 'italic' }}>
+                              No expense records recorded for this member.
                             </Text>
-
-                            {pw.expenses && pw.expenses.length > 0 ? (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                {pw.expenses.map((exp: any, idx: number) => (
-                                  <div
-                                    key={idx}
-                                    style={{
-                                      padding: '8px 10px',
-                                      borderRadius: 8,
-                                      background: '#f8fafc',
-                                      display: 'flex',
-                                      justifyContent: 'space-between',
-                                      alignItems: 'center',
-                                      fontSize: 12,
-                                    }}
-                                  >
-                                    <div>
-                                      <Text strong>{exp.title}</Text>
-                                      <Text type="secondary" style={{ fontSize: 10, display: 'block' }}>
-                                        Role: {exp.role} · Mode: {exp.paymentMode?.toUpperCase()} · Date: {formatDate(exp.date)}
-                                      </Text>
-                                    </div>
-                                    <div style={{ textAlign: 'right' }}>
-                                      <Text strong style={{ color: '#2563eb' }}>
-                                        Total ₹{exp.amount.toFixed(2)}
-                                      </Text>
-                                      <Text type="secondary" style={{ fontSize: 10, display: 'block' }}>
-                                        Share: ₹{exp.memberShare.toFixed(2)}
-                                      </Text>
-                                    </div>
-                                  </div>
-                                ))}
+                          )}
+                        </Card>
+                      ))}
+                    </Flex>
+                  ),
+                },
+                {
+                  key: 'settlements',
+                  label: (
+                    <Space size={6}>
+                      <HistoryOutlined />
+                      <span>Settlement History ({processedSettlements.length})</span>
+                    </Space>
+                  ),
+                  children: (
+                    <Card style={{ borderRadius: 14, marginTop: 6 }} styles={{ body: { padding: 0 } }}>
+                      <Flex vertical>
+                        {paginatedSettlements.length > 0 ? (
+                          paginatedSettlements.map((set: any, idx: number) => (
+                            <div
+                              key={set._id || idx}
+                              style={{
+                                padding: '12px 14px',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                borderBottom: idx !== paginatedSettlements.length - 1 ? '1px solid #f1f5f9' : 'none',
+                              }}
+                            >
+                              <div>
+                                <Text strong style={{ fontSize: 13, display: 'block' }}>
+                                  {set.payer?.fullName} ➔ {set.receiver?.fullName}
+                                </Text>
+                                <Text type="secondary" style={{ fontSize: 11 }}>
+                                  Method: {set.paymentMethod?.toUpperCase() || 'UPI'} · Date: {formatDate(set.createdAt)}
+                                </Text>
                               </div>
-                            ) : (
-                              <Text type="secondary" style={{ fontSize: 11, fontStyle: 'italic' }}>
-                                No expense records recorded for this member.
-                              </Text>
-                            )}
-                          </Card>
-                        ))}
-                      </div>
-                    ),
-                  },
-                  {
-                    key: 'full-expenses',
-                    label: (
-                      <Space size={6}>
-                        <FileTextOutlined />
-                        <span>Full Expense History ({filteredExpenses.length})</span>
-                      </Space>
-                    ),
-                    children: (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 6 }}>
-                        {/* Expense Search & Filters Bar */}
-                        <Card style={{ borderRadius: 12, background: '#f8fafc', border: '1px solid #e2e8f0' }} styles={{ body: { padding: 10 } }}>
-                          <Row gutter={[10, 10]} align="middle">
-                            <Col xs={24} sm={10} md={8}>
-                              <Input
-                                placeholder="Search title or paid by..."
-                                prefix={<SearchOutlined style={{ color: '#94a3b8' }} />}
-                                value={expenseSearchQuery}
-                                onChange={(e) => setExpenseSearchQuery(e.target.value)}
-                                allowClear
-                                size="small"
-                              />
-                            </Col>
 
-                            <Col xs={12} sm={7} md={6}>
-                              <Select
-                                value={expensePaymentMode}
-                                onChange={(val) => setExpensePaymentMode(val)}
-                                size="small"
-                                style={{ width: '100%' }}
-                                options={[
-                                  { label: 'All Modes', value: 'all' },
-                                  { label: 'UPI / Online', value: 'upi' },
-                                  { label: 'Cash', value: 'cash' },
-                                ]}
-                              />
-                            </Col>
+                              <div style={{ textAlign: 'right' }}>
+                                <Text strong style={{ fontSize: 15, color: '#16a34a', display: 'block' }}>
+                                  ₹{set.amount.toFixed(2)}
+                                </Text>
+                                <Tag
+                                  color={set.status === 'completed' ? 'green' : set.status === 'rejected' ? 'red' : 'orange'}
+                                  style={{ fontSize: 10, margin: 0 }}
+                                >
+                                  {set.status?.toUpperCase() || 'COMPLETED'}
+                                </Tag>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div style={{ padding: '40px 0', textAlign: 'center' }}>
+                            <Text type="secondary">No settlement records found.</Text>
+                          </div>
+                        )}
+                      </Flex>
 
-                            <Col xs={12} sm={7} md={6}>
-                              <Select
-                                value={expenseSortBy}
-                                onChange={(val) => setExpenseSortBy(val)}
-                                size="small"
-                                style={{ width: '100%' }}
-                                options={[
-                                  { label: 'Sort: Newest', value: 'newest' },
-                                  { label: 'Sort: Oldest', value: 'oldest' },
-                                  { label: 'Sort: Highest Amount', value: 'amount-high' },
-                                  { label: 'Sort: Lowest Amount', value: 'amount-low' },
-                                ]}
-                              />
-                            </Col>
-
-                            <Col xs={24} md={4} style={{ textAlign: 'right' }}>
-                              <Button size="small" icon={<ClearOutlined />} onClick={clearAllGroupFilters}>
-                                Reset Filters
-                              </Button>
-                            </Col>
-                          </Row>
-                        </Card>
-
-                        {/* Paginated Expense Table */}
-                        <Card style={{ borderRadius: 12 }} styles={{ body: { padding: 0 } }}>
-                          <Table
-                            dataSource={filteredExpenses}
-                            rowKey={(record, idx) => record._id || String(idx)}
-                            pagination={{ pageSize: 10 }}
-                            scroll={{ x: true }}
-                            columns={[
-                              {
-                                title: 'Expense Title',
-                                dataIndex: 'title',
-                                key: 'title',
-                                render: (text, record) => (
-                                  <div>
-                                    <Text strong style={{ fontSize: 13 }}>{text}</Text>
-                                    <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
-                                      {formatDate(record.date || record.createdAt)}
-                                    </Text>
-                                  </div>
-                                ),
-                              },
-                              {
-                                title: 'Paid By',
-                                dataIndex: 'paidBy',
-                                key: 'paidBy',
-                                render: (paidBy) => (
-                                  <Text style={{ fontSize: 12 }}>
-                                    <UserOutlined /> {paidBy?.fullName || 'N/A'}
-                                  </Text>
-                                ),
-                              },
-                              {
-                                title: 'Mode',
-                                dataIndex: 'paymentMode',
-                                key: 'paymentMode',
-                                render: (mode) => (
-                                  <Tag color={mode?.toLowerCase() === 'upi' ? 'blue' : 'green'} style={{ margin: 0 }}>
-                                    {mode?.toUpperCase() || 'CASH'}
-                                  </Tag>
-                                ),
-                              },
-                              {
-                                title: 'Amount',
-                                dataIndex: 'amount',
-                                key: 'amount',
-                                render: (amt) => (
-                                  <Text strong style={{ color: '#2563eb', fontSize: 14 }}>
-                                    ₹{amt?.toFixed(2)}
-                                  </Text>
-                                ),
-                              },
-                            ]}
+                      {processedSettlements.length > pageSize && (
+                        <div style={{ padding: 12, display: 'flex', justifyContent: 'center', borderTop: '1px solid #f1f5f9' }}>
+                          <Pagination
+                            current={settlementPage}
+                            pageSize={pageSize}
+                            total={processedSettlements.length}
+                            onChange={(p) => setSettlementPage(p)}
+                            size="small"
                           />
-                        </Card>
-                      </div>
-                    ),
-                  },
-                  {
-                    key: 'settlements',
-                    label: (
-                      <Space size={6}>
-                        <HistoryOutlined />
-                        <span>Settlement History ({filteredSettlements.length})</span>
-                      </Space>
-                    ),
-                    children: (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 6 }}>
-                        {/* Settlement Filter Bar */}
-                        <Card style={{ borderRadius: 12, background: '#f8fafc', border: '1px solid #e2e8f0' }} styles={{ body: { padding: 10 } }}>
-                          <Row gutter={[10, 10]} align="middle">
-                            <Col xs={24} sm={12} md={10}>
-                              <Input
-                                placeholder="Search payer or receiver..."
-                                prefix={<SearchOutlined style={{ color: '#94a3b8' }} />}
-                                value={settlementSearchQuery}
-                                onChange={(e) => setSettlementSearchQuery(e.target.value)}
-                                allowClear
-                                size="small"
-                              />
-                            </Col>
-
-                            <Col xs={24} sm={12} md={10}>
-                              <Select
-                                value={settlementStatusFilter}
-                                onChange={(val) => setSettlementStatusFilter(val)}
-                                size="small"
-                                style={{ width: '100%' }}
-                                options={[
-                                  { label: 'All Statuses', value: 'all' },
-                                  { label: 'Completed', value: 'completed' },
-                                  { label: 'Pending', value: 'pending' },
-                                  { label: 'Rejected', value: 'rejected' },
-                                ]}
-                              />
-                            </Col>
-
-                            <Col xs={24} md={4} style={{ textAlign: 'right' }}>
-                              <Button size="small" icon={<ClearOutlined />} onClick={clearAllGroupFilters}>
-                                Reset Filters
-                              </Button>
-                            </Col>
-                          </Row>
-                        </Card>
-
-                        {/* Paginated Settlement Table */}
-                        <Card style={{ borderRadius: 12 }} styles={{ body: { padding: 0 } }}>
-                          <Table
-                            dataSource={filteredSettlements}
-                            rowKey={(record, idx) => record._id || String(idx)}
-                            pagination={{ pageSize: 10 }}
-                            scroll={{ x: true }}
-                            columns={[
-                              {
-                                title: 'Transfer Details',
-                                key: 'transfer',
-                                render: (_, record) => (
-                                  <div>
-                                    <Text strong style={{ fontSize: 13 }}>
-                                      {record.payer?.fullName} ➔ {record.receiver?.fullName}
-                                    </Text>
-                                    <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
-                                      Method: {record.paymentMethod?.toUpperCase() || 'UPI'} · Date: {formatDate(record.createdAt)}
-                                    </Text>
-                                  </div>
-                                ),
-                              },
-                              {
-                                title: 'Amount',
-                                dataIndex: 'amount',
-                                key: 'amount',
-                                render: (amt) => (
-                                  <Text strong style={{ color: '#16a34a', fontSize: 14 }}>
-                                    ₹{amt?.toFixed(2)}
-                                  </Text>
-                                ),
-                              },
-                              {
-                                title: 'Status',
-                                dataIndex: 'status',
-                                key: 'status',
-                                render: (status) => (
-                                  <Tag
-                                    color={status === 'completed' ? 'green' : status === 'rejected' ? 'red' : 'orange'}
-                                    style={{ margin: 0 }}
-                                  >
-                                    {status?.toUpperCase() || 'COMPLETED'}
-                                  </Tag>
-                                ),
-                              },
-                            ]}
-                          />
-                        </Card>
-                      </div>
-                    ),
-                  },
-                ]}
-              />
-            </div>
+                        </div>
+                      )}
+                    </Card>
+                  ),
+                },
+              ]}
+            />
           ) : null}
         </div>
       )}

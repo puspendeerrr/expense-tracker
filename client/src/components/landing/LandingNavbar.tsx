@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, ArrowRight, Plus } from 'lucide-react';
+import { Menu, X, ArrowRight, Wallet, UserCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export const LandingNavbar: React.FC = () => {
@@ -10,169 +10,137 @@ export const LandingNavbar: React.FC = () => {
   const navigate = useNavigate();
 
   const navLinks = [
-    { name: 'How It Works', href: '#how-it-works' },
-    { name: 'Who It\'s For', href: '#who-its-for' },
-    { name: 'Settlement Engine', href: '#settlement-demo' },
     { name: 'Features', href: '#features' },
+    { name: 'How It Works', href: '#how-it-works' },
     { name: 'AI Assistant', href: '#ai-assistant' },
     { name: 'FAQ', href: '#faq' },
   ];
 
   return (
-    <>
-      {/* Top Banner for Logged-In Users */}
-      {user && (
-        <div className="bg-slate-900 text-white py-2 px-4 text-xs text-center font-medium flex items-center justify-center gap-2 border-b border-slate-800 relative z-50">
-          <span>Logged in as <strong className="underline font-semibold text-emerald-400">{user.fullName || user.email}</strong></span>
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="inline-flex items-center gap-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-2.5 py-0.5 rounded-md text-[11px] font-bold transition-all shadow-sm"
-          >
-            Go to Dashboard <ArrowRight className="w-3 h-3" />
-          </button>
+    <header className="fixed top-4 left-0 right-0 z-50 w-full px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto pointer-events-none">
+      <div className="pointer-events-auto relative h-14 w-full px-5 rounded-full bg-slate-950/80 backdrop-blur-xl border border-slate-800/80 shadow-xl shadow-blue-500/5 flex items-center justify-between transition-all">
+        {/* Minimal Brand Logo */}
+        <Link to="/" className="flex items-center gap-2.5 group focus:outline-none rounded-full">
+          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/25 group-hover:scale-105 transition-transform">
+            <Wallet className="w-4 h-4 stroke-[2.2]" />
+          </div>
+          <span className="font-sans font-bold text-base text-white tracking-tight">
+            SplitWise
+          </span>
+        </Link>
+
+        {/* Minimal Desktop Nav Links */}
+        <nav className="hidden md:flex items-center gap-7">
+          {navLinks.map((link) => (
+            <a
+              key={link.name}
+              href={link.href}
+              className="text-xs font-medium text-slate-400 hover:text-white transition-colors focus:outline-none"
+            >
+              {link.name}
+            </a>
+          ))}
+        </nav>
+
+        {/* Minimal Right Action */}
+        <div className="hidden sm:flex items-center gap-3">
+          {user ? (
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="h-9 px-4 text-xs font-medium rounded-full bg-blue-600 hover:bg-blue-500 text-white transition-all shadow-md shadow-blue-500/20 flex items-center gap-1.5 hover:-translate-y-0.5 active:scale-95 focus:outline-none"
+            >
+              <span>Open Dashboard</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          ) : (
+            <>
+              <Link
+                to="/login"
+                className="text-xs font-medium text-slate-400 hover:text-white transition-colors px-3 py-1.5 focus:outline-none"
+              >
+                Sign In
+              </Link>
+
+              <Link
+                to="/signup"
+                className="h-9 px-4 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs transition-all shadow-md shadow-blue-500/20 flex items-center justify-center gap-1 hover:-translate-y-0.5 active:scale-95 focus:outline-none"
+              >
+                <span>Get Started</span>
+              </Link>
+            </>
+          )}
         </div>
-      )}
 
-      {/* Permanently Fixed Ultra-Glassy Floating Pill Navbar */}
-      <header className="fixed top-3.5 left-0 right-0 z-50 w-full px-3 sm:px-6 lg:px-8 max-w-7xl mx-auto pointer-events-none">
-        <div className="pointer-events-auto relative overflow-hidden h-[72px] sm:h-[76px] w-full px-4 sm:px-6 rounded-full bg-white/50 backdrop-blur-2xl backdrop-saturate-200 border border-white/70 shadow-[inset_0_1.5px_2px_rgba(255,255,255,0.9),0_12px_36px_-8px_rgba(15,23,42,0.12)] flex items-center justify-between transition-all">
-          {/* Glass Specular Gloss Sheen Overlay */}
-          <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/60 to-transparent pointer-events-none rounded-t-full" />
+        {/* Mobile Hamburger Button */}
+        <button
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          className="md:hidden p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-slate-900 transition-colors focus:outline-none"
+        >
+          {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        </button>
+      </div>
 
-          {/* Brand Logo & Title (Using favicon.svg) */}
-          <Link to="/" className="flex items-center gap-3 group focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded-full p-1 relative z-10">
-            <img
-              src="/favicon.svg"
-              alt="Splitwise Logo"
-              className="w-10 h-10 rounded-xl shadow-md group-hover:scale-105 transition-transform"
-            />
-            <div>
-              <div className="font-sans font-extrabold text-xl text-slate-900 tracking-tight flex items-center gap-1.5 leading-none">
-                Splitwise
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100/80 text-emerald-800 font-mono font-bold uppercase tracking-wider border border-emerald-300/80 shadow-xs">
-                  INDIA
-                </span>
+      {/* Mobile Navigation Drawer */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -8, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.96 }}
+            transition={{ duration: 0.15 }}
+            className="pointer-events-auto mt-2 rounded-2xl bg-slate-950/95 border border-slate-800/90 p-4 shadow-2xl backdrop-blur-2xl md:hidden flex flex-col gap-2.5"
+          >
+            {user && (
+              <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-slate-300 flex items-center gap-2">
+                <UserCheck className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+                <span>Logged in as <strong className="text-white font-medium">{user.fullName || user.email}</strong></span>
               </div>
-              <div className="text-[11px] text-slate-600 font-medium mt-0.5">
-                A product by <span className="text-slate-900 font-semibold">Algorithyum</span>
-              </div>
-            </div>
-          </Link>
+            )}
 
-          {/* Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center gap-7 relative z-10">
             {navLinks.map((link) => (
               <a
                 key={link.name}
                 href={link.href}
-                className="relative py-1 text-xs font-bold text-slate-700 hover:text-slate-950 transition-colors group/link focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded-md"
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-2 text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-900 rounded-lg transition-colors"
               >
                 {link.name}
-                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-500 rounded-full scale-x-0 group-hover/link:scale-x-100 transition-transform duration-200" />
               </a>
             ))}
-          </nav>
 
-          {/* Desktop Right Actions */}
-          <div className="hidden sm:flex items-center gap-3 relative z-10">
-            {user ? (
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="h-[44px] px-5 text-xs font-semibold rounded-full bg-slate-900 hover:bg-slate-800 text-white transition-all shadow-md flex items-center gap-2 hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
-              >
-                Open Dashboard <ArrowRight className="w-4 h-4 text-emerald-400" />
-              </button>
-            ) : (
-              <>
-                <Link
-                  to="/login"
-                  className="text-xs font-bold text-slate-700 hover:text-slate-950 transition-colors px-3 py-2 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+            <div className="pt-2 border-t border-slate-800/80 flex flex-col gap-2">
+              {user ? (
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    navigate('/dashboard');
+                  }}
+                  className="w-full h-10 rounded-xl bg-blue-600 text-white font-medium text-xs flex items-center justify-center gap-1.5"
                 >
-                  Sign In
-                </Link>
-
-                {/* Primary Create Group CTA Button */}
-                <Link
-                  to="/signup"
-                  className="h-[44px] px-5 rounded-full bg-slate-900 hover:bg-slate-800 text-white font-semibold text-[15px] transition-all shadow-md shadow-slate-900/10 flex items-center justify-center gap-1.5 hover:-translate-y-0.5 hover:shadow-lg active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
-                >
-                  <Plus className="w-4 h-4 text-emerald-400 stroke-[2.5]" />
-                  <span>Create Group</span>
-                  <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-                </Link>
-              </>
-            )}
-          </div>
-
-          {/* Mobile Hamburger Button */}
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="lg:hidden p-2.5 rounded-full bg-white/70 border border-white/80 text-slate-800 backdrop-blur-md hover:bg-white/90 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 relative z-10"
-            aria-label="Toggle navigation menu"
-          >
-            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
-        </div>
-
-        {/* Mobile Navigation Drawer */}
-        <AnimatePresence>
-          {mobileMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
-              className="pointer-events-auto lg:hidden mt-2 bg-white/80 backdrop-blur-2xl backdrop-saturate-200 border border-white/80 rounded-3xl p-5 space-y-4 shadow-[0_20px_50px_rgba(0,0,0,0.15)]"
-            >
-              <div className="flex flex-col space-y-2">
-                {navLinks.map((link) => (
-                  <a
-                    key={link.name}
-                    href={link.href}
+                  Open Dashboard <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              ) : (
+                <>
+                  <Link
+                    to="/login"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="px-3.5 py-2.5 text-sm font-bold text-slate-800 hover:text-emerald-700 hover:bg-white/60 rounded-2xl transition-colors"
+                    className="w-full h-9 rounded-xl bg-slate-900 text-slate-300 text-xs font-medium flex items-center justify-center"
                   >
-                    {link.name}
-                  </a>
-                ))}
-              </div>
-
-              <div className="pt-3 border-t border-slate-200/60 flex flex-col gap-3">
-                {user ? (
-                  <button
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      navigate('/dashboard');
-                    }}
-                    className="w-full h-[46px] text-center text-sm font-semibold rounded-full bg-slate-900 text-white shadow-md flex items-center justify-center gap-2"
+                    Sign In
+                  </Link>
+                  <Link
+                    to="/signup"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="w-full h-10 rounded-xl bg-blue-600 text-white text-xs font-medium flex items-center justify-center"
                   >
-                    Open Dashboard <ArrowRight className="w-4 h-4 text-emerald-400" />
-                  </button>
-                ) : (
-                  <>
-                    <Link
-                      to="/signup"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="w-full h-[46px] text-center text-sm font-semibold rounded-full bg-slate-900 text-white shadow-md flex items-center justify-center gap-2"
-                    >
-                      <Plus className="w-4 h-4 text-emerald-400 stroke-[2.5]" />
-                      <span>Create Group</span>
-                      <ArrowRight className="w-4 h-4 text-slate-400" />
-                    </Link>
-                    <Link
-                      to="/login"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="w-full h-11 text-center text-sm font-semibold rounded-full border border-slate-300/80 bg-white/60 text-slate-800 hover:bg-white/90 flex items-center justify-center"
-                    >
-                      Sign In
-                    </Link>
-                  </>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </header>
-    </>
+                    Get Started
+                  </Link>
+                </>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </header>
   );
 };

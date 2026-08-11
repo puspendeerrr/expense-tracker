@@ -23,7 +23,7 @@ export const ButtonWithMovingBorder: React.FC<{
       {...props}
     >
       <motion.div
-        className="absolute inset-0 bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-500 rounded-xl"
+        className="absolute inset-0 bg-gradient-to-r from-blue-600 via-sky-400 to-indigo-500 rounded-xl"
         animate={{
           rotate: [0, 360],
         }}

@@ -218,7 +218,7 @@ app.get(['/api/app/update-manifest', '/app/update-manifest'], async (req, res) =
   }
 
   return res.status(200).json({
-    version: process.env.LIVE_UPDATE_VERSION || '1.0.0',
+    version: process.env.LIVE_UPDATE_VERSION || '2.0.0',
     minNativeVersion: process.env.LIVE_UPDATE_MIN_NATIVE_VERSION || '1.0.0',
     url: process.env.LIVE_UPDATE_BUNDLE_URL || 'https://github.com/puspendeerrr/expense-tracker/releases/latest/download/web-bundle.zip',
     downloadUrl: process.env.ANDROID_DOWNLOAD_URL || 'https://github.com/puspendeerrr/expense-tracker/releases/latest/download/SplitWise.apk',
