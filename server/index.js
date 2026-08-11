@@ -130,14 +130,40 @@ const corsOptions = {
     'X-Requested-With',
     'Accept',
     'Origin',
+    'Cache-Control',
+    'cache-control',
+    'Pragma',
+    'Expires',
     'Access-Control-Allow-Origin',
-  credentials: true,
-  optionsSuccessStatus: 200
+    'Access-Control-Allow-Headers',
+    'Access-Control-Request-Method',
+    'Access-Control-Request-Headers',
+  ],
+  exposedHeaders: ['*'],
+  optionsSuccessStatus: 200,
 };
 
 // 3. Register CORS middleware at the absolute top of the middleware stack
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
+
+// Explicit fallback CORS header middleware for reverse proxies & preflights
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, cache-control, Pragma, Expires');
+  
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
+});
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
