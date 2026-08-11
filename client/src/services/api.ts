@@ -3,8 +3,14 @@ import axios from 'axios';
 // Ensure base URL dynamically reads import.meta.env.VITE_API_URL and formats /api path cleanly
 const getBaseUrl = (): string => {
   const envUrl = (import.meta.env.VITE_API_URL || '').trim().replace(/\/+$/, '');
-  if (!envUrl) return '/api';
-  return envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`;
+  if (envUrl) {
+    return envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`;
+  }
+  // Hardcoded production URL for custom domains (e.g. splitwise.puspender.in) and mobile app
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    return 'https://expense-tracker-25ic.onrender.com/api';
+  }
+  return '/api';
 };
 
 const API_BASE_URL = getBaseUrl();

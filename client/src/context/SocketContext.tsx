@@ -29,8 +29,12 @@ const getSocketUrl = (): string => {
   if (customSocketUrl) return customSocketUrl;
 
   const envUrl = (import.meta.env.VITE_API_URL || '').trim().replace(/\/+$/, '').replace(/\/api$/, '');
-  if (!envUrl) return window.location.origin;
-  return envUrl;
+  if (envUrl) return envUrl;
+
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    return 'https://expense-tracker-25ic.onrender.com';
+  }
+  return window.location.origin;
 };
 
 const MAX_NOTIFICATIONS = 30;

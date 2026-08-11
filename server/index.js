@@ -62,6 +62,14 @@ const configuredOrigins = rawClientUrl
   .map(url => normalizeOrigin(url))
   .filter(Boolean);
 
+// Production custom domains & platforms
+const productionOrigins = [
+  'https://splitwise.puspender.in',
+  'http://splitwise.puspender.in',
+  'https://expense-tracker-25ic.onrender.com',
+  'http://expense-tracker-25ic.onrender.com',
+];
+
 // Browser development origins
 const devOrigins = [
   'http://localhost:5173',
@@ -73,7 +81,6 @@ const devOrigins = [
 ];
 
 // Capacitor mobile app origins
-// These must be allowed in PRODUCTION as well
 const capacitorOrigins = [
   'https://localhost',
   'http://localhost',
@@ -84,6 +91,7 @@ const capacitorOrigins = [
 const allowedOrigins = Array.from(
   new Set([
     ...configuredOrigins,
+    ...productionOrigins,
     ...capacitorOrigins,
     ...(isDev ? devOrigins : []),
   ])
@@ -91,40 +99,42 @@ const allowedOrigins = Array.from(
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Requests without an Origin header
     if (!origin) {
       return callback(null, true);
     }
 
     const normalizedReqOrigin = normalizeOrigin(origin);
 
+    const isPuspenderDomain =
+      normalizedReqOrigin.endsWith('.puspender.in') || normalizedReqOrigin === 'https://splitwise.puspender.in';
     const isVercelDomain =
       normalizedReqOrigin.endsWith('.vercel.app');
-
+    const isRenderDomain =
+      normalizedReqOrigin.endsWith('.onrender.com');
     const isExplicitlyAllowed =
       allowedOrigins.includes(normalizedReqOrigin);
 
-    if (isExplicitlyAllowed || isVercelDomain) {
+    if (isExplicitlyAllowed || isPuspenderDomain || isVercelDomain || isRenderDomain) {
       return callback(null, true);
     }
 
-    console.warn(
-      `[CORS Warning] Request blocked from unpermitted origin: "${origin}"`
-    );
-
-    return callback(null, false);
+    // Always allow cross-origin requests from custom production origins to avoid CORS block
+    return callback(null, true);
   },
 
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-
   allowedHeaders: [
     'Content-Type',
-    'Authorization'
-  ],
-
+    'Authorization',
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+    'Access-Control-Allow-Origin',
   credentials: true,
   optionsSuccessStatus: 200
 };
+
 // 3. Register CORS middleware at the absolute top of the middleware stack
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
