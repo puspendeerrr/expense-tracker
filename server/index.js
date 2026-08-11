@@ -47,6 +47,8 @@ app.set('trust proxy', 1);
 // Disable x-powered-by header for security
 app.disable('x-powered-by');
 
+const corsOptions = { origin: true, credentials: true };
+
 // Universal Wildcard CORS Middleware (Allows requests from ANY origin & header without restriction)
 app.use((req, res, next) => {
   const reqOrigin = req.headers.origin;
@@ -62,8 +64,8 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(cors({ origin: true, credentials: true }));
-app.options('*', cors({ origin: true, credentials: true }));
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -180,7 +182,7 @@ const startServer = async () => {
 
   httpServer.listen(PORT, () => {
     console.log(`🚀 [Express] Server running on port ${PORT} [Mode: ${process.env.NODE_ENV || 'development'}]`);
-    console.log(`🌐 [CORS] Allowed Origins: ${isDev ? 'Development' : allowedOrigins.join(', ')}`);
+    console.log(`🌐 [CORS] Universal Wildcard CORS enabled for all origins`);
     console.log(`🔌 [Socket.IO] WebSocket server ready on port ${PORT}`);
     startKeepAlive();
   });
