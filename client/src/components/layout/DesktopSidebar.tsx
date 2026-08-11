@@ -101,23 +101,19 @@ export const DesktopSidebar: React.FC = () => {
           }}
           onClick={() => navigate(isSuperAdmin ? '/admin' : '/dashboard')}
         >
-          <div
+          <img
+            src="/favicon.svg"
+            alt="Splitwise Logo"
             style={{
               width: 36,
               height: 36,
               borderRadius: 10,
-              backgroundColor: '#2563eb',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
               boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
             }}
-          >
-            <WalletOutlined style={{ color: '#ffffff', fontSize: 18 }} />
-          </div>
+          />
           <div>
             <Title level={5} style={{ margin: 0, fontSize: 15, lineHeight: 1.2, fontWeight: 700 }}>
-              SplitWise Pro
+              Splitwise Pro
             </Title>
             <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
               {isSuperAdmin ? 'Platform Super Admin' : 'Expense & Settlement'}

@@ -10,7 +10,7 @@
   "dependencies": {
     "@google/genai": "^2.16.0",
     "@pinecone-database/pinecone": "^8.2.0",
-    "axios": "^1.7.9",
+    "axios": "^1.19.0",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.0.1",
     "cors": "^2.8.5",

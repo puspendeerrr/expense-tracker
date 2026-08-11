@@ -183,7 +183,142 @@ const getGroupDetailsForInspector = async (req, res) => {
   }
 };
 
+/**
+ * @desc Get global platform metrics and aggregation analytics for Inspector audit
+ * @route GET /api/inspector/analytics
+ */
+const getGlobalAnalyticsForInspector = async (req, res) => {
+  try {
+    // 1. Expense stats and payment mode breakdown pipeline
+    const expenseAnalyticsPipeline = [
+      {
+        $group: {
+          _id: null,
+          totalExpenseVolume: { $sum: '$amount' },
+          totalExpenseCount: { $sum: 1 },
+          avgExpenseAmount: { $avg: '$amount' },
+          cashVolume: {
+            $sum: { $cond: [{ $eq: ['$paymentMode', 'cash'] }, '$amount', 0] },
+          },
+          cashCount: {
+            $sum: { $cond: [{ $eq: ['$paymentMode', 'cash'] }, 1, 0] },
+          },
+          upiVolume: {
+            $sum: { $cond: [{ $eq: ['$paymentMode', 'upi'] }, '$amount', 0] },
+          },
+          upiCount: {
+            $sum: { $cond: [{ $eq: ['$paymentMode', 'upi'] }, 1, 0] },
+          },
+        },
+      },
+    ];
+
+    // 2. Top Spenders Leaderboard pipeline
+    const topSpendersPipeline = [
+      {
+        $group: {
+          _id: '$paidBy',
+          totalPaid: { $sum: '$amount' },
+          expenseCount: { $sum: 1 },
+        },
+      },
+      { $sort: { totalPaid: -1 } },
+      { $limit: 5 },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'userInfo',
+        },
+      },
+      { $unwind: '$userInfo' },
+      {
+        $project: {
+          _id: 1,
+          totalPaid: 1,
+          expenseCount: 1,
+          fullName: '$userInfo.fullName',
+          email: '$userInfo.email',
+          phone: '$userInfo.phone',
+        },
+      },
+    ];
+
+    // 3. Settlement status breakdown pipeline
+    const settlementAnalyticsPipeline = [
+      {
+        $group: {
+          _id: '$status',
+          totalAmount: { $sum: '$amount' },
+          count: { $sum: 1 },
+        },
+      },
+    ];
+
+    const [expenseStatsRes, topSpenders, settlementStatsRes, totalGroups, totalUsers] = await Promise.all([
+      Expense.aggregate(expenseAnalyticsPipeline),
+      Expense.aggregate(topSpendersPipeline),
+      Settlement.aggregate(settlementAnalyticsPipeline),
+      Group.countDocuments(),
+      User.countDocuments(),
+    ]);
+
+    const expenseStats = expenseStatsRes[0] || {
+      totalExpenseVolume: 0,
+      totalExpenseCount: 0,
+      avgExpenseAmount: 0,
+      cashVolume: 0,
+      cashCount: 0,
+      upiVolume: 0,
+      upiCount: 0,
+    };
+
+    const settlementStats = {
+      completedVolume: 0,
+      completedCount: 0,
+      pendingVolume: 0,
+      pendingCount: 0,
+      rejectedVolume: 0,
+      rejectedCount: 0,
+    };
+
+    settlementStatsRes.forEach((item) => {
+      if (item._id === 'completed') {
+        settlementStats.completedVolume = item.totalAmount;
+        settlementStats.completedCount = item.count;
+      } else if (item._id === 'pending') {
+        settlementStats.pendingVolume = item.totalAmount;
+        settlementStats.pendingCount = item.count;
+      } else if (item._id === 'rejected') {
+        settlementStats.rejectedVolume = item.totalAmount;
+        settlementStats.rejectedCount = item.count;
+      }
+    });
+
+    return res.json({
+      summary: {
+        totalGroups,
+        totalUsers,
+        totalExpenseVolume: Math.round(expenseStats.totalExpenseVolume * 100) / 100,
+        totalExpenseCount: expenseStats.totalExpenseCount,
+        avgExpenseAmount: Math.round(expenseStats.avgExpenseAmount * 100) / 100,
+        cashVolume: Math.round(expenseStats.cashVolume * 100) / 100,
+        cashCount: expenseStats.cashCount,
+        upiVolume: Math.round(expenseStats.upiVolume * 100) / 100,
+        upiCount: expenseStats.upiCount,
+      },
+      settlementStats,
+      topSpenders,
+    });
+  } catch (err) {
+    console.error('[Inspector getGlobalAnalytics Error]:', err);
+    return res.status(500).json({ message: 'Failed to compute platform analytics' });
+  }
+};
+
 module.exports = {
   getAllGroupsForInspector,
   getGroupDetailsForInspector,
+  getGlobalAnalyticsForInspector,
 };

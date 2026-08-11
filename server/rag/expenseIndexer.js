@@ -164,6 +164,5 @@ const reindexAllExpenses = async () => {
 module.exports = {
   indexExpenseAsync,
   deleteExpenseIndexAsync,
-  reindexGroupExpenses,
   reindexAllExpenses,
 };

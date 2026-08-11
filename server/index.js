@@ -47,23 +47,97 @@ app.set('trust proxy', 1);
 // Disable x-powered-by header for security
 app.disable('x-powered-by');
 
-const corsOptions = { origin: true, credentials: true };
+// Helper to normalize origin URLs (trim whitespace & remove trailing slashes)
+const normalizeOrigin = (url) => {
+  if (!url) return '';
+  return url.trim().replace(/\/+$/, '').toLowerCase();
+};
 
-// Universal Wildcard CORS Middleware (Allows requests from ANY origin & header without restriction)
-app.use((req, res, next) => {
-  const reqOrigin = req.headers.origin;
-  res.setHeader('Access-Control-Allow-Origin', reqOrigin || '*');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', '*');
-  res.setHeader('Access-Control-Expose-Headers', '*');
+// Predefined origins structured by environment/platform
+const PREDEFINED_ORIGINS = {
+  production: [
+    'https://splitwise.puspender.in',
+  ],
+  development: [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:3002',
+    'http://localhost:4173',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:3000',
+  ],
+  capacitor: [
+    'https://localhost',
+    'http://localhost',
+    'capacitor://localhost',
+  ],
+};
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  next();
-});
+// Parse environment configured CLIENT_URL (supports comma-separated list of origins)
+const rawClientUrl = process.env.CLIENT_URL || '';
 
+const configuredOrigins = rawClientUrl
+  .split(',')
+  .map(url => normalizeOrigin(url))
+  .filter(Boolean);
+
+// Combine predefined origins across all environments and configured CLIENT_URL
+const predefinedList = Object.values(PREDEFINED_ORIGINS).flat();
+
+const allowedOrigins = Array.from(
+  new Set([
+    ...configuredOrigins,
+    ...predefinedList.map(url => normalizeOrigin(url)),
+  ])
+);
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Requests without an Origin header (mobile apps, curl, server-to-server)
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    const normalizedReqOrigin = normalizeOrigin(origin);
+
+    const isVercelDomain =
+      normalizedReqOrigin.endsWith('.vercel.app');
+
+    const isExplicitlyAllowed =
+      allowedOrigins.includes(normalizedReqOrigin);
+
+    if (isExplicitlyAllowed || isVercelDomain) {
+      return callback(null, true);
+    }
+
+    console.warn(
+      `[CORS Warning] Request blocked from unpermitted origin: "${origin}"`
+    );
+
+    return callback(null, false);
+  },
+
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'Cache-Control',
+    'Pragma',
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+    'Access-Control-Request-Method',
+    'Access-Control-Request-Headers',
+  ],
+
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+// 3. Register CORS middleware at the absolute top of the middleware stack
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
@@ -182,7 +256,7 @@ const startServer = async () => {
 
   httpServer.listen(PORT, () => {
     console.log(`🚀 [Express] Server running on port ${PORT} [Mode: ${process.env.NODE_ENV || 'development'}]`);
-    console.log(`🌐 [CORS] Universal Wildcard CORS enabled for all origins`);
+    console.log(`🌐 [CORS] Allowed Origins: ${allowedOrigins.join(', ')}`);
     console.log(`🔌 [Socket.IO] WebSocket server ready on port ${PORT}`);
     startKeepAlive();
   });

@@ -11,6 +11,7 @@ import { Navbar } from './components/layout/Navbar';
 
 const Login = lazy(() => import('./pages/Login').then(m => ({ default: m.Login })));
 const Signup = lazy(() => import('./pages/Signup').then(m => ({ default: m.Signup })));
+const LandingPage = lazy(() => import('./pages/LandingPage').then(m => ({ default: m.LandingPage })));
 const NoGroup = lazy(() => import('./pages/NoGroup').then(m => ({ default: m.NoGroup })));
 const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
 const Expenses = lazy(() => import('./pages/Expenses').then(m => ({ default: m.Expenses })));
@@ -216,7 +217,8 @@ export const App: React.FC = () => {
                   >
                 <Suspense fallback={<PageLoader />}>
                   <Routes>
-                    {/* Public Auth Routes & Deep Links */}
+                    {/* Public Landing Page & Auth Routes */}
+                    <Route path="/" element={<LandingPage />} />
                     <Route path="/login" element={<Login />} />
                     <Route path="/signup" element={<Signup />} />
                     <Route path="/join/:token" element={<JoinGroupPage />} />

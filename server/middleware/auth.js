@@ -34,11 +34,24 @@ const superAdminOnly = (req, res, next) => {
   return res.status(403).json({ message: 'Access denied: Super Admin privilege required.' });
 };
 
-const readOnlyInspectorCheck = (req, res, next) => {
-  if (req.user && (req.user.isInspector || req.user.email === 'inspect@gmail.com')) {
-    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
-      return res.status(403).json({ message: 'Inspector account is in read-only mode. Modifying operations are not permitted.' });
+const readOnlyInspectorCheck = async (req, res, next) => {
+  try {
+    let user = req.user;
+    if (!user && req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      const token = req.headers.authorization.split(' ')[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+      user = await User.findById(decoded.id).select('-password');
     }
+
+    if (user && (user.isInspector || user.email === 'inspect@gmail.com')) {
+      if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+        return res.status(403).json({
+          message: 'Inspector account is in read-only mode. Modifying operations are not permitted.',
+        });
+      }
+    }
+  } catch (err) {
+    // Ignore token errors here, let protect middleware handle 401s
   }
   return next();
 };
