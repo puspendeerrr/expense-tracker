@@ -1,33 +1,23 @@
 import React from 'react';
 import { LandingNavbar } from '../components/landing/LandingNavbar';
 import { HeroSection } from '../components/landing/HeroSection';
-import { ProblemSection } from '../components/landing/ProblemSection';
-import { SolutionTimeline } from '../components/landing/SolutionTimeline';
-import { AudienceSection } from '../components/landing/AudienceSection';
-import { DebtMinimizationDemo } from '../components/landing/DebtMinimizationDemo';
+import { BuiltAndOwnedSection } from '../components/landing/BuiltAndOwnedSection';
+import { FeatureCardsSection } from '../components/landing/FeatureCardsSection';
 import { AIDemoSection } from '../components/landing/AIDemoSection';
-import { FeatureBentoGrid } from '../components/landing/FeatureBentoGrid';
-import { CalculatorDemo } from '../components/landing/CalculatorDemo';
-import { BeforeAfterSection } from '../components/landing/BeforeAfterSection';
-import { FAQSection } from '../components/landing/FAQSection';
+import { AboutSection } from '../components/landing/AboutSection';
 import { CTASection } from '../components/landing/CTASection';
 import { LandingFooter } from '../components/landing/LandingFooter';
 
 export const LandingPage: React.FC = () => {
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-blue-500 selection:text-white antialiased">
+    <div className="min-h-screen bg-[#FFF8F2] text-[#1E1E1E] font-sans antialiased selection:bg-[#FF6B00] selection:text-white">
       <LandingNavbar />
-      <main>
+      <main className="pt-14 sm:pt-16">
         <HeroSection />
-        <ProblemSection />
-        <SolutionTimeline />
-        <AudienceSection />
-        <DebtMinimizationDemo />
+        <BuiltAndOwnedSection />
+        <FeatureCardsSection />
         <AIDemoSection />
-        <FeatureBentoGrid />
-        <CalculatorDemo />
-        <BeforeAfterSection />
-        <FAQSection />
+        <AboutSection />
         <CTASection />
       </main>
       <LandingFooter />

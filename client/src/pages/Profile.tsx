@@ -41,6 +41,7 @@ import { useToast } from '../components/ui/Toast';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { QRImageEditorModal } from '../components/modals/QRImageEditorModal';
 import { isNativePlatform, APP_VERSION, DOWNLOAD_URL, DownloadAppButton } from '../components/common/DownloadAppModal';
+import { OwnershipCreditsCard } from '../components/common/OwnershipCredits';
 import { checkForLiveUpdate, applyLiveUpdate, getAppVersionInfo } from '../utils/appUpdate';
 import api from '../services/api';
 
@@ -517,6 +518,9 @@ export const Profile: React.FC = () => {
           </div>
         </div>
       </Card>
+
+      {/* Ownership & Credits Card */}
+      <OwnershipCreditsCard />
 
       {/* Edit Profile Modal */}
       <Modal

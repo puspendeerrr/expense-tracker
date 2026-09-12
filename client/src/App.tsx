@@ -21,12 +21,32 @@ const History = lazy(() => import('./pages/History').then(m => ({ default: m.His
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
 const InspectorDashboard = lazy(() => import('./pages/InspectorDashboard').then(m => ({ default: m.InspectorDashboard })));
 const JoinGroupPage = lazy(() => import('./pages/JoinGroupPage').then(m => ({ default: m.JoinGroupPage })));
+const FounderNote = lazy(() => import('./pages/FounderNote').then(m => ({ default: m.FounderNote })));
+const DeveloperJournal = lazy(() => import('./pages/DeveloperJournal').then(m => ({ default: m.DeveloperJournal })));
 
 import { DesktopSidebar } from './components/layout/DesktopSidebar';
 
 import { AIChatButton } from './components/ai/AIChatButton';
 import { AIChatDrawer } from './components/ai/AIChatDrawer';
 import { notifyAppReady, checkForLiveUpdate, applyLiveUpdate } from './utils/appUpdate';
+
+const ScrollToTop: React.FC = () => {
+  const { pathname, hash } = useLocation();
+
+  React.useEffect(() => {
+    if (!hash) {
+      window.scrollTo(0, 0);
+      document.body.scrollTop = 0;
+      document.documentElement.scrollTop = 0;
+      const appContent = document.querySelector('.app-content-container');
+      if (appContent) {
+        appContent.scrollTop = 0;
+      }
+    }
+  }, [pathname, hash]);
+
+  return null;
+};
 
 const PageLoader: React.FC = () => (
   <div
@@ -99,7 +119,7 @@ const ProtectedLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
       {/* Floating AI Assistant (for Normal Group Users) */}
       {!isSuperAdmin && group && (
         <>
-          <AIChatButton onClick={() => setIsAIChatOpen(true)} />
+          <AIChatButton onClick={() => setIsAIChatOpen(true)} isOpen={isAIChatOpen} />
           <AIChatDrawer isOpen={isAIChatOpen} onClose={() => setIsAIChatOpen(false)} />
         </>
       )}
@@ -198,10 +218,13 @@ export const App: React.FC = () => {
                       v7_relativeSplatPath: true,
                     }}
                   >
+                    <ScrollToTop />
                 <Suspense fallback={<PageLoader />}>
                   <Routes>
                     {/* Public Landing Page & Auth Routes */}
                     <Route path="/" element={<LandingPage />} />
+                    <Route path="/founder" element={<FounderNote />} />
+                    <Route path="/developer" element={<DeveloperJournal />} />
                     <Route path="/login" element={<Login />} />
                     <Route path="/signup" element={<Signup />} />
                     <Route path="/join/:token" element={<JoinGroupPage />} />
