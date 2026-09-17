@@ -11,7 +11,6 @@ import { Navbar } from './components/layout/Navbar';
 
 const Login = lazy(() => import('./pages/Login').then(m => ({ default: m.Login })));
 const Signup = lazy(() => import('./pages/Signup').then(m => ({ default: m.Signup })));
-const LandingPage = lazy(() => import('./pages/LandingPage').then(m => ({ default: m.LandingPage })));
 const NoGroup = lazy(() => import('./pages/NoGroup').then(m => ({ default: m.NoGroup })));
 const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
 const Expenses = lazy(() => import('./pages/Expenses').then(m => ({ default: m.Expenses })));
@@ -131,7 +130,6 @@ export const App: React.FC = () => {
   React.useEffect(() => {
     // 1. Confirm bundle boot to CapacitorUpdater (prevents rollback)
     notifyAppReady();
-
     // 2. Automated background live update check & seamless application
     const performBackgroundCheck = async () => {
       try {
@@ -221,15 +219,22 @@ export const App: React.FC = () => {
                     <ScrollToTop />
                 <Suspense fallback={<PageLoader />}>
                   <Routes>
-                    {/* Public Landing Page & Auth Routes */}
-                    <Route path="/" element={<LandingPage />} />
+                    {/* Public Auth & Info Routes */}
                     <Route path="/founder" element={<FounderNote />} />
                     <Route path="/developer" element={<DeveloperJournal />} />
                     <Route path="/login" element={<Login />} />
                     <Route path="/signup" element={<Signup />} />
                     <Route path="/join/:token" element={<JoinGroupPage />} />
 
-                    {/* Protected Routes */}
+                    {/* Protected Routes & Root App Route */}
+                    <Route
+                      path="/"
+                      element={
+                        <ProtectedLayout>
+                          <Dashboard />
+                        </ProtectedLayout>
+                      }
+                    />
                     <Route
                       path="/no-group"
                       element={
