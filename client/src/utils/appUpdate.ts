@@ -1,14 +1,16 @@
+import { App as CapacitorApp } from '@capacitor/app';
 import { CapacitorUpdater } from '@capgo/capacitor-updater';
 import { isNativePlatform, APP_VERSION, DOWNLOAD_URL } from '../components/common/DownloadAppModal';
 
 export interface UpdateManifest {
   version: string;
-  minNativeVersion: string;
-  url: string;
+  minNativeVersion?: string;
+  url?: string;
   downloadUrl?: string;
   releaseNotes?: string;
   channel?: string;
   isMandatory?: boolean;
+  updatedAt?: string;
 }
 
 export interface AppVersionInfo {
@@ -38,12 +40,24 @@ export const notifyAppReady = async (): Promise<void> => {
 };
 
 /**
- * Compare two semver strings (e.g. "1.0.1" vs "1.0.0")
+ * Compare two semver strings cleanly (e.g. "1.0.10" vs "1.0.9").
  * Returns 1 if v1 > v2, -1 if v1 < v2, 0 if equal.
+ * 
+ * Examples:
+ *  compareVersions("1.0.10", "1.0.9") => 1
+ *  compareVersions("1.1.0", "1.0.9")  => 1
+ *  compareVersions("2.0.0", "1.9.9")  => 1
+ *  compareVersions("2.0.1", "2.0.1")  => 0
  */
 export const compareVersions = (v1: string, v2: string): number => {
-  const parts1 = v1.split('.').map(p => parseInt(p, 10) || 0);
-  const parts2 = v2.split('.').map(p => parseInt(p, 10) || 0);
+  if (!v1 || !v2) return 0;
+
+  // Clean version strings (strip 'v' prefix, whitespace, and metadata suffix like '-beta')
+  const clean1 = v1.replace(/^v/i, '').split('-')[0].trim();
+  const clean2 = v2.replace(/^v/i, '').split('-')[0].trim();
+
+  const parts1 = clean1.split('.').map(p => parseInt(p, 10) || 0);
+  const parts2 = clean2.split('.').map(p => parseInt(p, 10) || 0);
   const maxLen = Math.max(parts1.length, parts2.length);
 
   for (let i = 0; i < maxLen; i++) {
@@ -56,30 +70,41 @@ export const compareVersions = (v1: string, v2: string): number => {
 };
 
 /**
- * Get current application version information
+ * Get current application version information.
+ * Uses `@capacitor/app` (`App.getInfo()`) on native Android runtime
+ * to query actual PackageManager version instead of relying on hardcoded strings.
  */
 export const getAppVersionInfo = async (): Promise<AppVersionInfo> => {
   const isNative = isNativePlatform();
-  let nativeVersion = '1.0.0';
+  let nativeVersion = APP_VERSION;
+  let webVersion = APP_VERSION;
 
   if (isNative) {
+    // 1. Get real native package versionName from Android via @capacitor/app
     try {
-      const current = await CapacitorUpdater.current();
-      if (current?.bundle?.version) {
-        return {
-          webVersion: current.bundle.version,
-          nativeVersion: '1.0.0',
-          channel: 'production',
-          isNative: true,
-        };
+      const appInfo = await CapacitorApp.getInfo();
+      if (appInfo && appInfo.version) {
+        nativeVersion = appInfo.version;
+      }
+    } catch (err) {
+      console.warn('[LiveUpdate] CapacitorApp.getInfo() failed, falling back to APP_VERSION:', err);
+    }
+
+    // 2. Get active CapacitorUpdater live web bundle version if set
+    try {
+      const currentBundle = await CapacitorUpdater.current();
+      if (currentBundle?.bundle?.version) {
+        webVersion = currentBundle.bundle.version;
+      } else {
+        webVersion = nativeVersion;
       }
     } catch {
-      // Fallback to APP_VERSION
+      webVersion = nativeVersion;
     }
   }
 
   return {
-    webVersion: APP_VERSION,
+    webVersion,
     nativeVersion,
     channel: 'production',
     isNative,
@@ -90,76 +115,125 @@ export interface UpdateCheckResult {
   hasUpdate: boolean;
   requiresNativeUpdate: boolean;
   manifest?: UpdateManifest;
+  currentVersion?: string;
   error?: string;
 }
 
 /**
- * Check server for available live updates
+ * Check server for available live updates or native APK releases.
  */
 export const checkForLiveUpdate = async (): Promise<UpdateCheckResult> => {
-  if (!isNativePlatform()) {
-    return { hasUpdate: false, requiresNativeUpdate: false };
-  }
+  const currentInfo = await getAppVersionInfo();
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000); // 6s network timeout
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s network timeout
 
     const res = await fetch(MANIFEST_URL, {
       signal: controller.signal,
-      headers: { 'Cache-Control': 'no-cache' },
+      headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' },
     });
     clearTimeout(timeoutId);
 
     if (!res.ok) {
-      return { hasUpdate: false, requiresNativeUpdate: false, error: 'Manifest server unavailable' };
+      return {
+        hasUpdate: false,
+        requiresNativeUpdate: false,
+        currentVersion: currentInfo.nativeVersion,
+        error: `Manifest server returned status ${res.status} (${res.statusText})`,
+      };
     }
 
-    const manifest: UpdateManifest = await res.json();
-    const currentInfo = await getAppVersionInfo();
+    let manifest: UpdateManifest;
+    try {
+      manifest = await res.json();
+    } catch (parseErr) {
+      return {
+        hasUpdate: false,
+        requiresNativeUpdate: false,
+        currentVersion: currentInfo.nativeVersion,
+        error: 'Invalid manifest format received from update server.',
+      };
+    }
 
-    // 1. Check Native Capability Compatibility
-    if (manifest.minNativeVersion && compareVersions(manifest.minNativeVersion, currentInfo.nativeVersion) > 0) {
-      console.warn(`[LiveUpdate] Incompatible: Update requires native v${manifest.minNativeVersion}, but app is v${currentInfo.nativeVersion}`);
+    if (!manifest || !manifest.version) {
+      return {
+        hasUpdate: false,
+        requiresNativeUpdate: false,
+        currentVersion: currentInfo.nativeVersion,
+        error: 'Update manifest missing required version field.',
+      };
+    }
+
+    // Ensure fallback downloadUrl if omitted in manifest
+    if (!manifest.downloadUrl) {
+      manifest.downloadUrl = DOWNLOAD_URL;
+    }
+
+    // 1. Check Native APK Compatibility / Release
+    const isMinNativeNewer = Boolean(
+      manifest.minNativeVersion && compareVersions(manifest.minNativeVersion, currentInfo.nativeVersion) > 0
+    );
+    const isManifestVersionNewer = compareVersions(manifest.version, currentInfo.nativeVersion) > 0;
+
+    if (isMinNativeNewer || (currentInfo.isNative && isManifestVersionNewer && manifest.downloadUrl)) {
+      console.warn(`[LiveUpdate] Native APK update available: server v${manifest.version}, installed v${currentInfo.nativeVersion}`);
       return {
         hasUpdate: false,
         requiresNativeUpdate: true,
         manifest,
+        currentVersion: currentInfo.nativeVersion,
       };
     }
 
-    // 2. Check if Web Bundle Version is newer
+    // 2. Check if Live Web Bundle Version is newer
     if (compareVersions(manifest.version, currentInfo.webVersion) > 0) {
       return {
         hasUpdate: true,
         requiresNativeUpdate: false,
         manifest,
+        currentVersion: currentInfo.webVersion,
       };
     }
 
-    return { hasUpdate: false, requiresNativeUpdate: false, manifest };
+    return {
+      hasUpdate: false,
+      requiresNativeUpdate: false,
+      manifest,
+      currentVersion: currentInfo.nativeVersion,
+    };
   } catch (err: any) {
-    console.warn('[LiveUpdate] Network or check error:', err?.message || err);
-    return { hasUpdate: false, requiresNativeUpdate: false, error: err?.message || 'Update check failed' };
+    const isTimeout = err?.name === 'AbortError';
+    const errorMsg = isTimeout
+      ? 'Network request timed out. Please check your internet connection.'
+      : (err?.message || 'Network error occurred while checking for updates');
+
+    console.warn('[LiveUpdate] Check error:', errorMsg);
+    return {
+      hasUpdate: false,
+      requiresNativeUpdate: false,
+      currentVersion: currentInfo.nativeVersion,
+      error: errorMsg,
+    };
   }
 };
 
 /**
- * Download, validate integrity, and set new bundle atomically
+ * Download, validate integrity, and set new web bundle atomically
  */
 export const applyLiveUpdate = async (manifest: UpdateManifest): Promise<boolean> => {
   if (!isNativePlatform() || !manifest.url) return false;
 
   try {
-    console.log(`[LiveUpdate] Downloading update v${manifest.version} from ${manifest.url}...`);
-    
+    console.log(`[LiveUpdate] Downloading web bundle update v${manifest.version} from ${manifest.url}...`);
+
     const downloadResult = await CapacitorUpdater.download({
       url: manifest.url,
       version: manifest.version,
     });
 
     if (!downloadResult || !downloadResult.version) {
-      throw new Error('Download failed or empty bundle result');
+      throw new Error('Download failed or returned empty bundle version.');
     }
 
     console.log(`[LiveUpdate] Applying bundle v${downloadResult.version}...`);

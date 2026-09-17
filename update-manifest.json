@@ -1,9 +1,9 @@
 {
-  "version": "1.0.2",
-  "minNativeVersion": "1.0.0",
+  "version": "2.0.1",
+  "minNativeVersion": "2.0.1",
   "url": "https://github.com/puspendeerrr/expense-tracker/releases/latest/download/web-bundle.zip",
   "downloadUrl": "https://github.com/puspendeerrr/expense-tracker/releases/latest/download/SplitWise.apk",
-  "releaseNotes": "SplitWise Live Web Bundle Release 1.0.2 - Inspector Audit Role & Member Expense Filter",
+  "releaseNotes": "SplitWise Release 2.0.1 - Direct app navigation, SEO/PWA optimization, and automated update detector.",
   "channel": "production",
-  "updatedAt": "2026-08-11T10:40:00Z"
+  "updatedAt": "2026-09-17T10:07:00.000Z"
 }

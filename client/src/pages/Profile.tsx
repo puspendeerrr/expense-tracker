@@ -35,6 +35,8 @@ import {
   CheckCircleOutlined,
   LogoutOutlined,
   ReloadOutlined,
+  DownloadOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/ui/Toast';
@@ -42,7 +44,7 @@ import { usePushNotifications } from '../hooks/usePushNotifications';
 import { QRImageEditorModal } from '../components/modals/QRImageEditorModal';
 import { isNativePlatform, APP_VERSION, DOWNLOAD_URL, DownloadAppButton } from '../components/common/DownloadAppModal';
 import { OwnershipCreditsCard } from '../components/common/OwnershipCredits';
-import { checkForLiveUpdate, applyLiveUpdate, getAppVersionInfo } from '../utils/appUpdate';
+import { checkForLiveUpdate, applyLiveUpdate, getAppVersionInfo, UpdateManifest } from '../utils/appUpdate';
 import api from '../services/api';
 
 const { Title, Text } = Typography;
@@ -84,7 +86,9 @@ export const Profile: React.FC = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [activeWebVersion, setActiveWebVersion] = useState<string>(APP_VERSION);
-  const [activeNativeVersion, setActiveNativeVersion] = useState<string>('1.0.0');
+  const [activeNativeVersion, setActiveNativeVersion] = useState<string>('2.0.1');
+  const [updateModalVisible, setUpdateModalVisible] = useState(false);
+  const [availableManifest, setAvailableManifest] = useState<UpdateManifest | null>(null);
 
   useEffect(() => {
     getAppVersionInfo().then((info) => {
@@ -97,25 +101,41 @@ export const Profile: React.FC = () => {
     try {
       setIsCheckingUpdate(true);
       const result = await checkForLiveUpdate();
-      if (result.hasUpdate && result.manifest) {
-        showSuccess('Update available! Downloading web update...');
+
+      if (result.error) {
+        showError(result.error);
+        return;
+      }
+
+      if (result.requiresNativeUpdate && result.manifest) {
+        setAvailableManifest(result.manifest);
+        setUpdateModalVisible(true);
+      } else if (result.hasUpdate && result.manifest) {
+        showSuccess('New web bundle update available! Downloading...');
         const ok = await applyLiveUpdate(result.manifest);
         if (ok) {
-          showSuccess('SplitWise updated successfully! Restart the app to apply.');
+          showSuccess('SplitWise updated successfully! Please restart the app to apply changes.');
         } else {
-          showError('Failed to apply live update.');
+          showError('Failed to apply live update bundle.');
         }
-      } else if (result.requiresNativeUpdate) {
-        const apkUrl = result.manifest?.downloadUrl || DOWNLOAD_URL;
-        showSuccess('New native APK version available! Redirecting to download...');
-        window.open(apkUrl, '_system');
       } else {
-        showSuccess('SplitWise is already up to date!');
+        showSuccess(`You're already using the latest version of SplitWise (v${activeNativeVersion})!`);
       }
     } catch (err: any) {
-      showError('Failed to check for updates');
+      showError(err?.message || 'Failed to check for updates. Please try again.');
     } finally {
       setIsCheckingUpdate(false);
+    }
+  };
+
+  const handleDownloadAPK = () => {
+    const apkUrl = availableManifest?.downloadUrl || DOWNLOAD_URL;
+    setUpdateModalVisible(false);
+    showSuccess('Opening APK download link...');
+    try {
+      window.open(apkUrl, '_system');
+    } catch (e) {
+      showError('Failed to open download link automatically. Please check browser permissions.');
     }
   };
 
@@ -708,6 +728,61 @@ export const Profile: React.FC = () => {
         onClose={() => setIsEditorOpen(false)}
         onApply={handleApplyEditor}
       />
+
+      {/* Native APK Update Modal */}
+      <Modal
+        open={updateModalVisible}
+        onCancel={() => setUpdateModalVisible(false)}
+        footer={null}
+        title={
+          <Space align="center">
+            <ThunderboltOutlined style={{ color: '#2563eb', fontSize: 20 }} />
+            <Text strong style={{ fontSize: 16 }}>
+              SplitWise App Update Available
+            </Text>
+          </Space>
+        }
+      >
+        <div style={{ padding: '12px 0' }}>
+          <Tag color="blue" style={{ marginBottom: 12, padding: '4px 10px', fontSize: 12, borderRadius: 6 }}>
+            Version v{availableManifest?.version || '2.0.1'} Available
+          </Tag>
+
+          <div style={{ background: '#f8fafc', padding: 12, borderRadius: 10, border: '1px solid #e2e8f0', marginBottom: 16 }}>
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+              Installed Native Version: <strong>v{activeNativeVersion}</strong>
+            </Text>
+            <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
+              Latest Version: <strong>v{availableManifest?.version || '2.0.1'}</strong>
+            </Text>
+          </div>
+
+          {availableManifest?.releaseNotes && (
+            <div style={{ marginBottom: 16 }}>
+              <Text strong style={{ fontSize: 13, display: 'block', marginBottom: 6 }}>
+                What's New in this Release:
+              </Text>
+              <div style={{ background: '#f1f5f9', padding: 10, borderRadius: 8, fontSize: 12, color: '#334155', lineHeight: 1.5 }}>
+                {availableManifest.releaseNotes}
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
+            <Button onClick={() => setUpdateModalVisible(false)}>
+              Remind Me Later
+            </Button>
+            <Button
+              type="primary"
+              icon={<DownloadOutlined />}
+              onClick={handleDownloadAPK}
+              style={{ background: '#2563eb', fontWeight: 600 }}
+            >
+              Download & Install APK
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
