@@ -24,8 +24,7 @@ import {
   FileCode,
   Folder,
 } from 'lucide-react';
-import { LandingNavbar } from '../components/landing/LandingNavbar';
-import { LandingFooter } from '../components/landing/LandingFooter';
+
 
 export const DeveloperJournal: React.FC = () => {
   const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({
@@ -100,7 +99,15 @@ export const DeveloperJournal: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#FFF8F2] text-[#1E1E1E] font-sans antialiased selection:bg-[#FF6B00] selection:text-white">
-      <LandingNavbar />
+      <header className="fixed top-0 left-0 right-0 z-50 bg-[#FFF8F2]/90 backdrop-blur-md border-b border-[#FF6B00]/15 px-4 sm:px-8 py-3 flex items-center justify-between">
+        <Link to="/dashboard" className="flex items-center gap-2 text-decoration-none">
+          <img src="/favicon.svg" alt="Splitwise Logo" className="w-8 h-8 rounded-lg shadow-sm" />
+          <span className="font-extrabold text-base text-[#1E1E1E]">Splitwise Pro</span>
+        </Link>
+        <Link to="/dashboard" className="px-4 py-2 rounded-xl bg-[#FF6B00] text-white font-bold text-xs shadow-sm hover:opacity-90 transition-opacity">
+          Open App
+        </Link>
+      </header>
 
       <main className="pt-20 sm:pt-24 pb-16">
         <div className="max-w-6xl xl:max-w-7xl 2xl:max-w-[1536px] mx-auto px-4 sm:px-8 lg:px-12 xl:px-16 space-y-12">
@@ -407,7 +414,9 @@ expenses.forEach(exp => {
         </div>
       </main>
 
-      <LandingFooter />
+      <footer className="border-t border-[#FF6B00]/15 bg-[#FFF8F2] py-8 text-center text-xs text-slate-500 font-medium">
+        <p>© {new Date().getFullYear()} Splitwise Pro • Algorithmyum Software Solutions</p>
+      </footer>
     </div>
   );
 };
