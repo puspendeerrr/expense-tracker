@@ -5,6 +5,7 @@ export interface UpdateManifest {
   version: string;
   minNativeVersion: string;
   url: string;
+  downloadUrl?: string;
   releaseNotes?: string;
   channel?: string;
   isMandatory?: boolean;

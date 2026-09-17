@@ -106,7 +106,9 @@ export const Profile: React.FC = () => {
           showError('Failed to apply live update.');
         }
       } else if (result.requiresNativeUpdate) {
-        showError('A new native app version is required. Please download the latest APK.');
+        const apkUrl = result.manifest?.downloadUrl || DOWNLOAD_URL;
+        showSuccess('New native APK version available! Redirecting to download...');
+        window.open(apkUrl, '_system');
       } else {
         showSuccess('SplitWise is already up to date!');
       }
