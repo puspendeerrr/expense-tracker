@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "node --watch index.js"
+    "dev": "node --watch index.js",
+    "test": "node tests/settlement.test.js && node tests/groupQr.test.js && node tests/reporting.test.js",
+    "test:reporting": "node tests/reporting.test.js"
   },
   "dependencies": {
     "@google/genai": "^2.16.0",
@@ -15,6 +17,7 @@
     "cloudinary": "^2.0.1",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
+    "exceljs": "^4.4.0",
     "express": "^4.18.3",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.2.1",

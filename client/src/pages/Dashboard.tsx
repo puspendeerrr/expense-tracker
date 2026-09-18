@@ -1,208 +1,267 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Row,
-  Col,
-  Card,
-  Button,
-  Tag,
-  Avatar,
-  Space,
-  Typography,
-  Alert,
-  Spin,
-  Empty,
-  Flex,
-  Tooltip,
-  Divider,
-} from 'antd';
-import {
-  PlusOutlined,
-  ArrowUpOutlined,
-  ArrowDownOutlined,
-  ClockCircleOutlined,
-  RightOutlined,
-  DollarOutlined,
-  UserOutlined,
-  ReloadOutlined,
-  QrcodeOutlined,
-  CalendarOutlined,
-  BellOutlined,
-  SendOutlined,
-  HistoryOutlined,
-  MobileOutlined,
-  DollarCircleOutlined,
-  WalletOutlined,
-  CheckCircleOutlined,
-  TeamOutlined,
-} from '@ant-design/icons';
+import { Card, Alert, Button, Typography, Space, Avatar, Empty, Skeleton, Divider } from 'antd';
+import { ClockCircleOutlined, UserOutlined, ReloadOutlined } from '@ant-design/icons';
+
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { useToast } from '../components/ui/Toast';
-import { DashboardData, Expense, GroupMember, OwedPerson, Settlement, User } from '../types';
+import { useReportFilters } from '../hooks/useReportFilters';
+import { useDashboardReport } from '../hooks/useDashboardReport';
+import { useExcelExport } from '../hooks/useExcelExport';
 import api from '../services/api';
 
-// Modals
+import { Expense, GroupMember, OwedPerson, Settlement, User, Activity } from '../types';
+import { PersonDueRow, RelationshipRow, PeriodBucket } from '../types/reports';
+import { formatTimeAgo, formatDateTime, MONEY_COLORS } from '../utils/format';
+
+// Dashboard sections
+import { DashboardHeader } from '../components/dashboard/DashboardHeader';
+import { ReportFilterBar } from '../components/dashboard/ReportFilterBar';
+import { SummaryCards } from '../components/dashboard/SummaryCards';
+import { PersonWiseBalances } from '../components/dashboard/PersonWiseBalances';
+import { FinancialRelationshipTable } from '../components/dashboard/FinancialRelationshipTable';
+import { SpendingAnalytics } from '../components/dashboard/SpendingAnalytics';
+import { ExpensesOverTime } from '../components/dashboard/ExpensesOverTime';
+import { AttentionCenter } from '../components/dashboard/AttentionCenter';
+import { RecentExpensesList } from '../components/dashboard/RecentExpensesList';
+import { ExportExcelModal } from '../components/dashboard/ExportExcelModal';
+
+// Existing modals — reused unchanged
 import { AddExpenseModal } from '../components/modals/AddExpenseModal';
 import { ExpenseDetailModal } from '../components/modals/ExpenseDetailModal';
 import { EditExpenseModal } from '../components/modals/EditExpenseModal';
 import { BreakdownModal } from '../components/modals/BreakdownModal';
 import { SettlementModal } from '../components/modals/SettlementModal';
 import { UPIDetailModal } from '../components/modals/UPIDetailModal';
+import { MemberDetailModal } from '../components/modals/MemberDetailModal';
+import { SettlementDetailsDrawer } from '../components/modals/SettlementDetailsDrawer';
 
-const { Title, Text, Paragraph } = Typography;
+const { Text } = Typography;
+
+/**
+ * A quiet group heading. Eight sibling cards read as a wall; four labelled groups read as a
+ * document, which is what §23's priority order actually asks for.
+ */
+const SectionLabel: React.FC<{ children: React.ReactNode; hint?: string }> = ({ children, hint }) => (
+  <div className="dash-section-label">
+    <h2 className="dash-section-label__text">{children}</h2>
+    {hint && <span className="dash-section-label__hint">{hint}</span>}
+  </div>
+);
 
 export const Dashboard: React.FC = () => {
   const { user, group, userRole } = useAuth();
-  const { socket } = useSocket();
+  const { socket, isConnected } = useSocket();
   const { showError, showSuccess } = useToast();
   const navigate = useNavigate();
 
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [members, setMembers] = useState<GroupMember[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState('');
+  const { filters, setFilters, setFilter, reset, range, activeCount } = useReportFilters();
+  const [groupBy, setGroupBy] = useState<'auto' | 'day' | 'week' | 'month'>('auto');
 
-  // Modals state
+  const { report, isLoading, isRefreshing, error, lastUpdated, refresh } = useDashboardReport(
+    filters,
+    groupBy,
+    socket,
+    !!user
+  );
+
+  // --- Modal state (all existing components) ---------------------------
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
-
-  // Breakdown modals
   const [breakdownType, setBreakdownType] = useState<'need_to_pay' | 'will_receive' | null>(null);
-
-  // Settlement modal
   const [settlementTarget, setSettlementTarget] = useState<OwedPerson | null>(null);
-  const [receiverPendingSettlement, setReceiverPendingSettlement] = useState<Settlement | null>(null);
-
-  // UPI Detail Modal
+  const [activeSettlement, setActiveSettlement] = useState<Settlement | null>(null);
   const [upiModalUser, setUpiModalUser] = useState<User | null>(null);
   const [upiModalAmount, setUpiModalAmount] = useState<number | undefined>(undefined);
-
-  // Reminding state
+  const [detailMember, setDetailMember] = useState<GroupMember | null>(null);
   const [remindLoadingMap, setRemindLoadingMap] = useState<Record<string, boolean>>({});
 
-  const loadDashboardData = async () => {
-    try {
-      setIsLoading(true);
-      setLoadError('');
-      const res = await api.get('/dashboard');
+  // Group activity stays on the original dashboard endpoint — it is not report-scoped.
+  const [recentActivity, setRecentActivity] = useState<Activity[]>([]);
 
-      if (!res.data.hasGroup) {
-        navigate('/no-group');
-        return;
-      }
+  const { isExporting, exportReport } = useExcelExport(showSuccess, showError);
 
-      setData(res.data);
-
-      const groupRes = await api.get('/groups/info');
-      setMembers(groupRes.data.members || []);
-    } catch (err: any) {
-      console.error('Failed to load dashboard:', err);
-      const msg = err.response?.data?.message || 'Error loading dashboard data';
-      setLoadError(msg);
-      showError(msg);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // --- Groupless users still belong on /no-group -----------------------
   useEffect(() => {
-    loadDashboardData();
+    if (!isLoading && report && report.hasGroup === false) {
+      navigate('/no-group');
+    }
+  }, [isLoading, report, navigate]);
+
+  // --- Activity feed (kept lightweight, refreshed with the report) -----
+  const loadActivity = useCallback(async () => {
+    try {
+      const res = await api.get('/dashboard');
+      setRecentActivity(res.data?.recentActivity || []);
+    } catch {
+      // Activity is non-critical context; a failure must not blank the financial sections.
+      setRecentActivity([]);
+    }
   }, []);
 
-  // Live Socket.IO synchronization for settlements and expenses
   useEffect(() => {
-    if (!socket) return;
+    loadActivity();
+  }, [loadActivity, lastUpdated]);
 
-    const handleLiveSync = () => {
-      loadDashboardData();
-    };
+  // --- Actions ---------------------------------------------------------
+  const handleRemind = useCallback(
+    async (targetUserId: string, targetName: string) => {
+      try {
+        setRemindLoadingMap((prev) => ({ ...prev, [targetUserId]: true }));
+        await api.post('/groups/remind-member', { targetUserId });
+        showSuccess(`Payment reminder sent to ${targetName}!`);
+      } catch (err: unknown) {
+        const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+        showError(msg || 'Failed to send reminder');
+      } finally {
+        setRemindLoadingMap((prev) => ({ ...prev, [targetUserId]: false }));
+      }
+    },
+    [showError, showSuccess]
+  );
 
-    socket.on('settlement:updated', handleLiveSync);
-    socket.on('notification', handleLiveSync);
+  const openSettlementFor = useCallback((row: PersonDueRow) => {
+    setSettlementTarget({
+      user: {
+        _id: row.user._id,
+        fullName: row.user.fullName,
+        email: row.user.email,
+        phone: row.user.phone,
+        upiId: row.user.upiId,
+        qrCodeUrl: row.user.qrCodeUrl,
+      },
+      amount: row.amount,
+    });
+  }, []);
 
-    return () => {
-      socket.off('settlement:updated', handleLiveSync);
-      socket.off('notification', handleLiveSync);
-    };
-  }, [socket]);
+  const openUpiFor = useCallback((row: PersonDueRow) => {
+    setUpiModalUser({
+      _id: row.user._id,
+      fullName: row.user.fullName,
+      email: row.user.email,
+      phone: row.user.phone,
+      upiId: row.user.upiId || '',
+      qrCodeUrl: row.user.qrCodeUrl || null,
+    });
+    setUpiModalAmount(row.amount);
+  }, []);
 
-  const handleSendReminder = async (targetUserId: string, targetName: string) => {
-    try {
-      setRemindLoadingMap((prev) => ({ ...prev, [targetUserId]: true }));
-      await api.post('/groups/remind-member', { targetUserId });
-      showSuccess(`Payment reminder sent to ${targetName}!`);
-    } catch (err: any) {
-      showError(err.response?.data?.message || 'Failed to send reminder');
-    } finally {
-      setRemindLoadingMap((prev) => ({ ...prev, [targetUserId]: false }));
-    }
-  };
+  /** Open the existing expense detail modal by id (rows carry ids, not full documents). */
+  const openExpenseById = useCallback(
+    async (expenseId: string) => {
+      try {
+        const res = await api.get(`/expenses/${expenseId}`);
+        setSelectedExpense(res.data);
+      } catch {
+        showError('Could not load that expense.');
+      }
+    },
+    [showError]
+  );
 
-  const formatTimeAgo = (dateStr: string) => {
-    if (!dateStr) return '';
-    const now = new Date();
-    const past = new Date(dateStr);
-    const diffMs = now.getTime() - past.getTime();
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  /** Drill-down: fetch the expenses behind one chart bucket. */
+  const loadBucketExpenses = useCallback(
+    async (bucket: PeriodBucket): Promise<Expense[]> => {
+      try {
+        const res = await api.get('/expenses');
+        const all: Expense[] = res.data || [];
+        const ids = new Set(bucket.expenseIds);
+        return all.filter((e) => ids.has(e._id));
+      } catch {
+        showError('Could not load expenses for that period.');
+        return [];
+      }
+    },
+    [showError]
+  );
 
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays === 1) return 'Yesterday';
-    return `${diffDays}d ago`;
-  };
+  /**
+   * Reuse the existing MemberDetailModal by mapping a relationship row onto the GroupMember
+   * shape it already understands, rather than building a second member-detail surface.
+   */
+  const openMemberDetails = useCallback(
+    (row: RelationshipRow) => {
+      setDetailMember({
+        _id: row.person._id,
+        fullName: row.person.fullName,
+        email: row.person.email,
+        phone: row.person.phone,
+        upiId: row.person.upiId,
+        qrCodeUrl: row.person.qrCodeUrl,
+        role: row.person.role || 'member',
+        joinedAt: '',
+        totalPaid: row.iPaidForThem + row.theyPaidForMe,
+        everyoneShare: 0,
+        specificShare: 0,
+        totalOwes: row.iCurrentlyOwe,
+        totalReceives: row.theyCurrentlyOwe,
+        netBalance: row.netRelationship,
+        owesList: row.iCurrentlyOwe > 0
+          ? [{ user: { ...row.person, upiId: row.person.upiId, qrCodeUrl: row.person.qrCodeUrl }, amount: row.iCurrentlyOwe }]
+          : [],
+        receivesList: row.theyCurrentlyOwe > 0
+          ? [{ user: { ...row.person, upiId: row.person.upiId, qrCodeUrl: row.person.qrCodeUrl }, amount: row.theyCurrentlyOwe }]
+          : [],
+      });
+    },
+    []
+  );
 
-  const formatDateShort = (dateStr: string | null) => {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-  };
+  const handleExport = useCallback(
+    async (exportFilters: typeof filters) => {
+      const ok = await exportReport(exportFilters);
+      if (ok) setIsExportOpen(false);
+    },
+    [exportReport]
+  );
 
-  const formatFullTime = (dateStr: string) => {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    const timeStr = date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-    const agoStr = formatTimeAgo(dateStr);
-    return `${timeStr} (${agoStr})`;
-  };
+  const afterMutation = useCallback(() => {
+    refresh({ silent: true });
+    loadActivity();
+  }, [refresh, loadActivity]);
 
-  const youNeedToPayTotal = data?.balances?.youNeedToPayTotal || 0;
-  const youWillReceiveTotal = data?.balances?.youWillReceiveTotal || 0;
-  const youNeedToPayList = data?.balances?.youNeedToPayList || [];
-  const youWillReceiveList = data?.balances?.youWillReceiveList || [];
-  const billingCycle = data?.billingCycle;
+  // --- Derived ---------------------------------------------------------
+  const isCreator = userRole === 'creator';
+  const members = report?.members || [];
 
-  const netBalance = useMemo(() => {
-    return youWillReceiveTotal - youNeedToPayTotal;
-  }, [youWillReceiveTotal, youNeedToPayTotal]);
+  /** Members in the shape AddExpense / EditExpense already expect. */
+  const memberList = useMemo<GroupMember[]>(
+    () =>
+      members.map((m) => ({
+        _id: m._id,
+        fullName: m.fullName,
+        email: m.email,
+        phone: m.phone,
+        upiId: m.upiId,
+        qrCodeUrl: m.qrCodeUrl,
+        role: m.role || 'member',
+        joinedAt: '',
+        totalPaid: 0,
+        totalOwes: 0,
+        totalReceives: 0,
+      })),
+    [members]
+  );
 
-  const receiverVerifications = data?.pendingVerifications?.asReceiver || [];
+  const breakdownList = useMemo<OwedPerson[]>(() => {
+    const source = breakdownType === 'need_to_pay' ? report?.peopleIOwe : report?.peopleWhoOweMe;
+    return (source || []).map((r) => ({ user: r.user, amount: r.amount }));
+  }, [breakdownType, report]);
 
-  if (isLoading && !data) {
+  // --- Hard error state (nothing rendered yet) -------------------------
+  if (error && !report) {
     return (
-      <div style={{ padding: '60px 0', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-        <Spin size="large" />
-        <Text type="secondary" style={{ fontSize: 13 }}>
-          Loading your financial overview...
-        </Text>
-      </div>
-    );
-  }
-
-  if (loadError && !data) {
-    return (
-      <div style={{ padding: 16 }}>
+      <div style={{ padding: 4 }}>
         <Alert
-          title="Error Loading Dashboard"
-          description={loadError}
           type="error"
           showIcon
+          message="Unable to load your dashboard"
+          description={error}
           action={
-            <Button size="small" type="primary" icon={<ReloadOutlined />} onClick={loadDashboardData}>
+            <Button size="small" type="primary" icon={<ReloadOutlined />} onClick={() => refresh()}>
               Retry
             </Button>
           }
@@ -213,430 +272,218 @@ export const Dashboard: React.FC = () => {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {/* 1. Pending Verifications Alert */}
-      {receiverVerifications.length > 0 && (
+    <div className="dash-page">
+      {/* ── A. Header ─────────────────────────────────────────────── */}
+      <DashboardHeader
+        groupName={report?.group?.name || group?.name || 'Your group'}
+        billingCycle={report?.billingCycle || null}
+        lastUpdated={lastUpdated}
+        isRefreshing={isRefreshing}
+        isLive={isConnected}
+        onExport={() => setIsExportOpen(true)}
+        onRefresh={() => refresh()}
+        onAddExpense={() => setIsAddExpenseOpen(true)}
+      />
+
+      {/* A non-blocking banner when a background refresh failed but stale data is still shown. */}
+      {error && report && (
         <Alert
-          title={
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-              <span style={{ fontSize: 12 }}>
-                <strong>Pending Action:</strong> {receiverVerifications.length} incoming payment proof awaiting your approval!
-              </span>
-              <Button
-                size="small"
-                type="primary"
-                onClick={() => setReceiverPendingSettlement(receiverVerifications[0])}
-                style={{ borderRadius: 6 }}
-              >
-                Review Proof
-              </Button>
-            </div>
-          }
           type="warning"
           showIcon
-          icon={<ClockCircleOutlined />}
+          closable
+          message="Some data may be out of date"
+          description={error}
+          action={
+            <Button size="small" onClick={() => refresh()}>Retry</Button>
+          }
           style={{ borderRadius: 12 }}
         />
       )}
 
-      {/* 2. Payday Billing Cycle Banner */}
-      {billingCycle?.payday && (
-        <Alert
-          title={
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-              <Space size={6} align="center">
-                <CalendarOutlined style={{ color: '#2563eb', fontSize: 14 }} />
-                <span style={{ fontSize: 12 }}>
-                  <strong>Billing Cycle:</strong> {formatDateShort(billingCycle.startDate)} – {formatDateShort(billingCycle.endDate)}
-                </span>
-              </Space>
-              <Tag color={billingCycle.isPaydayToday ? 'gold' : 'blue'} style={{ margin: 0, fontWeight: 600 }}>
-                {billingCycle.isPaydayToday
-                  ? 'Today is Group Payday'
-                  : `Next Payday in ${billingCycle.daysRemaining} days`}
-              </Tag>
-            </div>
+      {/* ── B. Filters — stays reachable while scrolling a long page ─ */}
+      <div className="dash-filterbar-sticky">
+        <ReportFilterBar
+          filters={filters}
+          onChange={setFilter}
+          onApply={setFilters}
+          onReset={reset}
+          members={members}
+          currentUserId={user?._id}
+          rangeLabel={range.label}
+          activeCount={activeCount}
+          disabled={isLoading}
+          summary={
+            report?.periodSummary
+              ? {
+                  expenseCount: report.periodSummary.expenseCount,
+                  totalExpense: report.periodSummary.totalExpense,
+                }
+              : null
           }
-          type={billingCycle.isPaydayToday ? 'warning' : 'info'}
-          style={{ borderRadius: 12, background: billingCycle.isPaydayToday ? '#fffbe6' : '#f0f7ff' }}
         />
-      )}
+      </div>
 
-      {/* 3. Hero Financial Summary Card */}
-      <Card
-        style={{
-          borderRadius: 16,
-          background:
-            netBalance > 0
-              ? 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)'
-              : netBalance < 0
-              ? 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)'
-              : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-          borderColor: netBalance > 0 ? '#bbf7d0' : netBalance < 0 ? '#fecaca' : '#e2e8f0',
-        }}
-        styles={{ body: { padding: '18px 16px' } }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
-          <div>
-            <Text type="secondary" style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Your Net Balance
-            </Text>
-            <div className="financial-num" style={{ fontSize: 28, margin: '2px 0', color: netBalance > 0 ? '#16a34a' : netBalance < 0 ? '#dc2626' : '#0f172a' }}>
-              {netBalance > 0
-                ? `+₹${netBalance.toFixed(2)}`
-                : netBalance < 0
-                ? `-₹${Math.abs(netBalance).toFixed(2)}`
-                : '₹0.00'}
-            </div>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              {netBalance > 0
-                ? 'Flatmates owe you money overall'
-                : netBalance < 0
-                ? 'You have pending dues to pay'
-                : 'All flatmate balances are settled'}
-            </Text>
-          </div>
+      {/* ── 1. Current financial position ─────────────────────────── */}
+      <section className="dash-group" aria-label="Your current position">
+        <SectionLabel hint="All time">Your Position</SectionLabel>
 
-          <Space size={8} wrap>
-            {youNeedToPayList.length > 0 && (
-              <Button
-                onClick={() => setSettlementTarget(youNeedToPayList[0])}
-                style={{ borderRadius: 10, height: 40, fontWeight: 600 }}
-              >
-                Settle Up
-              </Button>
-            )}
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => setIsAddExpenseOpen(true)}
-              style={{ borderRadius: 10, height: 40, background: '#2563eb' }}
-            >
-              Add Expense
-            </Button>
-          </Space>
-        </div>
-      </Card>
+        <SummaryCards
+          balances={report?.balances || null}
+          periodSummary={report?.periodSummary || null}
+          rangeLabel={range.label}
+          isLoading={isLoading}
+          onOpenPayables={() => setBreakdownType('need_to_pay')}
+          onOpenReceivables={() => setBreakdownType('will_receive')}
+        />
 
-      {/* 4. Dual Financial Breakdown Cards */}
-      <Row gutter={[10, 10]}>
-        <Col xs={12} sm={12} md={12}>
-          <Card
-            hoverable
-            onClick={() => setBreakdownType('need_to_pay')}
-            style={{ borderRadius: 14, cursor: 'pointer', height: '100%' }}
-            styles={{ body: { padding: 14 } }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <Space size={4}>
-                <ArrowDownOutlined style={{ color: '#dc2626', fontSize: 12 }} />
-                <Text type="secondary" style={{ fontSize: 11, fontWeight: 600 }}>
-                  You Need To Pay
-                </Text>
-              </Space>
-              <Tag color="error" style={{ margin: 0, fontSize: 10, borderRadius: 4, padding: '0 4px' }}>
-                {youNeedToPayList.length}
-              </Tag>
-            </div>
-            <div className="financial-num" style={{ fontSize: 20, color: '#dc2626' }}>
-              ₹{youNeedToPayTotal.toFixed(2)}
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-              <Text type="secondary" style={{ fontSize: 11 }}>View breakdown</Text>
-              <RightOutlined style={{ fontSize: 10, color: '#94a3b8' }} />
-            </div>
-          </Card>
-        </Col>
-
-        <Col xs={12} sm={12} md={12}>
-          <Card
-            hoverable
-            onClick={() => setBreakdownType('will_receive')}
-            style={{ borderRadius: 14, cursor: 'pointer', height: '100%' }}
-            styles={{ body: { padding: 14 } }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <Space size={4}>
-                <ArrowUpOutlined style={{ color: '#16a34a', fontSize: 12 }} />
-                <Text type="secondary" style={{ fontSize: 11, fontWeight: 600 }}>
-                  You Will Receive
-                </Text>
-              </Space>
-              <Tag color="success" style={{ margin: 0, fontSize: 10, borderRadius: 4, padding: '0 4px' }}>
-                {youWillReceiveList.length}
-              </Tag>
-            </div>
-            <div className="financial-num" style={{ fontSize: 20, color: '#16a34a' }}>
-              ₹{youWillReceiveTotal.toFixed(2)}
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-              <Text type="secondary" style={{ fontSize: 11 }}>View receivables</Text>
-              <RightOutlined style={{ fontSize: 10, color: '#94a3b8' }} />
-            </div>
-          </Card>
-        </Col>
-      </Row>
-
-      {/* 5. Direct Action Items: People You Owe */}
-      {youNeedToPayList.length > 0 && (
-        <Card
-          title={
-            <Space size={6}>
-              <ArrowDownOutlined style={{ color: '#dc2626' }} />
-              <span style={{ fontSize: 14 }}>People You Owe</span>
-            </Space>
-          }
-          style={{ borderRadius: 14 }}
-          styles={{ body: { padding: 12 } }}
-        >
-          <Flex vertical gap={8}>
-            {youNeedToPayList.map((person) => (
-              <div
-                key={person.user._id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '10px 12px',
-                  background: '#f8fafc',
-                  borderRadius: 10,
-                  border: '1px solid #e2e8f0',
-                }}
-              >
-                <Space size={10} align="center">
-                  <Avatar size={36} style={{ backgroundColor: '#0f172a' }} icon={<UserOutlined />}>
-                    {person.user.fullName?.charAt(0).toUpperCase()}
-                  </Avatar>
-                  <div>
-                    <Text strong style={{ fontSize: 13, display: 'block', lineHeight: 1.2 }}>
-                      {person.user.fullName}
-                    </Text>
-                    <Text style={{ fontSize: 13, color: '#dc2626', fontWeight: 700 }} className="financial-num">
-                      ₹{person.amount.toFixed(2)}
-                    </Text>
-                  </div>
-                </Space>
-
-                <Space size={6}>
-                  <Button
-                    size="small"
-                    icon={<QrcodeOutlined />}
-                    onClick={() => {
-                      setUpiModalUser({
-                        _id: person.user._id,
-                        fullName: person.user.fullName,
-                        email: person.user.email,
-                        phone: person.user.phone,
-                        upiId: person.user.upiId || '',
-                        qrCodeUrl: person.user.qrCodeUrl || null,
-                      });
-                      setUpiModalAmount(person.amount);
-                    }}
-                    style={{ borderRadius: 8 }}
-                  >
-                    UPI / QR
-                  </Button>
-
-                  <Button
-                    size="small"
-                    type="primary"
-                    onClick={() => setSettlementTarget(person)}
-                    style={{ borderRadius: 8, background: '#2563eb' }}
-                  >
-                    Settle
-                  </Button>
-                </Space>
-              </div>
-            ))}
-          </Flex>
-        </Card>
-      )}
-
-      {/* 6. Admin Remind Section: People Who Owe Dues */}
-      {userRole === 'creator' && youWillReceiveList.length > 0 && (
-        <Card
-          title={
-            <Space size={6}>
-              <ArrowUpOutlined style={{ color: '#16a34a' }} />
-              <span style={{ fontSize: 14 }}>Flatmates Who Owe Dues</span>
-            </Space>
-          }
-          style={{ borderRadius: 14 }}
-          styles={{ body: { padding: 12 } }}
-        >
-          <Flex vertical gap={8}>
-            {youWillReceiveList.map((person) => (
-              <div
-                key={person.user._id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '10px 12px',
-                  background: '#f8fafc',
-                  borderRadius: 10,
-                  border: '1px solid #e2e8f0',
-                }}
-              >
-                <Space size={10} align="center">
-                  <Avatar size={36} style={{ backgroundColor: '#2563eb' }} icon={<UserOutlined />}>
-                    {person.user.fullName?.charAt(0).toUpperCase()}
-                  </Avatar>
-                  <div>
-                    <Text strong style={{ fontSize: 13, display: 'block', lineHeight: 1.2 }}>
-                      {person.user.fullName}
-                    </Text>
-                    <Text style={{ fontSize: 13, color: '#16a34a', fontWeight: 700 }} className="financial-num">
-                      Owes ₹{person.amount.toFixed(2)}
-                    </Text>
-                  </div>
-                </Space>
-
-                <Button
-                  size="small"
-                  icon={<SendOutlined />}
-                  loading={remindLoadingMap[person.user._id]}
-                  onClick={() => handleSendReminder(person.user._id, person.user.fullName)}
-                  style={{ borderRadius: 8 }}
-                >
-                  Remind
-                </Button>
-              </div>
-            ))}
-          </Flex>
-        </Card>
-      )}
-
-      {/* 7. Recent Expenses List */}
-      <Card
-        title={
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Space size={6}>
-              <HistoryOutlined style={{ color: '#2563eb' }} />
-              <span style={{ fontSize: 14 }}>Recent Expenses</span>
-            </Space>
-            <Button
-              type="link"
-              size="small"
-              onClick={() => navigate('/expenses')}
-              style={{ fontSize: 12, padding: 0, fontWeight: 600 }}
-            >
-              View All →
-            </Button>
-          </div>
-        }
-        style={{ borderRadius: 14 }}
-        styles={{ body: { padding: 12 } }}
-      >
-        {data?.recentExpenses && data.recentExpenses.length > 0 ? (
-          <Flex vertical gap={8}>
-            {data.recentExpenses.slice(0, 5).map((item) => (
-              <div
-                key={item._id}
-                onClick={() => setSelectedExpense(item)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '10px 12px',
-                  background: '#f8fafc',
-                  borderRadius: 10,
-                  border: '1px solid #e2e8f0',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <Space size={10} align="center">
-                  <Avatar
-                    style={{
-                      backgroundColor: item.paymentMode === 'upi' ? '#eff6ff' : '#f0fdf4',
-                      color: item.paymentMode === 'upi' ? '#2563eb' : '#16a34a',
-                      flexShrink: 0,
-                    }}
-                    size={36}
-                    icon={item.paymentMode === 'upi' ? <MobileOutlined /> : <DollarCircleOutlined />}
-                  />
-                  <div>
-                    <Text strong style={{ fontSize: 13, display: 'block', lineHeight: 1.2 }}>
-                      {item.title}
-                    </Text>
-                    <Text type="secondary" style={{ fontSize: 11 }}>
-                      Paid by {item.paidBy?.fullName} • {formatTimeAgo(item.date || item.createdAt || '')}
-                    </Text>
-                  </div>
-                </Space>
-
-                <div style={{ textAlign: 'right' }}>
-                  <div className="financial-num" style={{ fontSize: 14, color: '#0f172a' }}>
-                    ₹{item.amount.toFixed(2)}
-                  </div>
-                  <Tag style={{ margin: 0, fontSize: 10, padding: '0 4px', borderRadius: 4 }}>
-                    {item.splitType === 'everyone' ? 'Split with All' : 'Specific'}
-                  </Tag>
-                </div>
-              </div>
-            ))}
-          </Flex>
-        ) : (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="No expenses recorded yet."
-            style={{ margin: '16px 0' }}
+        {(isLoading || (report?.attention?.totalActionable ?? 0) > 0) && (
+          <AttentionCenter
+            attention={report?.attention || null}
+            isLoading={isLoading}
+            onOpenSettlement={setActiveSettlement}
           />
         )}
-      </Card>
+      </section>
 
-      {/* 8. Recent Group Activity Logs */}
-      {data?.recentActivity && data.recentActivity.length > 0 && (
+      {/* ── 2 & 3. People ─────────────────────────────────────────── */}
+      <section className="dash-group" aria-label="Balances by person">
+        <SectionLabel hint="Who owes whom">People</SectionLabel>
+
+        <PersonWiseBalances
+          peopleIOwe={report?.peopleIOwe || []}
+          peopleWhoOweMe={report?.peopleWhoOweMe || []}
+          isLoading={isLoading}
+          isCreator={isCreator}
+          remindLoadingMap={remindLoadingMap}
+          onSettle={openSettlementFor}
+          onShowUpi={openUpiFor}
+          onRemind={handleRemind}
+        />
+
+        <FinancialRelationshipTable
+          rows={report?.relationships || []}
+          isLoading={isLoading}
+          rangeLabel={range.label}
+          onViewDetails={openMemberDetails}
+        />
+      </section>
+
+      {/* ── 4. Spending analytics ─────────────────────────────────── */}
+      <section className="dash-group" aria-label="Spending analytics">
+        <SectionLabel hint={range.label}>Spending Analytics</SectionLabel>
+
+        <SpendingAnalytics
+          summary={report?.periodSummary || null}
+          topPeopleIPaidFor={report?.topPeopleIPaidFor || []}
+          topPeopleWhoPaidForMe={report?.topPeopleWhoPaidForMe || []}
+          relationships={report?.relationships || []}
+          rangeLabel={range.label}
+          isLoading={isLoading}
+        />
+
+        <ExpensesOverTime
+          buckets={report?.periodBreakdown || []}
+          grouping={report?.filters?.grouping || 'day'}
+          totalExpense={report?.periodSummary?.totalExpense || 0}
+          rangeLabel={range.label}
+          isLoading={isLoading}
+          onGroupingChange={setGroupBy}
+          activeGrouping={groupBy}
+          onLoadBucketExpenses={loadBucketExpenses}
+          onSelectExpense={setSelectedExpense}
+        />
+      </section>
+
+      {/* ── 6 & 7. Recent ─────────────────────────────────────────── */}
+      <section className="dash-group" aria-label="Recent activity">
+        <SectionLabel>Recent</SectionLabel>
+
+        <RecentExpensesList
+          expenses={report?.recentExpenses || []}
+          isLoading={isLoading}
+          rangeLabel={range.label}
+          onSelect={openExpenseById}
+          onViewAll={() => navigate('/expenses')}
+        />
+
         <Card
-          title={
-            <Space size={6}>
-              <ClockCircleOutlined style={{ color: '#2563eb' }} />
-              <span style={{ fontSize: 14 }}>Recent Group Activity</span>
-            </Space>
-          }
-          style={{ borderRadius: 14 }}
-          styles={{ body: { padding: 12 } }}
-        >
-          <Flex vertical gap={8}>
-            {data.recentActivity.slice(0, 5).map((act) => (
-              <div
+        size="small"
+        title={
+          <Space size={6}>
+            <ClockCircleOutlined style={{ color: '#94a3b8', fontSize: 12 }} aria-hidden="true" />
+            <Text type="secondary" style={{ fontSize: 12.5, fontWeight: 600 }}>
+              Recent Group Activity
+            </Text>
+          </Space>
+        }
+        style={{ borderRadius: 14, background: '#fcfcfd' }}
+        styles={{ body: { padding: 10 } }}
+      >
+        {isLoading && recentActivity.length === 0 ? (
+          <Skeleton active paragraph={{ rows: 2 }} title={false} />
+        ) : recentActivity.length === 0 ? (
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={<Text type="secondary" style={{ fontSize: 12 }}>No recent group activity.</Text>}
+            style={{ margin: '8px 0' }}
+          />
+        ) : (
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {recentActivity.slice(0, 6).map((act) => (
+              <li
                 key={act._id}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  padding: '8px 10px',
-                  background: '#f8fafc',
-                  borderRadius: 8,
-                  border: '1px solid #e2e8f0',
+                  gap: 8,
+                  padding: '6px 8px',
+                  borderRadius: 7,
+                  flexWrap: 'wrap',
                 }}
               >
-                <Space size={8}>
-                  <Avatar size="small" style={{ backgroundColor: '#0f172a', fontSize: 11 }} icon={<UserOutlined />}>
+                <Space size={7} align="center" style={{ minWidth: 0 }}>
+                  <Avatar size={20} style={{ backgroundColor: '#cbd5e1', fontSize: 9 }} icon={<UserOutlined />}>
                     {act.user?.fullName?.charAt(0).toUpperCase()}
                   </Avatar>
-                  <Text style={{ fontSize: 12, fontWeight: 500 }}>
+                  <Text style={{ fontSize: 11.5 }}>
                     <strong>{act.user?.fullName}</strong> {act.action}
                   </Text>
                 </Space>
-                <Text type="secondary" style={{ fontSize: 10 }}>
-                  {formatFullTime(act.createdAt)}
+                <Text type="secondary" style={{ fontSize: 10 }} title={formatDateTime(act.createdAt)}>
+                  {formatTimeAgo(act.createdAt)}
                 </Text>
-              </div>
+              </li>
             ))}
-          </Flex>
+          </ul>
+          )}
         </Card>
-      )}
+      </section>
 
-      {/* ==========================================
-          MODALS & DRAWERS
-          ========================================== */}
+      <footer className="dash-footnote">
+        <Divider style={{ margin: '0 0 10px' }} />
+        <Text type="secondary" style={{ fontSize: 10.5, lineHeight: 1.6 }}>
+          Outstanding balances reflect all time and change only when a settlement is completed.
+          Spending figures follow the selected filters.
+        </Text>
+      </footer>
+
+      {/* ══ MODALS — all existing components, unchanged ═══════════ */}
+      <ExportExcelModal
+        open={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+        initialFilters={filters}
+        members={members}
+        currentUserId={user?._id}
+        isExporting={isExporting}
+        onExport={handleExport}
+      />
+
       <AddExpenseModal
         isOpen={isAddExpenseOpen}
         onClose={() => setIsAddExpenseOpen(false)}
-        onExpenseAdded={loadDashboardData}
-        members={members}
+        onExpenseAdded={afterMutation}
+        members={memberList}
       />
 
       <ExpenseDetailModal
@@ -647,15 +494,15 @@ export const Dashboard: React.FC = () => {
           setSelectedExpense(null);
           setEditingExpense(exp);
         }}
-        onExpenseDeleted={loadDashboardData}
+        onExpenseDeleted={afterMutation}
       />
 
       <EditExpenseModal
         isOpen={!!editingExpense}
         onClose={() => setEditingExpense(null)}
         expense={editingExpense}
-        onExpenseUpdated={loadDashboardData}
-        members={members}
+        onExpenseUpdated={afterMutation}
+        members={memberList}
       />
 
       <BreakdownModal
@@ -663,8 +510,12 @@ export const Dashboard: React.FC = () => {
         onClose={() => setBreakdownType(null)}
         title={breakdownType === 'need_to_pay' ? 'People You Owe' : 'People Who Owe You'}
         type={breakdownType || 'need_to_pay'}
-        totalAmount={breakdownType === 'need_to_pay' ? youNeedToPayTotal : youWillReceiveTotal}
-        peopleList={breakdownType === 'need_to_pay' ? youNeedToPayList : youWillReceiveList}
+        totalAmount={
+          breakdownType === 'need_to_pay'
+            ? report?.balances?.youNeedToPayTotal || 0
+            : report?.balances?.youWillReceiveTotal || 0
+        }
+        peopleList={breakdownList}
         onMarkAsPaid={(person: OwedPerson) => {
           setBreakdownType(null);
           setSettlementTarget(person);
@@ -672,14 +523,17 @@ export const Dashboard: React.FC = () => {
       />
 
       <SettlementModal
-        isOpen={!!settlementTarget || !!receiverPendingSettlement}
-        onClose={() => {
-          setSettlementTarget(null);
-          setReceiverPendingSettlement(null);
-        }}
+        isOpen={!!settlementTarget}
+        onClose={() => setSettlementTarget(null)}
         targetPerson={settlementTarget}
-        pendingSettlement={receiverPendingSettlement}
-        onSettlementUpdated={loadDashboardData}
+        onSettlementUpdated={afterMutation}
+      />
+
+      <SettlementDetailsDrawer
+        isOpen={!!activeSettlement}
+        onClose={() => setActiveSettlement(null)}
+        settlement={activeSettlement}
+        onSettlementUpdated={afterMutation}
       />
 
       <UPIDetailModal
@@ -698,6 +552,14 @@ export const Dashboard: React.FC = () => {
           });
         }}
       />
+
+      <MemberDetailModal
+        isOpen={!!detailMember}
+        onClose={() => setDetailMember(null)}
+        member={detailMember}
+      />
     </div>
   );
 };
+
+export default Dashboard;

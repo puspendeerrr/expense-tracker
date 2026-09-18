@@ -4,6 +4,7 @@ const Expense = require('../models/Expense');
 const Settlement = require('../models/Settlement');
 const Activity = require('../models/Activity');
 const { calculateGroupBalances } = require('../utils/balance');
+const { calculateBillingCycle } = require('../utils/billingCycle');
 
 // @desc Get full aggregated Dashboard data
 // @route GET /api/dashboard
@@ -26,15 +27,17 @@ const getDashboardData = async (req, res) => {
     // 1. Calculate dynamic group balances
     const balances = await calculateGroupBalances(groupId, currentUserId);
 
-    // 2. Fetch pending verifications
+    // 2. Fetch pending verifications.
+    // Uses the live Settlement status model ('paid_pending_approval'). The previous query
+    // targeted the retired 'verification_pending' status plus an `expiresAt` field that no
+    // longer exists on the schema, so it could never match and this section was always empty.
     const pendingSettlements = await Settlement.find({
       groupId,
-      status: 'verification_pending',
-      expiresAt: { $gt: new Date() }
+      status: 'paid_pending_approval'
     })
     .sort({ createdAt: -1 })
-    .populate('payer', 'fullName email phone')
-    .populate('receiver', 'fullName email phone');
+    .populate('payer', 'fullName email phone upiId qrCodeUrl')
+    .populate('receiver', 'fullName email phone upiId qrCodeUrl');
 
     const receiverPending = pendingSettlements.filter(s => s.receiver._id.toString() === currentUserId);
     const payerPending = pendingSettlements.filter(s => s.payer._id.toString() === currentUserId);
@@ -61,8 +64,13 @@ const getDashboardData = async (req, res) => {
         inviteCode: group.inviteCode,
         createdBy: group.createdBy,
         createdAt: group.createdAt,
+        payday: group.payday ?? null,
         userRole: membership.role
       },
+      // The client has always read `billingCycle` from this payload but the endpoint never
+      // returned it, so the payday banner could not render. Derived here from the single
+      // billing-cycle helper rather than being recomputed on the client.
+      billingCycle: calculateBillingCycle(group.payday),
       balances: {
         youNeedToPayTotal: balances.currentUserSummary.youNeedToPayTotal,
         youNeedToPayList: balances.currentUserSummary.youNeedToPayList,

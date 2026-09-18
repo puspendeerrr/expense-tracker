@@ -67,4 +67,11 @@ const expenseSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Reporting and listing always scope by group and order/filter by date.
+expenseSchema.index({ groupId: 1, date: -1 });
+// Supports payer-scoped analytics without a collection scan.
+expenseSchema.index({ groupId: 1, paidBy: 1 });
+// Supports participant-scoped lookups (multikey over the ObjectId array).
+expenseSchema.index({ groupId: 1, splitBetween: 1 });
+
 module.exports = mongoose.model('Expense', expenseSchema);

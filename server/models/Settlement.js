@@ -58,4 +58,12 @@ const settlementSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// History listing: newest-first within a group.
+settlementSchema.index({ groupId: 1, createdAt: -1 });
+// Balance engine reads only completed settlements; attention centre filters by status.
+settlementSchema.index({ groupId: 1, status: 1 });
+// Attention centre resolves the current user's own settlements on either side.
+settlementSchema.index({ payer: 1, status: 1 });
+settlementSchema.index({ receiver: 1, status: 1 });
+
 module.exports = mongoose.model('Settlement', settlementSchema);

@@ -9,11 +9,10 @@ import {
   Dropdown,
   Badge,
   Popover,
-  Flex,
   Empty,
   Drawer,
   Tag,
-  Divider,
+  Grid,
 } from 'antd';
 import type { MenuProps } from 'antd';
 import {
@@ -29,7 +28,6 @@ import {
   SafetyCertificateOutlined,
   CheckCircleOutlined,
   TeamOutlined,
-  ClearOutlined,
   CrownOutlined,
   MenuOutlined,
   DashboardOutlined,
@@ -37,44 +35,79 @@ import {
   HistoryOutlined,
   RightOutlined,
   QrcodeOutlined,
+  CloseCircleOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContext';
-import { useSocket } from '../../context/SocketContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { useToast } from '../ui/Toast';
 import { GroupQRModal } from '../modals/GroupQRModal';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
+const { useBreakpoint } = Grid;
 
 const getNotifIcon = (type: string) => {
+  const base = { fontSize: 14 };
   switch (type) {
-    case 'expense:created': return <DollarOutlined style={{ color: '#2563eb', fontSize: 14 }} />;
-    case 'expense:updated': return <EditOutlined style={{ color: '#faad14', fontSize: 14 }} />;
-    case 'expense:deleted': return <DeleteOutlined style={{ color: '#ef4444', fontSize: 14 }} />;
-    case 'settlement:created': return <SafetyCertificateOutlined style={{ color: '#722ed1', fontSize: 14 }} />;
+    case 'expense_added':
+    case 'expense:created':
+      return <DollarOutlined style={{ ...base, color: '#2563eb' }} />;
+    case 'expense_updated':
+    case 'expense:updated':
+      return <EditOutlined style={{ ...base, color: '#d97706' }} />;
+    case 'expense_deleted':
+    case 'expense:deleted':
+      return <DeleteOutlined style={{ ...base, color: '#dc2626' }} />;
+    case 'settlement_requested':
+    case 'settlement:created':
+    case 'settlement:submitted':
+      return <SafetyCertificateOutlined style={{ ...base, color: '#7c3aed' }} />;
+    case 'settlement_approved':
     case 'settlement:verified':
-    case 'settlement:approved': return <CheckCircleOutlined style={{ color: '#16a34a', fontSize: 14 }} />;
-    case 'group:member_joined': return <TeamOutlined style={{ color: '#06b6d4', fontSize: 14 }} />;
-    default: return <BellOutlined style={{ color: '#2563eb', fontSize: 14 }} />;
+    case 'settlement:approved':
+      return <CheckCircleOutlined style={{ ...base, color: '#16a34a' }} />;
+    case 'settlement_rejected':
+    case 'settlement:rejected':
+      return <CloseCircleOutlined style={{ ...base, color: '#dc2626' }} />;
+    case 'group_member_joined':
+    case 'group:member_joined':
+      return <TeamOutlined style={{ ...base, color: '#06b6d4' }} />;
+    default:
+      return <BellOutlined style={{ ...base, color: '#2563eb' }} />;
   }
 };
 
 const formatTimeAgo = (ts: string) => {
-  const now = new Date();
-  const past = new Date(ts);
-  const diffMs = now.getTime() - past.getTime();
-  const diffMins = Math.floor(diffMs / (1000 * 60));
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  if (diffHours < 24) return `${diffHours}h ago`;
-  return `${Math.floor(diffMs / (1000 * 60 * 60 * 24))}d ago`;
+  if (!ts) return '';
+  const diffMs = Date.now() - new Date(ts).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  const hours = Math.floor(diffMs / 3600000);
+  const days = Math.floor(diffMs / 86400000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days === 1) return 'Yesterday';
+  return `${days}d ago`;
 };
+
+/** The sidebar owns navigation, so the navbar states *where you are* instead of re-branding. */
+const PAGE_TITLES: { match: (path: string) => boolean; title: string; subtitle?: string }[] = [
+  { match: (p) => p === '/' || p === '/dashboard', title: 'Dashboard' },
+  { match: (p) => p === '/expenses', title: 'Expenses' },
+  { match: (p) => p === '/members', title: 'Members & Dues' },
+  { match: (p) => p === '/history' || p === '/settlements', title: 'Settlement History' },
+  { match: (p) => p === '/profile', title: 'Profile & Settings' },
+  { match: (p) => p === '/admin', title: 'Admin Console' },
+  { match: (p) => p === '/inspector', title: 'Inspector Console' },
+  { match: (p) => p === '/no-group', title: 'Get Started' },
+];
 
 export const Navbar: React.FC = () => {
   const { group, user, userRole, logout } = useAuth();
   const { notifications, unreadCount, markAllAsRead, markAsRead } = useNotifications();
   const { showSuccess, confirmAction } = useToast();
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
+
   const [copied, setCopied] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
@@ -84,6 +117,8 @@ export const Navbar: React.FC = () => {
 
   const isSuperAdmin = user?.isSuperAdmin || user?.email === 'admin@gmail.com';
   const isInspector = user?.isInspector || user?.email === 'inspect@gmail.com';
+
+  const page = PAGE_TITLES.find((p) => p.match(location.pathname));
 
   const copyInviteCode = () => {
     if (group?.inviteCode) {
@@ -108,52 +143,36 @@ export const Navbar: React.FC = () => {
   };
 
   const userMenuItems: MenuProps['items'] = [
+    {
+      key: 'identity',
+      label: (
+        <div style={{ padding: '4px 2px', minWidth: 190 }}>
+          <Text strong style={{ fontSize: 13, display: 'block', lineHeight: 1.3 }}>
+            {user?.fullName}
+          </Text>
+          <Text type="secondary" style={{ fontSize: 11, display: 'block' }} ellipsis>
+            {user?.email}
+          </Text>
+        </div>
+      ),
+      disabled: true,
+    },
+    { type: 'divider' },
     ...(isSuperAdmin
       ? [
-          {
-            key: 'admin',
-            icon: <CrownOutlined style={{ color: '#faad14' }} />,
-            label: 'Super Admin Console',
-            onClick: () => navigate('/admin'),
-          },
-          {
-            key: 'profile',
-            icon: <UserOutlined />,
-            label: 'Admin Account',
-            onClick: () => navigate('/profile'),
-          },
+          { key: 'admin', icon: <CrownOutlined style={{ color: '#faad14' }} />, label: 'Super Admin Console', onClick: () => navigate('/admin') },
+          { key: 'profile', icon: <UserOutlined />, label: 'Admin Account', onClick: () => navigate('/profile') },
         ]
       : isInspector
-      ? [
-          {
-            key: 'inspector',
-            icon: <SafetyCertificateOutlined style={{ color: '#722ed1' }} />,
-            label: 'Inspector Audit Console',
-            onClick: () => navigate('/inspector'),
-          },
-          {
-            key: 'profile',
-            icon: <UserOutlined />,
-            label: 'Inspector Account',
-            onClick: () => navigate('/profile'),
-          },
-        ]
-      : [
-          {
-            key: 'profile',
-            icon: <UserOutlined />,
-            label: 'My Profile & Settings',
-            onClick: () => navigate('/profile'),
-          },
-        ]),
+        ? [
+            { key: 'inspector', icon: <SafetyCertificateOutlined style={{ color: '#722ed1' }} />, label: 'Inspector Audit Console', onClick: () => navigate('/inspector') },
+            { key: 'profile', icon: <UserOutlined />, label: 'Inspector Account', onClick: () => navigate('/profile') },
+          ]
+        : [
+            { key: 'profile', icon: <UserOutlined />, label: 'My Profile & Settings', onClick: () => navigate('/profile') },
+          ]),
     { type: 'divider' },
-    {
-      key: 'logout',
-      icon: <LogoutOutlined />,
-      danger: true,
-      label: 'Sign Out',
-      onClick: handleSignOut,
-    },
+    { key: 'logout', icon: <LogoutOutlined />, danger: true, label: 'Sign Out', onClick: handleSignOut },
   ];
 
   const mobileNavItems = isSuperAdmin
@@ -162,350 +181,284 @@ export const Navbar: React.FC = () => {
         { label: 'Admin Profile', path: '/profile', icon: <UserOutlined /> },
       ]
     : isInspector
-    ? [
-        { label: 'Inspector Console', path: '/inspector', icon: <SafetyCertificateOutlined /> },
-        { label: 'Inspector Profile', path: '/profile', icon: <UserOutlined /> },
-      ]
-    : [
-        { label: 'Dashboard', path: '/dashboard', icon: <DashboardOutlined /> },
-        { label: 'Expenses', path: '/expenses', icon: <FileTextOutlined /> },
-        { label: 'Members & Dues', path: '/members', icon: <TeamOutlined /> },
-        { label: 'Settlement History', path: '/history', icon: <HistoryOutlined /> },
-        { label: 'My Profile', path: '/profile', icon: <UserOutlined /> },
-      ];
+      ? [
+          { label: 'Inspector Console', path: '/inspector', icon: <SafetyCertificateOutlined /> },
+          { label: 'Inspector Profile', path: '/profile', icon: <UserOutlined /> },
+        ]
+      : [
+          { label: 'Dashboard', path: '/dashboard', icon: <DashboardOutlined /> },
+          { label: 'Expenses', path: '/expenses', icon: <FileTextOutlined /> },
+          { label: 'Members & Dues', path: '/members', icon: <TeamOutlined /> },
+          { label: 'Settlement History', path: '/history', icon: <HistoryOutlined /> },
+          { label: 'My Profile', path: '/profile', icon: <UserOutlined /> },
+        ];
 
-  const handleNotifClick = (notif: any) => {
+  const handleNotifClick = (notif: { type: string }) => {
     setNotifOpen(false);
-    if (notif.type.startsWith('expense:')) {
-      navigate('/expenses');
-    } else if (notif.type.startsWith('settlement:')) {
-      navigate('/history');
-    } else if (notif.type === 'group:member_joined') {
-      navigate('/members');
-    }
+    if (notif.type.startsWith('expense')) navigate('/expenses');
+    else if (notif.type.startsWith('settlement')) navigate('/history');
+    else if (notif.type.includes('member_joined')) navigate('/members');
   };
 
-  const notificationContent = (
-    <div style={{ width: 310, maxHeight: 380, overflowY: 'auto' }}>
-      {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '8px 12px',
-          borderBottom: '1px solid #f1f5f9',
-        }}
-      >
-        <Text strong style={{ fontSize: 13 }}>
-          Notifications
-        </Text>
-        <Space size={6}>
+  const notificationList = (
+    <div className="nav-notif">
+      <div className="nav-notif__head">
+        <Space size={7} align="center">
+          <Text strong style={{ fontSize: 13.5 }}>Notifications</Text>
           {unreadCount > 0 && (
-            <Button
-              type="link"
-              size="small"
-              onClick={markAllAsRead}
-              style={{ fontSize: 11, padding: 0 }}
-            >
-              Mark all read
-            </Button>
+            <Tag color="blue" style={{ margin: 0, fontSize: 10, borderRadius: 10, padding: '0 7px' }}>
+              {unreadCount} new
+            </Tag>
           )}
         </Space>
+        {unreadCount > 0 && (
+          <Button type="link" size="small" onClick={markAllAsRead} style={{ fontSize: 11.5, padding: 0, height: 'auto' }}>
+            Mark all read
+          </Button>
+        )}
       </div>
 
-      {/* Notification List */}
-      {notifications.length > 0 ? (
-        <Flex vertical>
-          {notifications.slice(0, 20).map((notif) => (
-            <div
-              key={notif._id}
-              onClick={() => {
-                markAsRead(notif._id);
-                handleNotifClick(notif);
-              }}
-              style={{
-                padding: '10px 12px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 10,
-                borderBottom: '1px solid #f8fafc',
-                background: notif.read ? '#ffffff' : '#f0f7ff',
-                transition: 'background 0.15s ease',
-              }}
-            >
-              <div style={{ flexShrink: 0, marginTop: 2 }}>{getNotifIcon(notif.type)}</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <Text
-                  style={{
-                    fontSize: 12,
-                    display: 'block',
-                    lineHeight: 1.4,
-                    fontWeight: notif.read ? 400 : 600,
+      <div className="nav-notif__body">
+        {notifications.length > 0 ? (
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+            {notifications.slice(0, 20).map((notif) => (
+              <li key={notif._id}>
+                <button
+                  type="button"
+                  className={`nav-notif__item${notif.read ? '' : ' nav-notif__item--unread'}`}
+                  onClick={() => {
+                    markAsRead(notif._id);
+                    handleNotifClick(notif);
                   }}
                 >
-                  {notif.message}
-                </Text>
-                <Text type="secondary" style={{ fontSize: 10, marginTop: 2, display: 'block' }}>
-                  {formatTimeAgo(notif.createdAt)}
-                </Text>
-              </div>
-              {!notif.read && (
-                <div
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: '50%',
-                    background: '#2563eb',
-                    flexShrink: 0,
-                    marginTop: 6,
-                  }}
-                />
-              )}
-            </div>
-          ))}
-        </Flex>
-      ) : (
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description="No notifications yet"
-          style={{ padding: '24px 0' }}
-        />
-      )}
+                  <span className="nav-notif__icon">{getNotifIcon(notif.type)}</span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    {notif.title && (
+                      <Text strong style={{ fontSize: 12.5, display: 'block', lineHeight: 1.35 }}>
+                        {notif.title}
+                      </Text>
+                    )}
+                    <Text
+                      style={{ fontSize: 11.5, display: 'block', lineHeight: 1.45, color: '#475569' }}
+                    >
+                      {notif.message}
+                    </Text>
+                    <Text type="secondary" style={{ fontSize: 10, marginTop: 3, display: 'block' }}>
+                      {formatTimeAgo(notif.createdAt)}
+                    </Text>
+                  </span>
+                  {!notif.read && <span className="nav-notif__dot" aria-label="Unread" />}
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={<Text type="secondary" style={{ fontSize: 12.5 }}>You&rsquo;re all caught up</Text>}
+            style={{ padding: '28px 0' }}
+          />
+        )}
+      </div>
     </div>
+  );
+
+  const bellButton = (
+    <Badge count={unreadCount} size="small" offset={[-3, 3]}>
+      <Button
+        type="text"
+        className="nav-iconbtn"
+        icon={<BellOutlined style={{ fontSize: 17 }} />}
+        aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
+      />
+    </Badge>
   );
 
   return (
     <>
-      <header
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 90,
-          width: '100%',
-          backgroundColor: 'rgba(255, 255, 255, 0.98)',
-          backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid #e2e8f0',
-          padding: '0 16px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          height: 56,
-          boxSizing: 'border-box',
-        }}
-      >
-        {/* Left: Mobile Drawer Trigger + Brand / Group Info */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-          {/* Mobile Hamburger Drawer Trigger (Visible only on mobile) */}
+      <header className="app-navbar">
+        {/* ── Left: context ───────────────────────────────────── */}
+        <div className="app-navbar__left">
           <Button
             type="text"
-            className="md:hidden"
-            icon={<MenuOutlined style={{ fontSize: 18, color: '#334155' }} />}
+            className="nav-iconbtn nav-iconbtn--menu"
+            icon={<MenuOutlined style={{ fontSize: 17 }} />}
             onClick={() => setMobileDrawerOpen(true)}
-            style={{ width: 36, height: 36, padding: 0 }}
+            aria-label="Open navigation menu"
           />
 
-          {/* Mobile Brand Link */}
-          <div
-            style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', minWidth: 0 }}
+          {/* Mobile keeps the brand lockup; desktop already has it in the sidebar. */}
+          <button
+            type="button"
+            className="nav-brand"
             onClick={() => navigate(isSuperAdmin ? '/admin' : '/dashboard')}
+            aria-label="Go to dashboard"
           >
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 9,
-                backgroundColor: '#2563eb',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 2px 6px rgba(37, 99, 235, 0.2)',
-                flexShrink: 0,
-              }}
-            >
-              <WalletOutlined style={{ color: '#ffffff', fontSize: 16 }} />
-            </div>
-
-            <div style={{ minWidth: 0, overflow: 'hidden' }}>
-              <Text strong style={{ fontSize: 14, display: 'block', lineHeight: 1.2, margin: 0 }}>
+            <span className="nav-brand__mark">
+              <WalletOutlined style={{ color: '#ffffff', fontSize: 15 }} aria-hidden="true" />
+            </span>
+            <span className="nav-brand__text">
+              <Text strong style={{ fontSize: 13.5, display: 'block', lineHeight: 1.25 }}>
                 SplitWise
               </Text>
-              {group ? (
-                <Text
-                  type="secondary"
-                  ellipsis
-                  style={{ fontSize: 11, display: 'block', maxWidth: 140, lineHeight: 1.2 }}
-                >
-                  {group.name}
-                </Text>
-              ) : (
-                <Text type="secondary" style={{ fontSize: 11, display: 'block', lineHeight: 1.2 }}>
-                  {isSuperAdmin ? 'Platform Super Admin' : 'No active group'}
-                </Text>
-              )}
-            </div>
+              <Text type="secondary" ellipsis style={{ fontSize: 10.5, display: 'block', lineHeight: 1.25 }}>
+                {group ? group.name : isSuperAdmin ? 'Platform Super Admin' : 'No active group'}
+              </Text>
+            </span>
+          </button>
+
+          {/* Desktop: say which page this is, rather than repeating the brand. */}
+          <div className="nav-pagetitle">
+            <Text strong style={{ fontSize: 15.5, lineHeight: 1.2 }}>
+              {page?.title || 'SplitWise'}
+            </Text>
+            {group && !isSuperAdmin && !isInspector && (
+              <Text type="secondary" ellipsis style={{ fontSize: 11.5, display: 'block', lineHeight: 1.25 }}>
+                {group.name}
+              </Text>
+            )}
           </div>
         </div>
 
-        {/* Right: Quick Group Code / Notifications / Avatar */}
-        <Space size={6} align="center">
-          {/* Group invite copy & QR share button for mobile header */}
+        {/* ── Right: actions ──────────────────────────────────── */}
+        <div className="app-navbar__right">
+          {isSuperAdmin && (
+            <Tag color="gold" icon={<CrownOutlined />} className="nav-roletag">Admin</Tag>
+          )}
+          {isInspector && (
+            <Tag color="purple" icon={<SafetyCertificateOutlined />} className="nav-roletag">Inspector</Tag>
+          )}
+
+          {/* Invite actions live in the sidebar on desktop, so they only show on mobile. */}
           {!isSuperAdmin && group && (
-            <Space size={4}>
-              <Tooltip title="Show Group QR">
+            <>
+              <Tooltip title="Show group QR code">
                 <Button
-                  size="small"
+                  type="text"
+                  className="nav-iconbtn nav-invite-only-mobile"
                   onClick={() => setIsGroupQROpen(true)}
-                  icon={<QrcodeOutlined style={{ color: '#2563eb' }} />}
-                  style={{
-                    height: 28,
-                    width: 28,
-                    padding: 0,
-                    borderRadius: 6,
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                  }}
+                  icon={<QrcodeOutlined style={{ fontSize: 17, color: '#2563eb' }} />}
+                  aria-label="Show group QR code"
                 />
               </Tooltip>
 
-              <Tooltip title="Tap to copy invite code">
+              <Tooltip title={copied ? 'Copied!' : 'Copy invite code'}>
                 <Button
-                  size="small"
                   onClick={copyInviteCode}
-                  icon={copied ? <CheckOutlined style={{ color: '#16a34a' }} /> : <CopyOutlined />}
-                  style={{
-                    fontFamily: 'monospace',
-                    fontWeight: 600,
-                    fontSize: 11,
-                    height: 28,
-                    padding: '0 8px',
-                    borderRadius: 6,
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                  }}
+                  className="nav-codechip nav-invite-only-mobile"
+                  icon={
+                    copied
+                      ? <CheckOutlined style={{ color: '#16a34a' }} />
+                      : <CopyOutlined style={{ color: '#64748b' }} />
+                  }
+                  aria-label={`Copy invite code ${group.inviteCode}`}
                 >
                   {group.inviteCode}
                 </Button>
               </Tooltip>
-            </Space>
+            </>
           )}
 
-          {/* Super Admin & Inspector Quick Badges */}
-          {isSuperAdmin && (
-            <Tag color="gold" icon={<CrownOutlined />} style={{ margin: 0 }}>
-              Admin
-            </Tag>
-          )}
-          {isInspector && (
-            <Tag color="purple" icon={<SafetyCertificateOutlined />} style={{ margin: 0 }}>
-              Inspector
-            </Tag>
-          )}
-
-          {/* Notification Bell */}
           {user && (
-            <Popover
-              content={notificationContent}
-              trigger="click"
-              placement="bottomRight"
-              open={notifOpen}
-              onOpenChange={(open) => {
-                setNotifOpen(open);
-                if (open && unreadCount > 0) {
-                  markAllAsRead();
-                }
-              }}
-              arrow={false}
-              overlayInnerStyle={{ padding: 0, borderRadius: 12 }}
-            >
-              <Badge count={unreadCount} size="small" offset={[-2, 4]}>
-                <Button
-                  type="text"
-                  icon={<BellOutlined style={{ fontSize: 18, color: '#475569' }} />}
-                  style={{
-                    width: 36,
-                    height: 36,
-                    padding: 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                />
-              </Badge>
-            </Popover>
-          )}
-
-          {/* User Profile Avatar Dropdown */}
-          {user && (
-            <Dropdown menu={{ items: userMenuItems }} placement="bottomRight" arrow trigger={['click']}>
-              <Avatar
-                style={{
-                  backgroundColor: isSuperAdmin ? '#faad14' : '#0f172a',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  border: '1.5px solid #ffffff',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                }}
-                size={32}
-                icon={isSuperAdmin ? <CrownOutlined /> : <UserOutlined />}
+            isMobile ? (
+              <span onClick={() => setNotifOpen(true)}>{bellButton}</span>
+            ) : (
+              <Popover
+                content={notificationList}
+                trigger="click"
+                placement="bottomRight"
+                open={notifOpen}
+                onOpenChange={setNotifOpen}
+                arrow={false}
+                styles={{ container: { padding: 0, borderRadius: 14, overflow: 'hidden' } }}
               >
-                {!isSuperAdmin && user.fullName?.charAt(0).toUpperCase()}
-              </Avatar>
+                {bellButton}
+              </Popover>
+            )
+          )}
+
+          {user && (
+            <Dropdown
+              menu={{ items: userMenuItems }}
+              placement="bottomRight"
+              trigger={['click']}
+              arrow
+            >
+              <button type="button" className="nav-avatarbtn" aria-label="Account menu">
+                <Avatar
+                  style={{
+                    backgroundColor: isSuperAdmin ? '#faad14' : '#0f172a',
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                  }}
+                  size={32}
+                  icon={isSuperAdmin ? <CrownOutlined /> : <UserOutlined />}
+                >
+                  {!isSuperAdmin && user.fullName?.charAt(0).toUpperCase()}
+                </Avatar>
+              </button>
             </Dropdown>
           )}
-        </Space>
+        </div>
       </header>
 
-      {/* ==========================================
-          MOBILE NAVIGATION DRAWER (Slide-out panel)
-          ========================================== */}
+      {/* Mobile notifications: a bottom sheet is far easier to hit than a corner popover. */}
+      <Drawer
+        open={isMobile && notifOpen}
+        onClose={() => setNotifOpen(false)}
+        placement="bottom"
+        height="72%"
+        title={null}
+        closable={false}
+        styles={{ body: { padding: 0 }, header: { display: 'none' } }}
+      >
+        {notificationList}
+      </Drawer>
+
+      {/* ── Mobile navigation drawer ──────────────────────────── */}
       <Drawer
         open={mobileDrawerOpen}
         onClose={() => setMobileDrawerOpen(false)}
         placement="left"
-        width={280}
-        styles={{ body: { padding: '16px 12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' } }}
+        width={286}
+        closable={false}
+        styles={{
+          body: { padding: '18px 14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' },
+          header: { display: 'none' },
+        }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {/* Header Profile Tile */}
+          {/* Identity tile */}
           <div
             style={{
-              padding: '12px 14px',
+              padding: '13px 14px',
               backgroundColor: '#f8fafc',
-              borderRadius: 12,
+              borderRadius: 13,
               border: '1px solid #e2e8f0',
               display: 'flex',
               alignItems: 'center',
-              gap: 10,
+              gap: 11,
             }}
           >
             <Avatar
-              size={40}
-              style={{
-                backgroundColor: isSuperAdmin ? '#faad14' : '#0f172a',
-                fontSize: 16,
-                fontWeight: 600,
-              }}
+              size={42}
+              style={{ backgroundColor: isSuperAdmin ? '#faad14' : '#0f172a', fontSize: 16, fontWeight: 600, flexShrink: 0 }}
               icon={isSuperAdmin ? <CrownOutlined /> : <UserOutlined />}
             >
               {!isSuperAdmin && user?.fullName?.charAt(0).toUpperCase()}
             </Avatar>
             <div style={{ minWidth: 0, flex: 1 }}>
-              <Text strong ellipsis style={{ fontSize: 13, display: 'block', lineHeight: 1.2 }}>
+              <Text strong ellipsis style={{ fontSize: 13.5, display: 'block', lineHeight: 1.3 }}>
                 {user?.fullName}
               </Text>
               <Text type="secondary" ellipsis style={{ fontSize: 11, display: 'block' }}>
                 {user?.email}
               </Text>
               {isSuperAdmin ? (
-                <Tag color="gold" style={{ fontSize: 10, marginTop: 3 }}>
-                  Super Admin
-                </Tag>
+                <Tag color="gold" style={{ fontSize: 10, marginTop: 5, borderRadius: 4 }}>Super Admin</Tag>
               ) : (
                 userRole && (
-                  <Tag color={userRole === 'creator' ? 'gold' : 'blue'} style={{ fontSize: 10, marginTop: 3 }}>
+                  <Tag color={userRole === 'creator' ? 'gold' : 'blue'} style={{ fontSize: 10, marginTop: 5, borderRadius: 4 }}>
                     {userRole === 'creator' ? 'Group Admin' : 'Member'}
                   </Tag>
                 )
@@ -513,94 +466,84 @@ export const Navbar: React.FC = () => {
             </div>
           </div>
 
-          {/* Group Card in Drawer */}
+          {/* Group + invite */}
           {!isSuperAdmin && group && (
             <div
               style={{
-                padding: '10px 12px',
+                padding: '11px 12px',
                 backgroundColor: 'rgba(37, 99, 235, 0.04)',
-                borderRadius: 10,
+                borderRadius: 11,
                 border: '1px solid rgba(37, 99, 235, 0.15)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
               }}
             >
-              <div>
-                <Text type="secondary" style={{ fontSize: 10, display: 'block' }}>Active Group</Text>
-                <Text strong style={{ fontSize: 12 }}>{group.name}</Text>
-              </div>
-              <Button
-                size="small"
-                icon={copied ? <CheckOutlined style={{ color: '#16a34a' }} /> : <CopyOutlined />}
-                onClick={copyInviteCode}
-                style={{ fontSize: 11 }}
-              >
-                {group.inviteCode}
-              </Button>
+              <Text type="secondary" style={{ fontSize: 10, display: 'block', fontWeight: 600 }}>
+                ACTIVE GROUP
+              </Text>
+              <Text strong ellipsis style={{ fontSize: 12.5, display: 'block', marginBottom: 8 }}>
+                {group.name}
+              </Text>
+              <Space size={6} style={{ width: '100%' }}>
+                <Button
+                  size="small"
+                  icon={copied ? <CheckOutlined style={{ color: '#16a34a' }} /> : <CopyOutlined />}
+                  onClick={copyInviteCode}
+                  style={{ fontSize: 11, fontFamily: 'monospace', fontWeight: 600, borderRadius: 7, flex: 1 }}
+                >
+                  {group.inviteCode}
+                </Button>
+                <Button
+                  size="small"
+                  icon={<QrcodeOutlined style={{ color: '#2563eb' }} />}
+                  onClick={() => { setMobileDrawerOpen(false); setIsGroupQROpen(true); }}
+                  style={{ borderRadius: 7 }}
+                  aria-label="Show group QR code"
+                />
+              </Space>
             </div>
           )}
 
-          {/* Navigation Links List */}
-          <nav style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6 }}>
+          {/* Navigation */}
+          <nav aria-label="Main navigation" style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 4 }}>
+            <Text type="secondary" style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', padding: '0 4px 4px' }}>
+              MENU
+            </Text>
             {mobileNavItems.map((item) => {
               const isActive =
                 location.pathname === item.path ||
                 (item.path === '/history' && location.pathname === '/settlements');
 
               return (
-                <div
+                <button
+                  type="button"
                   key={item.path}
                   onClick={() => {
                     navigate(item.path);
                     setMobileDrawerOpen(false);
                   }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '10px 12px',
-                    borderRadius: 10,
-                    cursor: 'pointer',
-                    fontSize: 13,
-                    fontWeight: isActive ? 600 : 500,
-                    color: isActive ? '#2563eb' : '#334155',
-                    backgroundColor: isActive ? 'rgba(37, 99, 235, 0.08)' : 'transparent',
-                    transition: 'background 0.15s ease',
-                  }}
+                  className={`nav-drawer-link${isActive ? ' nav-drawer-link--active' : ''}`}
+                  aria-current={isActive ? 'page' : undefined}
                 >
-                  <Space size={10}>
-                    <span style={{ color: isActive ? '#2563eb' : '#64748b', fontSize: 16 }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                    <span style={{ color: isActive ? '#2563eb' : '#64748b', fontSize: 16, display: 'flex' }}>
                       {item.icon}
                     </span>
                     <span>{item.label}</span>
-                  </Space>
-                  <RightOutlined style={{ fontSize: 11, color: '#94a3b8' }} />
-                </div>
+                  </span>
+                  <RightOutlined style={{ fontSize: 10, color: isActive ? '#2563eb' : '#cbd5e1' }} aria-hidden="true" />
+                </button>
               );
             })}
           </nav>
         </div>
 
-        {/* Drawer Bottom Action */}
-        <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 12 }}>
-          <Button
-            danger
-            block
-            icon={<LogoutOutlined />}
-            onClick={handleSignOut}
-            style={{ borderRadius: 10 }}
-          >
+        <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 13, marginTop: 14 }}>
+          <Button danger block icon={<LogoutOutlined />} onClick={handleSignOut} style={{ borderRadius: 10, height: 40 }}>
             Sign Out
           </Button>
         </div>
       </Drawer>
 
-      {/* Group QR & Share Modal */}
-      <GroupQRModal
-        isOpen={isGroupQROpen}
-        onClose={() => setIsGroupQROpen(false)}
-      />
+      <GroupQRModal isOpen={isGroupQROpen} onClose={() => setIsGroupQROpen(false)} />
     </>
   );
 };
