@@ -1,16 +1,27 @@
 import * as React from 'react';
 import { Toaster as Sonner } from 'sonner';
+import { useTheme } from '@/context/ThemeContext';
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
 /**
  * Toasts.
  *
- * Positioned bottom-centre on phones and bottom-right on larger screens. Top-right put
- * them straight over the page toolbar, where they covered the very controls someone had
- * just used. The bottom offset clears the mobile tab bar and the home indicator.
+ * Styled as the product's own surface rather than with a saturated status colour.
+ * `richColors` washed the whole toast in a tint and then the overrides here fought it,
+ * which is why they never looked like part of the app. Now every toast is the same
+ * popover surface used by menus and dialogs, and the status is carried by a coloured
+ * left edge and the icon -- enough to read at a glance, quiet enough to belong.
+ *
+ * Sonner keeps its own light/dark palette internally, so the resolved theme is handed
+ * to it explicitly. Without that it assumes light and paints near-black text on a dark
+ * surface.
+ *
+ * Bottom-centre on phones and bottom-right on larger screens: top-right put them over
+ * the page toolbar, covering the controls someone had just used.
  */
 export const Toaster: React.FC<ToasterProps> = ({ ...props }) => {
+  const { resolved } = useTheme();
   const [isMobile, setIsMobile] = React.useState(false);
 
   React.useEffect(() => {
@@ -23,35 +34,53 @@ export const Toaster: React.FC<ToasterProps> = ({ ...props }) => {
 
   return (
     <Sonner
+      theme={resolved}
       className="toaster group"
-      richColors
       closeButton
       position={isMobile ? 'bottom-center' : 'bottom-right'}
-      offset={isMobile ? 'calc(4.75rem + env(safe-area-inset-bottom))' : '1.5rem'}
+      // There is no mobile tab bar to clear any more, so this is just a comfortable
+      // gutter plus the home indicator.
+      offset={isMobile ? 'calc(1rem + env(safe-area-inset-bottom))' : '1.5rem'}
       // Below the dialog layer (z-50): a toast must never cover a modal's actions.
-      // While a dialog is open the modal is the focus, so this is the right priority.
-      style={{ zIndex: 40 }}
+      style={
+        {
+          zIndex: 40,
+          // Full width less a gutter on a phone; a fixed, readable column on desktop.
+          '--width': isMobile ? 'calc(100vw - 2rem)' : '380px',
+        } as React.CSSProperties
+      }
       toastOptions={{
+        duration: 4000,
         classNames: {
-          toast:
-            'group toast group-[.toaster]:bg-white group-[.toaster]:text-slate-900 group-[.toaster]:border-slate-200 group-[.toaster]:shadow-xl group-[.toaster]:rounded-xl font-sans text-sm',
-          description: 'group-[.toast]:text-slate-500 text-xs font-normal',
+          toast: [
+            'group toast font-sans text-sm',
+            'group-[.toaster]:bg-popover group-[.toaster]:text-popover-foreground',
+            'group-[.toaster]:border group-[.toaster]:border-border',
+            'group-[.toaster]:rounded-xl group-[.toaster]:shadow-lg',
+            // The status colour lives on the left edge.
+            'group-[.toaster]:border-l-4',
+          ].join(' '),
+          title: 'group-[.toast]:font-semibold',
+          description: 'group-[.toast]:text-muted-foreground text-xs font-normal',
           actionButton:
-            'group-[.toast]:bg-primary group-[.toast]:text-white text-xs font-semibold rounded-lg',
+            'group-[.toast]:bg-primary group-[.toast]:text-primary-foreground text-xs font-semibold rounded-lg',
           cancelButton:
-            'group-[.toast]:bg-slate-100 group-[.toast]:text-slate-600 text-xs font-semibold rounded-lg',
-          error:
-            'group-[.toaster]:!bg-rose-50 group-[.toaster]:!text-rose-950 group-[.toaster]:!border-rose-200',
+            'group-[.toast]:bg-muted group-[.toast]:text-muted-foreground text-xs font-semibold rounded-lg',
+          closeButton:
+            'group-[.toast]:bg-popover group-[.toast]:border-border group-[.toast]:text-muted-foreground hover:group-[.toast]:text-foreground',
+
+          // Only the edge and the icon change per status, so the text keeps the
+          // popover's own foreground colour and stays readable in either theme.
           success:
-            'group-[.toaster]:!bg-emerald-50 group-[.toaster]:!text-emerald-950 group-[.toaster]:!border-emerald-200',
-          info:
-            'group-[.toaster]:!bg-sky-50 group-[.toaster]:!text-sky-950 group-[.toaster]:!border-sky-200',
+            'group-[.toaster]:border-l-emerald-500 [&_[data-icon]]:text-emerald-600 dark:[&_[data-icon]]:text-emerald-400',
+          error:
+            'group-[.toaster]:border-l-destructive [&_[data-icon]]:text-destructive',
           warning:
-            'group-[.toaster]:!bg-amber-50 group-[.toaster]:!text-amber-950 group-[.toaster]:!border-amber-200',
+            'group-[.toaster]:border-l-amber-500 [&_[data-icon]]:text-amber-600 dark:[&_[data-icon]]:text-amber-400',
+          info: 'group-[.toaster]:border-l-sky-500 [&_[data-icon]]:text-sky-600 dark:[&_[data-icon]]:text-sky-400',
         },
       }}
       {...props}
     />
   );
 };
-

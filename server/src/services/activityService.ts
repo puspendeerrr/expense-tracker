@@ -1,4 +1,4 @@
-import { desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { activities, users, type Activity } from '../db/schema.js';
 import { logger } from '../utils/logger.js';
@@ -17,11 +17,52 @@ export type ActivityRow = {
   actor: { id: string; fullName: string; email: string };
 };
 
-export const listActivities = async (options: {
+export type ActivityListFilters = {
   groupId: string;
   limit: number;
   offset: number;
-}): Promise<{ rows: ActivityRow[]; total: number }> => {
+  /** Matches the actor's name or email, or anything in the entry's metadata. */
+  search?: string;
+  type?: string;
+  actorId?: string;
+  /** Inclusive YYYY-MM-DD bounds. */
+  from?: string;
+  to?: string;
+};
+
+/**
+ * Reads a page of the feed.
+ *
+ * The same predicate builds both the page and the count, so the total always describes
+ * the filtered set rather than the group as a whole -- otherwise "load more" would
+ * offer pages that do not exist.
+ */
+export const listActivities = async (
+  options: ActivityListFilters,
+): Promise<{ rows: ActivityRow[]; total: number }> => {
+  const conditions = [eq(activities.groupId, options.groupId)];
+
+  if (options.actorId) conditions.push(eq(activities.actorUserId, options.actorId));
+  if (options.type) {
+    conditions.push(sql`${activities.type}::text = ${options.type}`);
+  }
+  if (options.from) {
+    conditions.push(sql`${activities.createdAt} >= ${`${options.from}T00:00:00.000Z`}`);
+  }
+  if (options.to) {
+    conditions.push(sql`${activities.createdAt} <= ${`${options.to}T23:59:59.999Z`}`);
+  }
+  if (options.search) {
+    // Escape the LIKE wildcards so a literal % in a search term matches a literal %.
+    const pattern = `%${options.search.replace(/[%_\\]/g, (m) => `\\${m}`)}%`;
+    conditions.push(
+      sql`(${users.fullName} ilike ${pattern} or ${users.email} ilike ${pattern}
+           or ${activities.metadata}::text ilike ${pattern})`,
+    );
+  }
+
+  const where = and(...conditions);
+
   const rows = await db
     .select({
       activity: activities,
@@ -29,7 +70,7 @@ export const listActivities = async (options: {
     })
     .from(activities)
     .innerJoin(users, eq(users.id, activities.actorUserId))
-    .where(eq(activities.groupId, options.groupId))
+    .where(where)
     .orderBy(desc(activities.createdAt))
     .limit(options.limit)
     .offset(options.offset);
@@ -37,9 +78,20 @@ export const listActivities = async (options: {
   const totals = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(activities)
-    .where(eq(activities.groupId, options.groupId));
+    .innerJoin(users, eq(users.id, activities.actorUserId))
+    .where(where);
 
   return { rows, total: totals[0]?.count ?? 0 };
+};
+
+/** Every activity type present in a group, for building the filter control. */
+export const listActivityTypes = async (groupId: string): Promise<string[]> => {
+  const rows = await db
+    .selectDistinct({ type: activities.type })
+    .from(activities)
+    .where(eq(activities.groupId, groupId));
+
+  return rows.map((row) => String(row.type)).sort();
 };
 
 /** Records an entry. Never allowed to fail the operation that triggered it. */

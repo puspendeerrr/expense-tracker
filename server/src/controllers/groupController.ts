@@ -10,6 +10,7 @@ import { validated, validatedQuery } from '../middleware/validate.js';
 import {
   createGroupSchema,
   joinGroupSchema,
+  groupMediaSchema,
   setPaydaySchema,
   updateGroupSchema,
   listActivitiesQuerySchema,
@@ -42,6 +43,8 @@ const publicGroup = (group: Group, role?: GroupMember['role'], memberCount?: num
   currency: group.currency,
   inviteCode: group.inviteCode,
   payday: group.payday,
+  avatarUrl: group.avatarUrl ?? null,
+  coverUrl: group.coverUrl ?? null,
   createdBy: group.createdBy,
   createdAt: group.createdAt.toISOString(),
   ...(role ? { role } : {}),
@@ -82,15 +85,6 @@ export const createGroup = async (req: Request, res: Response): Promise<void> =>
 
   logger.info('group.created', { groupId: group.id, userId: req.user!.id });
 
-  void activityService.recordActivity({
-    groupId: group.id,
-    actorUserId: req.user!.id,
-    type: 'group_created',
-    entityType: 'group',
-    entityId: group.id,
-    metadata: { name: group.name },
-  });
-
   sendOk(res, { group: publicGroup(group, membership.role, 1) }, 201);
 };
 
@@ -125,14 +119,6 @@ export const joinGroup = async (req: Request, res: Response): Promise<void> => {
       message: `${req.user!.fullName} joined ${result.group.name}.`,
       entityType: 'group',
       entityId: result.group.id,
-    });
-
-    void activityService.recordActivity({
-      groupId: result.group.id,
-      actorUserId: req.user!.id,
-      type: 'member_joined',
-      entityType: 'user',
-      entityId: req.user!.id,
     });
 
     publishToGroup({
@@ -210,14 +196,6 @@ export const regenerateInvite = async (req: Request, res: Response): Promise<voi
 
   logger.info('group.invite_regenerated', { groupId: group.id, userId: req.user!.id });
 
-  void activityService.recordActivity({
-    groupId: group.id,
-    actorUserId: req.user!.id,
-    type: 'invite_regenerated',
-    entityType: 'group',
-    entityId: group.id,
-  });
-
   publishToGroup({
     event: REALTIME_EVENTS.INVITE_REGENERATED,
     groupId: group.id,
@@ -254,15 +232,6 @@ export const setPayday = async (req: Request, res: Response): Promise<void> => {
   const { payday } = validated(req, setPaydaySchema);
   const group = await groupService.setPayday(req.group!.id, req.user!.id, payday);
 
-  void activityService.recordActivity({
-    groupId: group.id,
-    actorUserId: req.user!.id,
-    type: 'payday_updated',
-    entityType: 'group',
-    entityId: group.id,
-    metadata: { payday: group.payday },
-  });
-
   sendOk(res, {
     group: publicGroup(group, req.membership!.role),
     billingCycle: calculateBillingCycle(group.payday),
@@ -280,13 +249,6 @@ export const leaveGroup = async (req: Request, res: Response): Promise<void> => 
   });
 
   if (!result.groupDeleted) {
-    void activityService.recordActivity({
-      groupId: req.group!.id,
-      actorUserId: req.user!.id,
-      type: 'member_left',
-      entityType: 'user',
-      entityId: req.user!.id,
-    });
 
     publishToGroup({
       event: REALTIME_EVENTS.MEMBER_LEFT,
@@ -311,14 +273,6 @@ export const removeMember = async (req: Request, res: Response): Promise<void> =
     targetId: targetUserId,
   });
 
-  void activityService.recordActivity({
-    groupId: req.group!.id,
-    actorUserId: req.user!.id,
-    type: 'member_removed',
-    entityType: 'user',
-    entityId: targetUserId,
-  });
-
   publishToGroup({
     event: REALTIME_EVENTS.MEMBER_REMOVED,
     groupId: req.group!.id,
@@ -337,16 +291,52 @@ export const deleteGroup = async (req: Request, res: Response): Promise<void> =>
   sendOk(res, { deleted: true });
 };
 
+/**
+ * Sets or clears the group's avatar and cover image.
+ *
+ * The group comes from the proven membership on the request, never from the body, and
+ * the route is creator-only -- so a member cannot restyle a group they merely belong to.
+ */
+export const setGroupMedia = async (req: Request, res: Response): Promise<void> => {
+  const input = validated(req, groupMediaSchema);
+  const { group } = await groupService.setGroupMedia(req.group!.id, input);
+
+  logger.info('group.media_updated', {
+    groupId: group.id,
+    userId: req.user!.id,
+    changed: Object.keys(input),
+  });
+
+  // Everyone looking at the group should see the new image without a reload.
+  publishToGroup({
+    event: REALTIME_EVENTS.GROUP_UPDATED,
+    groupId: group.id,
+    actorId: req.user!.id,
+    actorName: req.user!.fullName,
+    message: 'The group images were updated',
+  });
+
+  sendOk(res, { group: publicGroup(group, req.membership!.role) });
+};
+
 /* -------------------------------------------------------------------------- */
 /* Activity feed                                                              */
 /* -------------------------------------------------------------------------- */
 
 export const listActivities = async (req: Request, res: Response): Promise<void> => {
-  const { limit, offset } = validatedQuery(req, listActivitiesQuerySchema);
+  const query = validatedQuery(req, listActivitiesQuerySchema);
+  const { limit, offset } = query;
+
   const { rows, total } = await activityService.listActivities({
+    // Always the proven group from the middleware, never one named in the query.
     groupId: req.group!.id,
     limit,
     offset,
+    ...(query.search ? { search: query.search } : {}),
+    ...(query.type ? { type: query.type } : {}),
+    ...(query.actorId ? { actorId: query.actorId } : {}),
+    ...(query.from ? { from: query.from } : {}),
+    ...(query.to ? { to: query.to } : {}),
   });
 
   sendOk(res, {
@@ -362,6 +352,11 @@ export const listActivities = async (req: Request, res: Response): Promise<void>
     })),
     pagination: { total, limit, offset, hasMore: offset + rows.length < total },
   });
+};
+
+/** The activity types this group actually has, so the filter offers no empty options. */
+export const listActivityTypes = async (req: Request, res: Response): Promise<void> => {
+  sendOk(res, { types: await activityService.listActivityTypes(req.group!.id) });
 };
 
 /* -------------------------------------------------------------------------- */

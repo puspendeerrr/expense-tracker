@@ -12,7 +12,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
   </head>
-  <body class="min-h-screen bg-slate-50 font-sans antialiased text-slate-900 selection:bg-emerald-100 selection:text-emerald-900">
+  <!-- Colours come from the base layer (bg-background / text-foreground) so the theme
+       can switch them. Hardcoding bg-slate-50 here would win as a utility class and
+       pin the page to light for ever. -->
+  <body class="min-h-screen font-sans antialiased selection:bg-emerald-100 selection:text-emerald-900">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

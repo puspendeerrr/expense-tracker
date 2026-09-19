@@ -86,6 +86,10 @@ const envSchema = z.object({
   CLOUDINARY_API_SECRET: z.string().trim().optional(),
   CLOUDINARY_UPLOAD_PRESET: z.string().trim().optional(),
   CLOUDINARY_FOLDER: z.string().trim().default('splitwise'),
+
+  /* ---- Gemini AI Assistant ----
+   * Optional: AI features will notify if key is missing rather than crash the server. */
+  GEMINI_API_KEY: z.string().trim().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

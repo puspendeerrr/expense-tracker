@@ -63,7 +63,7 @@ interface MemberDetail {
 }
 
 const MemberRowSkeleton: React.FC = () => (
-  <li className="flex items-center gap-3 border-t border-slate-100 px-4 py-3 first:border-t-0">
+  <li className="flex items-center gap-3 border-t border-border px-4 py-3 first:border-t-0">
     <Skeleton className="h-11 w-11 rounded-full" />
     <div className="flex-1 space-y-1.5">
       <Skeleton className="h-4 w-32" />
@@ -189,16 +189,16 @@ export const MembersPage: React.FC = () => {
     <AppShell title="Members & Dues">
       <div className="mx-auto max-w-4xl space-y-4 px-4 py-5 sm:px-6">
         <div className="flex items-center gap-2">
-          <Users2 className="h-4 w-4 text-slate-400" />
+          <Users2 className="h-4 w-4 text-muted-foreground" />
           <h2 className="t-subtitle">
             {members?.length ?? 0} {members?.length === 1 ? 'member' : 'members'}
           </h2>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
           {error ? (
             <div className="px-4 py-10 text-center">
-              <p className="text-sm text-slate-600">{error}</p>
+              <p className="text-sm text-muted-foreground">{error}</p>
               <Button size="sm" variant="outline" className="mt-3" onClick={loadMembers}>
                 Retry
               </Button>
@@ -217,7 +217,7 @@ export const MembersPage: React.FC = () => {
                 return (
                   <li
                     key={member.id}
-                    className="flex items-center gap-3 border-t border-slate-100 px-4 py-3 first:border-t-0"
+                    className="flex items-center gap-3 border-t border-border px-4 py-3 first:border-t-0"
                   >
                     <button
                       type="button"
@@ -225,12 +225,12 @@ export const MembersPage: React.FC = () => {
                       className="flex min-w-0 flex-1 items-center gap-3 text-left"
                     >
                       <Avatar className="h-11 w-11 shrink-0">
-                        <AvatarFallback className="bg-slate-100 text-slate-600">
+                        <AvatarFallback className="bg-muted text-muted-foreground">
                           {initials(member.fullName)}
                         </AvatarFallback>
                       </Avatar>
                       <div className="min-w-0 flex-1">
-                        <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-slate-900">
+                        <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-foreground">
                           <span className="truncate">
                             {member.fullName}
                             {isMe && ' (you)'}
@@ -248,7 +248,7 @@ export const MembersPage: React.FC = () => {
                           <span
                             className={cn(
                               't-money text-sm',
-                              net > 0 ? 'text-emerald-600' : 'text-red-600',
+                              net > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400',
                             )}
                           >
                             {net > 0 ? '+' : '−'}
@@ -262,7 +262,7 @@ export const MembersPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setRemoving(member)}
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-destructive"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-red-500/10 hover:text-destructive"
                         aria-label={`Remove ${member.fullName}`}
                       >
                         <UserMinus className="h-4 w-4" />
@@ -299,17 +299,17 @@ export const MembersPage: React.FC = () => {
                 <>
                   {/* Both directions, never netted. */}
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-xl border border-red-100 bg-red-50/50 p-3 text-center">
+                    <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-center">
                       <ArrowUpRight className="mx-auto h-4 w-4 text-red-500" />
                       <p className="mt-1 t-eyebrow">You owe</p>
-                      <p className="t-money mt-0.5 text-lg text-red-700">
+                      <p className="t-money mt-0.5 text-lg text-red-700 dark:text-red-400">
                         {formatPaise(detail.iOwePaise)}
                       </p>
                     </div>
-                    <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-3 text-center">
-                      <ArrowDownLeft className="mx-auto h-4 w-4 text-emerald-600" />
+                    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-center">
+                      <ArrowDownLeft className="mx-auto h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                       <p className="mt-1 t-eyebrow">They owe</p>
-                      <p className="t-money mt-0.5 text-lg text-emerald-700">
+                      <p className="t-money mt-0.5 text-lg text-emerald-700 dark:text-emerald-400">
                         {formatPaise(detail.theyOwePaise)}
                       </p>
                     </div>
@@ -328,23 +328,23 @@ export const MembersPage: React.FC = () => {
                   )}
 
                   {detail.relationship && (
-                    <div className="rounded-xl bg-slate-50 p-3">
+                    <div className="rounded-xl bg-muted p-3">
                       <p className="t-eyebrow mb-2">Historical attribution</p>
                       <dl className="space-y-1.5 text-sm">
                         <div className="flex justify-between gap-3">
-                          <dt className="text-slate-500">I paid for them</dt>
-                          <dd className="t-money text-slate-900">
+                          <dt className="text-muted-foreground">I paid for them</dt>
+                          <dd className="t-money text-foreground">
                             {formatPaise(detail.relationship.iPaidForThem.paise)}
                           </dd>
                         </div>
                         <div className="flex justify-between gap-3">
-                          <dt className="text-slate-500">They paid for me</dt>
-                          <dd className="t-money text-slate-900">
+                          <dt className="text-muted-foreground">They paid for me</dt>
+                          <dd className="t-money text-foreground">
                             {formatPaise(detail.relationship.theyPaidForMe.paise)}
                           </dd>
                         </div>
                       </dl>
-                      <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
+                      <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
                         What was spent historically — not the same as what is owed today.
                       </p>
                     </div>
@@ -354,18 +354,18 @@ export const MembersPage: React.FC = () => {
                   <div>
                     <p className="t-eyebrow mb-2">Settlements between you</p>
                     {detail.settlements.length === 0 ? (
-                      <p className="rounded-xl bg-slate-50 px-3 py-4 text-center t-meta">
+                      <p className="rounded-xl bg-muted px-3 py-4 text-center t-meta">
                         No settlements yet.
                       </p>
                     ) : (
-                      <ul className="overflow-hidden rounded-xl border border-slate-200">
+                      <ul className="overflow-hidden rounded-xl border border-border">
                         {detail.settlements.slice(0, 8).map((settlement) => (
                           <li
                             key={settlement.id}
-                            className="flex items-center justify-between gap-3 border-t border-slate-100 px-3 py-2.5 first:border-t-0"
+                            className="flex items-center justify-between gap-3 border-t border-border px-3 py-2.5 first:border-t-0"
                           >
                             <div className="min-w-0">
-                              <p className="text-sm font-medium text-slate-900">
+                              <p className="text-sm font-medium text-foreground">
                                 {settlement.payerId === user?.id ? 'You paid' : 'They paid'}
                               </p>
                               <p className="t-meta">
@@ -384,8 +384,8 @@ export const MembersPage: React.FC = () => {
                               className={cn(
                                 't-money shrink-0 text-sm',
                                 settlement.status === 'completed'
-                                  ? 'text-slate-900'
-                                  : 'text-slate-400',
+                                  ? 'text-foreground'
+                                  : 'text-muted-foreground',
                               )}
                             >
                               {formatPaise(settlement.amountPaise)}
@@ -400,18 +400,18 @@ export const MembersPage: React.FC = () => {
                   <div>
                     <p className="t-eyebrow mb-2">Expenses you both share</p>
                     {detail.expenses.length === 0 ? (
-                      <p className="rounded-xl bg-slate-50 px-3 py-4 text-center t-meta">
+                      <p className="rounded-xl bg-muted px-3 py-4 text-center t-meta">
                         No shared expenses.
                       </p>
                     ) : (
-                      <ul className="overflow-hidden rounded-xl border border-slate-200">
+                      <ul className="overflow-hidden rounded-xl border border-border">
                         {detail.expenses.slice(0, 10).map((expense) => (
                           <li
                             key={expense.id}
-                            className="flex items-center justify-between gap-3 border-t border-slate-100 px-3 py-2.5 first:border-t-0"
+                            className="flex items-center justify-between gap-3 border-t border-border px-3 py-2.5 first:border-t-0"
                           >
                             <div className="min-w-0">
-                              <p className="truncate text-sm font-medium text-slate-900">
+                              <p className="truncate text-sm font-medium text-foreground">
                                 {expense.title}
                               </p>
                               <p className="t-meta">
@@ -419,7 +419,7 @@ export const MembersPage: React.FC = () => {
                                 {expense.paidBy === user?.id ? 'you paid' : 'they paid'}
                               </p>
                             </div>
-                            <span className="t-money shrink-0 text-sm text-slate-900">
+                            <span className="t-money shrink-0 text-sm text-foreground">
                               {formatPaise(expense.amountPaise)}
                             </span>
                           </li>
@@ -470,13 +470,13 @@ export const MembersPage: React.FC = () => {
             <DialogTitle>Remove {removing?.fullName}?</DialogTitle>
           </DialogHeader>
           <DialogBody className="space-y-3">
-            <p className="text-sm leading-relaxed text-slate-600">
+            <p className="text-sm leading-relaxed text-muted-foreground">
               They will lose access to this group. Past expenses they were part of stay
               exactly as they are.
             </p>
-            <div className="flex items-start gap-2 rounded-lg bg-amber-50 p-3">
-              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-              <p className="text-xs leading-relaxed text-amber-900">
+            <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 p-3">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+              <p className="text-xs leading-relaxed text-amber-900 dark:text-amber-300">
                 A member with outstanding balances cannot be removed — the server checks
                 this, so settle up with them first.
               </p>

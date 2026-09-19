@@ -15,9 +15,16 @@ const DropdownMenuContent = React.forwardRef<
       ref={ref}
       sideOffset={sideOffset}
       className={cn(
-        'z-[60] min-w-[12rem] overflow-hidden rounded-xl border border-slate-200 bg-white p-1 text-slate-900 shadow-xl',
+        'z-[60] min-w-[12rem] overflow-hidden rounded-xl border border-border bg-popover p-1 text-popover-foreground shadow-xl',
         'data-[state=open]:animate-in data-[state=closed]:animate-out',
         'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
+        // Scale and a short slide away from the trigger. A menu that only fades has no
+        // apparent origin, so it reads as appearing over the page rather than opening
+        // from the control that was pressed.
+        'data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95',
+        'data-[side=bottom]:slide-in-from-top-1 data-[side=top]:slide-in-from-bottom-1',
+        'data-[side=left]:slide-in-from-right-1 data-[side=right]:slide-in-from-left-1',
+        'origin-[--radix-dropdown-menu-content-transform-origin] duration-150',
         className,
       )}
       {...props}
@@ -34,7 +41,7 @@ const DropdownMenuItem = React.forwardRef<
     ref={ref}
     className={cn(
       'relative flex cursor-pointer select-none items-center gap-2 rounded-lg px-3 py-2.5 text-sm outline-none transition-colors',
-      'focus:bg-slate-100 data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+      'focus:bg-accent active:scale-[0.99] data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
       className,
     )}
     {...props}
@@ -49,7 +56,7 @@ const DropdownMenuLabel = React.forwardRef<
   <DropdownMenuPrimitive.Label
     ref={ref}
     className={cn(
-      'px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-400',
+      'px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground',
       className,
     )}
     {...props}
@@ -63,7 +70,7 @@ const DropdownMenuSeparator = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DropdownMenuPrimitive.Separator
     ref={ref}
-    className={cn('-mx-1 my-1 h-px bg-slate-100', className)}
+    className={cn('-mx-1 my-1 h-px bg-border', className)}
     {...props}
   />
 ));

@@ -219,12 +219,12 @@ export const ResetPasswordPage: React.FC = () => {
   if (step === 'done') {
     return (
       <AuthLayout>
-        <Card className="border-slate-200 shadow-xl shadow-slate-900/5 text-center">
+        <Card className="border-border shadow-xl shadow-slate-900/5 text-center">
           <CardHeader className="space-y-2 pb-4">
-            <div className="mx-auto mb-2 h-14 w-14 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700">
+            <div className="mx-auto mb-2 h-14 w-14 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-700 dark:text-emerald-400">
               <CheckCircle2 className="h-8 w-8" />
             </div>
-            <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">
+            <CardTitle className="text-2xl font-bold tracking-tight text-foreground">
               Password updated!
             </CardTitle>
             <CardDescription>
@@ -247,19 +247,19 @@ export const ResetPasswordPage: React.FC = () => {
 
   return (
     <AuthLayout>
-      <Card className="border-slate-200 shadow-xl shadow-slate-900/5">
+      <Card className="border-border shadow-xl shadow-slate-900/5">
         <CardHeader className="space-y-1 pb-4">
           <div className="mb-2 h-10 w-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
             <Lock className="h-5 w-5" />
           </div>
-          <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">
+          <CardTitle className="text-2xl font-bold tracking-tight text-foreground">
             {step === 'otp' ? 'Enter reset code' : 'Choose a new password'}
           </CardTitle>
           <CardDescription>
             {step === 'otp' ? (
               <>
                 Enter the 6-digit code sent to{' '}
-                <span className="font-semibold text-slate-800 font-mono">
+                <span className="font-semibold text-foreground font-mono">
                   {challenge?.maskedEmail}
                 </span>
               </>
@@ -294,12 +294,12 @@ export const ResetPasswordPage: React.FC = () => {
                 />
 
                 {challenge && (
-                  <div className="text-xs text-slate-500 pt-2 flex items-center gap-1.5">
+                  <div className="text-xs text-muted-foreground pt-2 flex items-center gap-1.5">
                     <span>Code expires in</span>
                     <CountdownTimer
                       targetIso={challenge.expiresAt}
                       serverTimeIso={challenge.serverTime}
-                      className="font-mono font-semibold text-slate-700"
+                      className="font-mono font-semibold text-foreground/80"
                       onExpire={() => setErrorMessage('Code expired. Please click resend.')}
                     />
                   </div>
@@ -317,10 +317,10 @@ export const ResetPasswordPage: React.FC = () => {
                 {isVerifyingOtp ? 'Verifying code…' : 'Verify code'}
               </Button>
 
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+              <div className="pt-3 border-t border-border flex items-center justify-between text-xs">
                 <Link
                   to="/forgot-password"
-                  className="text-slate-500 hover:text-slate-800 font-medium transition-colors"
+                  className="text-muted-foreground hover:text-foreground font-medium transition-colors"
                 >
                   <ArrowLeft className="inline mr-1 h-3.5 w-3.5" />
                   Try different email
@@ -334,20 +334,20 @@ export const ResetPasswordPage: React.FC = () => {
                       size="sm"
                       onClick={handleResendOtp}
                       isLoading={isResending}
-                      className="text-xs text-primary font-semibold hover:text-emerald-800 p-0 h-auto"
+                      className="text-xs text-primary font-semibold hover:text-emerald-800 dark:text-emerald-300 p-0 h-auto"
                     >
                       <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
                       Resend code
                     </Button>
                   ) : (
                     challenge && (
-                      <span className="text-slate-400 font-medium">
+                      <span className="text-muted-foreground font-medium">
                         Resend in{' '}
                         <CountdownTimer
                           targetIso={challenge.resendAvailableAt}
                           serverTimeIso={challenge.serverTime}
                           onExpire={() => setCanResend(true)}
-                          className="font-mono font-bold text-slate-600"
+                          className="font-mono font-bold text-muted-foreground"
                         />
                       </span>
                     )
@@ -362,7 +362,7 @@ export const ResetPasswordPage: React.FC = () => {
                   New password
                 </Label>
                 <div className="relative">
-                  <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
+                  <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="newPassword"
                     type={showPassword ? 'text' : 'password'}
@@ -378,7 +378,7 @@ export const ResetPasswordPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors"
+                    className="absolute right-3 top-3 text-muted-foreground hover:text-foreground focus:outline-none transition-colors"
                     tabIndex={-1}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -392,7 +392,7 @@ export const ResetPasswordPage: React.FC = () => {
                   Confirm new password
                 </Label>
                 <div className="relative">
-                  <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
+                  <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="confirmNewPassword"
                     type={showPassword ? 'text' : 'password'}
@@ -407,8 +407,8 @@ export const ResetPasswordPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-500 flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+              <div className="p-3 bg-muted border border-border/80 rounded-xl text-xs text-muted-foreground flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
                 <span>Resetting will automatically sign out all active sessions on other devices.</span>
               </div>
 

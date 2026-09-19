@@ -8,9 +8,9 @@ export const PublicOnlyRoute: React.FC<{ children: React.ReactNode }> = ({ child
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-muted">
         <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
-        <p className="text-sm font-medium text-slate-500">Loading...</p>
+        <p className="text-sm font-medium text-muted-foreground">Loading...</p>
       </div>
     );
   }

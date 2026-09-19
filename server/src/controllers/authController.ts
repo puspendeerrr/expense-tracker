@@ -31,6 +31,7 @@ import {
   revokeResetAuthorizations,
 } from '../services/passwordResetService.js';
 import { validated } from '../middleware/validate.js';
+import * as securityService from '../services/securityService.js';
 import { getEffectivePermissions } from '../services/permissionService.js';
 import { isUniqueViolation } from '../utils/dbErrors.js';
 import {
@@ -187,7 +188,19 @@ export const signupVerifyOtp = async (req: Request, res: Response): Promise<void
     throw error;
   }
 
-  await createSession(res, user.id, req);
+  const signupSession = await createSession(res, user.id, req);
+
+  // Recorded so the very first device counts as known; otherwise the next sign-in from
+  // the same browser would be reported as a new device.
+  await securityService.recordEvent({
+    userId: user.id,
+    type: 'login_succeeded',
+    sessionId: signupSession.id,
+    ipAddress: req.ip ?? null,
+    userAgent: req.get('user-agent') ?? null,
+    deviceSignature: securityService.deviceSignature(req.get('user-agent')),
+  });
+
   logger.info('signup.completed', { userId: user.id });
   sendOk(res, { user: publicUser(user) }, 201);
 };
@@ -209,6 +222,13 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   }
 
   if (!(await verifyPassword(password, user.passwordHash))) {
+    // Recorded only for addresses that belong to a real account, so the table never
+    // fills with attacker-supplied strings no one can be shown.
+    await securityService.recordFailedLogin({
+      userId: user.id,
+      ipAddress: req.ip ?? null,
+      userAgent: req.get('user-agent') ?? null,
+    });
     throw unauthorized(ERROR_CODES.INVALID_CREDENTIALS, 'Invalid email or password.');
   }
 
@@ -225,7 +245,18 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     );
   }
 
-  await createSession(res, user.id, req);
+  const session = await createSession(res, user.id, req);
+
+  // Writes the login event and, when the device is unfamiliar, raises the new-device
+  // notification. Awaited so the history is durable before the caller is told it
+  // succeeded; it swallows its own failures, so it cannot fail the login.
+  await securityService.recordLogin({
+    userId: user.id,
+    sessionId: session.id,
+    ipAddress: req.ip ?? null,
+    userAgent: req.get('user-agent') ?? null,
+  });
+
   logger.info('login.success', { userId: user.id });
   sendOk(res, { user: publicUser(user) });
 };
@@ -243,7 +274,18 @@ export const me = async (req: Request, res: Response): Promise<void> => {
 };
 
 export const logout = async (req: Request, res: Response): Promise<void> => {
-  if (req.sessionId) await revokeSession(req.sessionId);
+  if (req.sessionId) {
+    await revokeSession(req.sessionId);
+    if (req.user) {
+      await securityService.recordEvent({
+        userId: req.user.id,
+        type: 'logout',
+        sessionId: req.sessionId,
+        ipAddress: req.ip ?? null,
+        userAgent: req.get('user-agent') ?? null,
+      });
+    }
+  }
   clearSessionCookie(res);
   sendOk(res, { loggedOut: true });
 };
@@ -305,6 +347,21 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
     .update(users)
     .set({ passwordHash, updatedAt: new Date() })
     .where(eq(users.id, userId));
+
+  await securityService.recordEvent({
+    userId,
+    type: 'password_changed',
+    sessionId: req.sessionId ?? null,
+    ipAddress: req.ip ?? null,
+    userAgent: req.get('user-agent') ?? null,
+  });
+
+  await securityService.notifySecurity(userId, {
+    type: 'security_password_changed',
+    title: 'Your password was changed',
+    message:
+      'The password on your account was changed. If this was not you, reset it and sign out every device.',
+  });
 
   logger.info('password.changed', { userId });
   sendOk(res, { passwordChanged: true });
@@ -392,6 +449,23 @@ export const passwordReset = async (req: Request, res: Response): Promise<void> 
     revokeResetAuthorizations(user.id),
     invalidateChallenges(user.email, 'PASSWORD_RESET'),
   ]);
+
+  await securityService.recordEvent({
+    userId: user.id,
+    type: 'password_reset',
+    ipAddress: req.ip ?? null,
+    userAgent: req.get('user-agent') ?? null,
+  });
+
+  // The reset already revoked every session, so this notification is waiting in the
+  // inbox the next time they sign in -- which is exactly when they would want to see it
+  // if the reset was not theirs.
+  await securityService.notifySecurity(user.id, {
+    type: 'security_password_changed',
+    title: 'Your password was reset',
+    message:
+      'Your password was reset and every device was signed out. If this was not you, reset it again immediately.',
+  });
 
   clearSessionCookie(res);
   logger.info('password_reset.completed', { userId: user.id });

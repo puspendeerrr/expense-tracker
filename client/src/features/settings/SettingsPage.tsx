@@ -28,6 +28,7 @@ import { useGroups } from '@/context/GroupContext';
 import { useAuth } from '@/context/AuthContext';
 import { getGroup, leaveGroup, setPayday, deleteGroup } from '@/lib/domainApi';
 import { PurgeHistoryDialog } from '@/features/groups/PurgeHistoryDialog';
+import { GroupMediaEditor } from '@/features/groups/GroupMediaEditor';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import type { BillingCycle, PersonRef } from '@/types/domain';
 
@@ -44,7 +45,7 @@ const SettingsCard: React.FC<{
   description?: string;
   children: React.ReactNode;
 }> = ({ title, description, children }) => (
-  <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+  <section className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
     <h2 className="t-subtitle">{title}</h2>
     {description && <p className="mt-0.5 t-meta">{description}</p>}
     <div className="mt-4">{children}</div>
@@ -174,6 +175,23 @@ export const SettingsPage: React.FC = () => {
   return (
     <AppShell title="Settings">
       <div className="mx-auto max-w-2xl space-y-4 px-4 py-5 sm:px-6">
+        {/* ---- Group images ---- */}
+        {activeGroup && (
+          <SettingsCard
+            title="Group appearance"
+            description="A picture and cover make a group recognisable at a glance in the switcher and lists."
+          >
+            <GroupMediaEditor
+              groupId={activeGroup.id}
+              groupName={activeGroup.name}
+              avatarUrl={activeGroup.avatarUrl}
+              coverUrl={activeGroup.coverUrl}
+              canEdit={isCreator}
+              onChanged={() => void refreshGroups()}
+            />
+          </SettingsCard>
+        )}
+
         {/* ---- Payday ---- */}
         <SettingsCard
           title="Monthly payday"
@@ -182,13 +200,13 @@ export const SettingsPage: React.FC = () => {
           {isLoading ? (
             <Skeleton className="h-11 w-full rounded-lg" />
           ) : !isCreator ? (
-            <div className="flex items-start gap-2.5 rounded-xl bg-slate-50 p-3">
+            <div className="flex items-start gap-2.5 rounded-xl bg-muted p-3">
               <Crown className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-muted-foreground">
                 {billingCycle?.payday
                   ? `Payday is the ${ordinal(billingCycle.payday)} of each month.`
                   : 'No payday is set for this group.'}{' '}
-                <span className="text-slate-400">Only the group creator can change this.</span>
+                <span className="text-muted-foreground">Only the group creator can change this.</span>
               </p>
             </div>
           ) : (
@@ -220,7 +238,7 @@ export const SettingsPage: React.FC = () => {
                 <div className="flex items-start gap-2.5 rounded-xl bg-primary/5 p-3">
                   <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                   <div className="text-sm">
-                    <p className="font-semibold text-slate-900">
+                    <p className="font-semibold text-foreground">
                       Next payday: {billingCycle.nextPayday}
                     </p>
                     <p className="t-meta">
@@ -241,19 +259,19 @@ export const SettingsPage: React.FC = () => {
           description="Get alerted about new expenses and payments even when SplitWise is closed."
         >
           {!push.isSupported ? (
-            <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
+            <p className="rounded-xl bg-muted p-3 text-sm text-muted-foreground">
               This browser does not support push notifications.
             </p>
           ) : !env.pushEnabled ? (
-            <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
+            <p className="rounded-xl bg-muted p-3 text-sm text-muted-foreground">
               Push is not configured on this deployment. Set{' '}
-              <code className="rounded bg-slate-200 px-1 text-xs">VITE_VAPID_PUBLIC_KEY</code>{' '}
+              <code className="rounded bg-accent px-1 text-xs">VITE_VAPID_PUBLIC_KEY</code>{' '}
               and the matching server keys to enable it.
             </p>
           ) : (
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-sm font-medium text-slate-900">
+                <p className="text-sm font-medium text-foreground">
                   {push.isSubscribed ? 'Enabled on this device' : 'Disabled'}
                 </p>
                 <p className="t-meta">
@@ -288,7 +306,7 @@ export const SettingsPage: React.FC = () => {
             description="Permanently delete a date range of expenses and payments from this group."
           >
             <div className="space-y-3">
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-muted-foreground">
                 Only periods that are fully settled can be cleared, so this can never
                 change what anyone owes. You will see exactly what would be deleted
                 before anything is.
@@ -296,7 +314,7 @@ export const SettingsPage: React.FC = () => {
               <Button
                 variant="outline"
                 onClick={() => setPurgeOpen(true)}
-                className="text-destructive hover:bg-red-50 sm:w-auto"
+                className="text-destructive hover:bg-red-500/10 sm:w-auto"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
                 Clear history&hellip;
@@ -323,7 +341,7 @@ export const SettingsPage: React.FC = () => {
               <Button
                 variant="outline"
                 onClick={() => setDeleteOpen(true)}
-                className={cn('text-destructive hover:bg-red-50 sm:w-auto')}
+                className={cn('text-destructive hover:bg-red-500/10 sm:w-auto')}
               >
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete group
@@ -340,7 +358,7 @@ export const SettingsPage: React.FC = () => {
             <DialogTitle>Leave {activeGroup?.name}?</DialogTitle>
           </DialogHeader>
           <DialogBody>
-            <p className="text-sm leading-relaxed text-slate-600">
+            <p className="text-sm leading-relaxed text-muted-foreground">
               You will lose access to this group&apos;s expenses. If you still owe or are owed
               anything, the server will block this until you settle up.
             </p>
@@ -364,7 +382,7 @@ export const SettingsPage: React.FC = () => {
             <DialogTitle>Delete {activeGroup?.name}?</DialogTitle>
           </DialogHeader>
           <DialogBody>
-            <p className="text-sm leading-relaxed text-slate-600">
+            <p className="text-sm leading-relaxed text-muted-foreground">
               Every expense, settlement and balance in this group will be permanently
               deleted for all members. This cannot be undone.
             </p>

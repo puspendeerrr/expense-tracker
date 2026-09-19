@@ -68,14 +68,76 @@ export const updateGroupSchema = z
     message: 'Provide at least one field to update',
   });
 
+/**
+ * Group imagery.
+ *
+ * The browser uploads straight to Cloudinary with an unsigned preset, so what reaches
+ * the server is the result of that upload rather than the bytes. That means the URL is
+ * attacker-controllable and has to be constrained here: an unchecked string would let
+ * someone point a group's avatar at any host, turning every member's dashboard into a
+ * request to a server of their choosing.
+ *
+ * Sending `null` for both fields removes the image; sending one without the other is
+ * rejected, because a URL with no public id can never be cleaned up afterwards.
+ */
+const cloudinaryUrlSchema = z
+  .string()
+  .trim()
+  .url()
+  .max(600)
+  .refine((value) => /^https:\/\/res\.cloudinary\.com\//.test(value), {
+    message: 'Images must be hosted on Cloudinary',
+  });
+
+const publicIdSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(300)
+  .regex(/^[\w\-./]+$/, 'Invalid image reference');
+
+const mediaPairSchema = z
+  .object({
+    url: cloudinaryUrlSchema.nullable(),
+    publicId: publicIdSchema.nullable(),
+  })
+  .strict()
+  .refine((data) => (data.url === null) === (data.publicId === null), {
+    message: 'Provide both the URL and the public id, or null for both',
+  });
+
+export const groupMediaSchema = z
+  .object({
+    avatar: mediaPairSchema.optional(),
+    cover: mediaPairSchema.optional(),
+  })
+  .strict()
+  .refine((data) => data.avatar !== undefined || data.cover !== undefined, {
+    message: 'Provide an avatar or a cover to change',
+  });
+
+export type GroupMediaInput = z.infer<typeof groupMediaSchema>;
+
 export type CreateGroupInput = z.infer<typeof createGroupSchema>;
 export type JoinGroupInput = z.infer<typeof joinGroupSchema>;
 export type SetPaydayInput = z.infer<typeof setPaydaySchema>;
 
-/** Activity feed paging. */
+/**
+ * Activity feed paging and filters.
+ *
+ * Filtering happens on the server rather than over the fetched page. A feed is paged,
+ * so narrowing one page in the browser would show "3 results" when the group holds
+ * thirty matching entries further down -- an answer that is not merely incomplete but
+ * wrong, and indistinguishable from the truth at the call site.
+ */
 export const listActivitiesQuerySchema = z
   .object({
     limit: z.coerce.number().int().min(1).max(100).default(30),
     offset: z.coerce.number().int().min(0).default(0),
+    search: z.string().trim().max(100).optional(),
+    type: z.string().trim().max(50).optional(),
+    actorId: z.string().uuid().optional(),
+    from: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    to: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   })
   .passthrough();

@@ -49,11 +49,32 @@ export default {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
+        // Admin console chrome. Scoped to that surface so nothing in the consumer app
+        // can accidentally pick up the operations palette.
+        admin: {
+          canvas: 'hsl(var(--admin-canvas))',
+          nav: 'hsl(var(--admin-nav))',
+          'nav-foreground': 'hsl(var(--admin-nav-foreground))',
+          chrome: 'hsl(var(--admin-chrome))',
+          border: 'hsl(var(--admin-border))',
+        },
+      },
+      // Sheet and drawer motion. Defined here rather than written inline as
+      // arbitrary values so the classes are guaranteed to be generated, and so every
+      // sliding surface in the app shares one curve.
+      transitionDuration: {
+        280: '280ms',
+      },
+      transitionTimingFunction: {
+        // Decelerates hard at the end, which is what makes a panel read as settling
+        // into place instead of stopping dead.
+        sheet: 'cubic-bezier(0.32, 0.72, 0, 1)',
       },
       borderRadius: {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
+        admin: 'var(--admin-radius)',
       },
       keyframes: {
         'accordion-down': {
@@ -83,6 +104,14 @@ export default {
           from: { opacity: '0', transform: 'translateY(6px)' },
           to: { opacity: '1', transform: 'translateY(0)' },
         },
+        // A figure that changed while you were looking at it. Lifts and settles rather
+        // than flashing a colour, so it reads as "this moved" without implying good or
+        // bad -- a balance going up is welcome to one person and not to another.
+        'value-change': {
+          '0%': { transform: 'translateY(-2px)', opacity: '0.55' },
+          '60%': { transform: 'translateY(0)', opacity: '1' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
+        },
         'scale-in': {
           from: { opacity: '0', transform: 'scale(0.97)' },
           to: { opacity: '1', transform: 'scale(1)' },
@@ -103,6 +132,7 @@ export default {
         shake: 'shake 0.35s ease-in-out',
         'fade-in': 'fade-in 0.18s ease-out both',
         'fade-in-up': 'fade-in-up 0.24s cubic-bezier(0.16, 1, 0.3, 1) both',
+        'value-change': 'value-change 0.45s cubic-bezier(0.16, 1, 0.3, 1) both',
         'scale-in': 'scale-in 0.16s cubic-bezier(0.16, 1, 0.3, 1) both',
         'slide-in-right': 'slide-in-right 0.24s cubic-bezier(0.16, 1, 0.3, 1) both',
         'slide-in-bottom': 'slide-in-bottom 0.28s cubic-bezier(0.16, 1, 0.3, 1) both',

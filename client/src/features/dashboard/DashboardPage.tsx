@@ -16,17 +16,28 @@ import { useAuth } from '@/context/AuthContext';
 import { useGroups } from '@/context/GroupContext';
 import { useDashboardData, type ChartGrouping } from '@/hooks/useDashboardData';
 import { useRealtime } from '@/hooks/useRealtime';
-import { buildFilterQuery, countActiveFilters, DEFAULT_FILTERS, resolveDatePreset, formatRelativeDate } from '@/lib/dateRange';
+import { countActiveFilters, DEFAULT_FILTERS, resolveDatePreset, formatRelativeDate } from '@/lib/dateRange';
 import { downloadExport, remindMember } from '@/lib/domainApi';
 import { formatPaise } from '@/lib/money';
 import type { DueEntry, ReportFilters } from '@/types/domain';
 import { AppShell } from '@/components/layout/AppShell';
 import { DashboardActions } from './DashboardActions';
-import { FinancialSummary } from './FinancialSummary';
-import { WhoOwesWhom } from './WhoOwesWhom';
+import { BalanceHero } from './BalanceHero';
+import { BalanceList } from './BalanceList';
+import { PeriodStrip } from './PeriodStrip';
 import { RelationshipSection } from './RelationshipSection';
 import { SpendingAnalytics } from './SpendingAnalytics';
 import { FilterDialog } from './FilterDialog';
+import { ExportDialog, type ExportRequest } from './ExportDialog';
+import { QuickActions } from './QuickActions';
+import { InsightCards } from './InsightCards';
+import { PeriodComparison } from './PeriodComparison';
+import { DashboardCustomizer } from './DashboardCustomizer';
+import {
+  useDashboardPreferences,
+  visibleWidgets,
+  type WidgetId,
+} from './useDashboardPreferences';
 import { AddExpenseDialog } from '@/features/expenses/AddExpenseDialog';
 import { SettleDialog } from '@/features/settlements/SettleDialog';
 
@@ -43,11 +54,11 @@ const RegionError: React.FC<{ message: string; onRetry: () => void }> = ({
   message,
   onRetry,
 }) => (
-  <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+  <div className="flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
+    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
     <div className="min-w-0 flex-1">
-      <p className="text-sm font-medium text-amber-900">{message}</p>
-      <Button size="sm" variant="outline" onClick={onRetry} className="mt-2 bg-white">
+      <p className="text-sm font-medium text-amber-900 dark:text-amber-300">{message}</p>
+      <Button size="sm" variant="outline" onClick={onRetry} className="mt-2 bg-card">
         Retry
       </Button>
     </div>
@@ -59,7 +70,14 @@ export const DashboardPage: React.FC = () => {
   const { user } = useAuth();
   // Group switching now lives in the shell's sidebar, so this page only needs the
   // active group.
-  const { activeGroup, activeGroupId, isLoading: groupsLoading } = useGroups();
+  const {
+    activeGroup,
+    activeGroupId,
+    status: groupStatus,
+    hasGroups,
+    error: groupsError,
+    refreshGroups,
+  } = useGroups();
 
   const [filters, setFilters] = useState<ReportFilters>(DEFAULT_FILTERS);
   const [groupBy, setGroupBy] = useState<ChartGrouping>('auto');
@@ -68,11 +86,28 @@ export const DashboardPage: React.FC = () => {
   const [addExpenseOpen, setAddExpenseOpen] = useState(false);
   const [settleTarget, setSettleTarget] = useState<DueEntry | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [customiseOpen, setCustomiseOpen] = useState(false);
+
+  const layout = useDashboardPreferences();
   const [breakdown, setBreakdown] = useState<'net' | 'owe' | 'owed' | null>(null);
+
+  /**
+   * Personal view reuses the existing `involvement` filter rather than adding a parallel
+   * one: "only what involves me" is a question the reporting service already answers, and
+   * a second mechanism for it would be a second thing to keep correct.
+   */
+  const effectiveFilters = useMemo<ReportFilters>(
+    () =>
+      layout.preferences?.view === 'personal'
+        ? { ...filters, involvement: 'involving_me' }
+        : filters,
+    [filters, layout.preferences?.view],
+  );
 
   const { live, analytics, chart, refresh, retry, applyRealtimeEvent } = useDashboardData(
     activeGroupId,
-    filters,
+    effectiveFilters,
     groupBy,
   );
 
@@ -163,11 +198,18 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
-  const handleExport = async () => {
+  /**
+   * Runs an export the dialog has already composed.
+   *
+   * The dialog owns what goes into the file; this owns getting it onto disk. The
+   * request is built there rather than from the dashboard's filters, so an export can
+   * cover a different period and a different set of people than the screen behind it.
+   */
+  const handleExport = async (request: ExportRequest) => {
     if (!activeGroupId) return;
     setIsExporting(true);
     try {
-      const { blob, filename } = await downloadExport(activeGroupId, buildFilterQuery(filters));
+      const { blob, filename } = await downloadExport(activeGroupId, request.params);
       // Object URL is revoked immediately after the click so the blob can be collected.
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -177,7 +219,8 @@ export const DashboardPage: React.FC = () => {
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
-      toast.success('Report downloaded');
+      setExportOpen(false);
+      toast.success('Report downloaded', { description: request.summary });
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : 'Could not generate the report.');
     } finally {
@@ -185,25 +228,58 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
-  /* ---- Empty states ---- */
+  /* ---- Pre-dashboard states ---------------------------------------------- */
 
-  if (groupsLoading) {
+  /*
+   * Four distinct outcomes, four distinct screens.
+   *
+   * The order matters more than any one branch. "Still loading" has to be checked
+   * before "no groups", or the moment between signing in and the membership request
+   * returning is rendered as an answer -- which is exactly the Create/Join flash this
+   * replaces. "Failed to load" has to be separated from "no groups" too, or a dropped
+   * request tells someone their groups are gone.
+   */
+
+  if (groupStatus === 'loading') {
     return (
-      <div className="mx-auto max-w-7xl space-y-4 p-4">
-        <Skeleton className="h-12 w-full rounded-xl" />
-        <Skeleton className="h-28 w-full rounded-2xl" />
-        <Skeleton className="h-64 w-full rounded-2xl" />
-      </div>
+      <AppShell title="Dashboard">
+        <div className="mx-auto max-w-5xl space-y-4 px-4 py-4 sm:px-6">
+          <Skeleton className="h-[168px] w-full rounded-2xl" />
+          <Skeleton className="h-16 w-full rounded-2xl" />
+          <Skeleton className="h-64 w-full rounded-2xl" />
+        </div>
+      </AppShell>
     );
   }
 
-  if (!activeGroup) {
+  if (groupStatus === 'error') {
+    return (
+      <AppShell title="Dashboard">
+        <div className="flex min-h-[60dvh] items-center justify-center p-6">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
+            <AlertCircle className="mx-auto h-10 w-10 text-amber-500" />
+            <h1 className="mt-4 text-xl font-bold text-foreground">
+              Could not load your groups
+            </h1>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              {groupsError ?? 'Something went wrong on the way to the server.'}
+            </p>
+            <Button className="mt-6 w-full" onClick={() => void refreshGroups()}>
+              Try again
+            </Button>
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (!hasGroups) {
     return (
       <div className="flex min-h-[100dvh] items-center justify-center p-6">
-        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <Receipt className="mx-auto h-10 w-10 text-slate-300" />
-          <h1 className="mt-4 text-xl font-bold text-slate-900">No group yet</h1>
-          <p className="mt-2 text-sm leading-relaxed text-slate-500">
+        <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
+          <Receipt className="mx-auto h-10 w-10 text-muted-foreground/60" />
+          <h1 className="mt-4 text-xl font-bold text-foreground">No group yet</h1>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
             Create a group for your flat or trip, or join one with an invite code.
           </p>
           <div className="mt-6 flex flex-col gap-2">
@@ -214,6 +290,19 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
       </div>
+    );
+  }
+
+  // Groups exist but the selection has not settled on one yet. Transient, and a
+  // skeleton is the honest thing to show for it.
+  if (!activeGroup) {
+    return (
+      <AppShell title="Dashboard">
+        <div className="mx-auto max-w-5xl space-y-4 px-4 py-4 sm:px-6">
+          <Skeleton className="h-[168px] w-full rounded-2xl" />
+          <Skeleton className="h-64 w-full rounded-2xl" />
+        </div>
+      </AppShell>
     );
   }
 
@@ -229,14 +318,25 @@ export const DashboardPage: React.FC = () => {
           isExporting={isExporting}
           onAddExpense={() => setAddExpenseOpen(true)}
           onOpenFilters={() => setFiltersOpen(true)}
-          onExport={handleExport}
+          onExport={() => setExportOpen(true)}
           onRefresh={() => refresh()}
+          onCustomise={() => setCustomiseOpen(true)}
+          mode={layout.preferences?.mode ?? 'detailed'}
+          onModeChange={layout.setMode}
+          view={layout.preferences?.view ?? 'group'}
+          onViewChange={layout.setView}
         />
       }
     >
 
-      {/* 16px side gutter at every width; content capped for large screens. */}
-      <main className="mx-auto max-w-7xl space-y-6 px-4 py-5 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-6">
+      {/*
+        * 16px side gutter at every width, content capped for large screens.
+        *
+        * `space-y-4` rather than 6: at 24px between eight sections the page scrolled
+        * past a screen and a half on a phone with almost nothing in it, which is what
+        * made it feel empty and unfinished rather than airy.
+        */}
+      <main className="mx-auto max-w-5xl space-y-4 px-4 py-4 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-6">
         {/* Context strip: connection state and the billing cycle. Informational, so it
             sits with the content rather than competing for space in the topbar. */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
@@ -244,121 +344,212 @@ export const DashboardPage: React.FC = () => {
             <span
               aria-hidden
               className={`h-1.5 w-1.5 rounded-full ${
-                isConnected ? 'animate-pulse-subtle bg-emerald-500' : 'bg-slate-300'
+                isConnected ? 'animate-pulse-subtle bg-emerald-500' : 'bg-muted-foreground/40'
               }`}
             />
             <span className="t-meta">{isConnected ? 'Live updates on' : 'Reconnecting…'}</span>
           </span>
 
           {live.data?.billingCycle.payday && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1">
-              <CalendarClock className="h-3.5 w-3.5 text-slate-500" />
-              <span className="text-xs font-medium text-slate-600">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1">
+              <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground">
                 {live.data.billingCycle.daysRemaining === 0
                   ? 'Payday is today'
                   : `Payday in ${live.data.billingCycle.daysRemaining} days`}
               </span>
             </span>
           )}
-
-          <span className="t-meta ml-auto truncate">{rangeLabel}</span>
         </div>
 
         {live.error && <RegionError message={live.error} onRetry={() => retry('live')} />}
 
-        <FinancialSummary
-          live={live.data}
-          analytics={analytics.data}
-          liveLoading={live.isLoading}
-          liveRefreshing={live.isRefreshing}
-          analyticsLoading={analytics.isLoading}
-          analyticsRefreshing={analytics.isRefreshing}
-          rangeLabel={rangeLabel}
-          onShowBreakdown={setBreakdown}
-        />
+        {/*
+          * Widgets render in the order the account chose, and only the ones it kept.
+          *
+          * A lookup keyed by id rather than a chain of conditionals: the order lives in
+          * one array, so adding a widget means adding an entry here and one in the
+          * server's registry, and nothing else moves.
+          */}
+        <div className="stagger-children space-y-4">
+          {(() => {
+            const nodes: Record<WidgetId, React.ReactNode> = {
+              balance: (
+                <BalanceHero
+                  live={live.data}
+                  isLoading={live.isLoading}
+                  isRefreshing={live.isRefreshing}
+                  onShowBreakdown={setBreakdown}
+                />
+              ),
 
-        <WhoOwesWhom
-          live={live.data}
-          isLoading={live.isLoading}
-          onSettle={(entry) => setSettleTarget(entry)}
-          onRemind={(entry) => void handleRemind(entry)}
-        />
+              quickActions: (
+                <QuickActions
+                  onAddExpense={() => setAddExpenseOpen(true)}
+                  onSearch={() => {
+                    // The palette owns search; opening it is a keyboard event the shell
+                    // already listens for, so we reuse that rather than lifting state.
+                    window.dispatchEvent(
+                      new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }),
+                    );
+                  }}
+                />
+              ),
 
-        {analytics.error ? (
-          <RegionError message={analytics.error} onRetry={() => retry('analytics')} />
-        ) : (
-          <RelationshipSection
-            relationships={relationships}
-            isLoading={analytics.isLoading || live.isLoading}
-            isRefreshing={analytics.isRefreshing}
-          />
-        )}
+              insights: (
+                <InsightCards
+                  live={live.data}
+                  analytics={analytics.data}
+                  isLoading={analytics.isLoading || live.isLoading}
+                />
+              ),
 
-        <SpendingAnalytics
-          chart={chart.data}
-          analytics={analytics.data}
-          chartLoading={chart.isLoading}
-          chartRefreshing={chart.isRefreshing}
-          chartError={chart.error}
-          analyticsLoading={analytics.isLoading}
-          groupBy={groupBy}
-          onGroupByChange={setGroupBy}
-          onRetryChart={() => retry('chart')}
-        />
+              balanceList: (
+                <BalanceList
+                  live={live.data}
+                  isLoading={live.isLoading}
+                  onSettle={(entry) => setSettleTarget(entry)}
+                  onRemind={(entry) => void handleRemind(entry)}
+                />
+              ),
 
-        {/* ---- Recent expenses ---- */}
-        <section aria-labelledby="recent-heading" className="space-y-3">
-          <h2
-            id="recent-heading"
-            className="flex items-center gap-2 text-sm font-bold text-slate-900"
-          >
-            <Receipt className="h-4 w-4 text-slate-400" />
-            Recent expenses
-          </h2>
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            {analytics.isLoading ? (
-              <div className="space-y-3 p-4">
-                {[0, 1, 2].map((index) => (
-                  <Skeleton key={index} className="h-10 w-full" />
-                ))}
-              </div>
-            ) : (analytics.data?.recentExpenses.length ?? 0) === 0 ? (
-              <p className="px-4 py-10 text-center text-sm font-medium text-slate-500">
-                No expenses in this period.
-              </p>
-            ) : (
-              <ul>
-                {analytics.data?.recentExpenses.map((expense) => (
-                  <li
-                    key={expense.id}
-                    className="flex items-center gap-3 border-t border-slate-100 px-4 py-3 first:border-t-0"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-slate-900">
-                        {expense.title}
+              periodStrip: (
+                <PeriodStrip
+                  analytics={analytics.data}
+                  isLoading={analytics.isLoading}
+                  isRefreshing={analytics.isRefreshing}
+                  rangeLabel={rangeLabel}
+                />
+              ),
+
+              comparison: (
+                <PeriodComparison
+                  analytics={analytics.data}
+                  isLoading={analytics.isLoading}
+                />
+              ),
+
+              recentExpenses: (
+                <section aria-labelledby="recent-heading" className="space-y-2">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <h2 id="recent-heading" className="t-subtitle">
+                      Recent expenses
+                    </h2>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/app/expenses')}
+                      className="rounded px-1 text-xs font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      View all
+                    </button>
+                  </div>
+
+                  <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+                    {analytics.isLoading ? (
+                      <div className="space-y-3 p-3.5">
+                        {[0, 1, 2].map((index) => (
+                          <Skeleton key={index} className="h-9 w-full" />
+                        ))}
+                      </div>
+                    ) : (analytics.data?.recentExpenses.length ?? 0) === 0 ? (
+                      <p className="px-4 py-10 text-center text-sm font-medium text-muted-foreground">
+                        No expenses in this period.
                       </p>
-                      <p className="truncate text-xs text-slate-500">
-                        {expense.payerName} · {formatRelativeDate(expense.expenseDate)} ·{' '}
-                        {expense.participantCount} people
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p className="font-mono text-sm font-bold tabular-nums text-slate-900">
-                        {formatPaise(expense.amountPaise)}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        your share {formatPaise(expense.mySharePaise)}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </section>
+                    ) : (
+                      <ul className="divide-y divide-border">
+                        {analytics.data?.recentExpenses.map((expense) => (
+                          <li key={expense.id}>
+                            {/* Opens the expense it names. A row that shows a figure and
+                                does nothing when pressed is the most common dead end in
+                                a dashboard. */}
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/app/expenses?expense=${expense.id}`)}
+                              aria-label={`${expense.title}, ${formatPaise(expense.amountPaise)}`}
+                              className="row-interactive flex w-full items-center gap-3 px-3.5 py-2.5 text-left focus-visible:outline-none focus-visible:bg-accent"
+                            >
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-semibold text-foreground">
+                                {expense.title}
+                              </p>
+                              <p className="truncate t-meta">
+                                {expense.payerName} ·{' '}
+                                {formatRelativeDate(expense.expenseDate)} ·{' '}
+                                {expense.participantCount} people
+                              </p>
+                            </div>
+                            <div className="shrink-0 text-right">
+                              <p className="t-money text-sm text-foreground">
+                                {formatPaise(expense.amountPaise)}
+                              </p>
+                              <p className="t-meta">
+                                your share {formatPaise(expense.mySharePaise)}
+                              </p>
+                            </div>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </section>
+              ),
+
+              relationships: analytics.error ? (
+                <RegionError message={analytics.error} onRetry={() => retry('analytics')} />
+              ) : (
+                <RelationshipSection
+                  relationships={relationships}
+                  isLoading={analytics.isLoading || live.isLoading}
+                  isRefreshing={analytics.isRefreshing}
+                />
+              ),
+
+              analytics: (
+                <SpendingAnalytics
+                  chart={chart.data}
+                  analytics={analytics.data}
+                  chartLoading={chart.isLoading}
+                  chartRefreshing={chart.isRefreshing}
+                  chartError={chart.error}
+                  analyticsLoading={analytics.isLoading}
+                  groupBy={groupBy}
+                  onGroupByChange={setGroupBy}
+                  onRetryChart={() => retry('chart')}
+                />
+              ),
+            };
+
+            return visibleWidgets(layout.preferences, layout.registry).map((id) => (
+              <React.Fragment key={id}>{nodes[id]}</React.Fragment>
+            ));
+          })()}
+        </div>
       </main>
 
       {/* ---- Dialogs ---- */}
+      {layout.preferences && (
+        <DashboardCustomizer
+          open={customiseOpen}
+          onOpenChange={setCustomiseOpen}
+          preferences={layout.preferences}
+          registry={layout.registry}
+          onMove={layout.move}
+          onMoveTo={layout.moveTo}
+          onToggle={layout.toggle}
+          onReset={layout.reset}
+        />
+      )}
+
+      <ExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        members={members}
+        filters={filters}
+        isExporting={isExporting}
+        onExport={(request) => void handleExport(request)}
+      />
+
       <FilterDialog
         open={filtersOpen}
         onOpenChange={setFiltersOpen}
@@ -407,15 +598,15 @@ export const DashboardPage: React.FC = () => {
           <DialogBody className="space-y-4">
             {breakdown === 'net' && (
               <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl border border-red-100 bg-red-50/50 p-3 text-center">
+                <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-center">
                   <p className="t-eyebrow">You owe</p>
-                  <p className="t-money mt-0.5 text-lg text-red-700">
+                  <p className="t-money mt-0.5 text-lg text-red-700 dark:text-red-400">
                     {formatPaise(live.data?.balances.youNeedToPayTotal.paise ?? 0)}
                   </p>
                 </div>
-                <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-3 text-center">
+                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-center">
                   <p className="t-eyebrow">You are owed</p>
-                  <p className="t-money mt-0.5 text-lg text-emerald-700">
+                  <p className="t-money mt-0.5 text-lg text-emerald-700 dark:text-emerald-400">
                     {formatPaise(live.data?.balances.youWillReceiveTotal.paise ?? 0)}
                   </p>
                 </div>
@@ -435,7 +626,7 @@ export const DashboardPage: React.FC = () => {
 
               if (entries.length === 0) {
                 return (
-                  <p className="rounded-xl bg-slate-50 px-3 py-6 text-center text-sm text-slate-500">
+                  <p className="rounded-xl bg-muted px-3 py-6 text-center text-sm text-muted-foreground">
                     Nothing outstanding.
                   </p>
                 );
@@ -444,23 +635,23 @@ export const DashboardPage: React.FC = () => {
               const owedIds = new Set((live.data?.peopleWhoOweMe ?? []).map((e) => e.user.id));
 
               return (
-                <ul className="overflow-hidden rounded-xl border border-slate-200">
+                <ul className="overflow-hidden rounded-xl border border-border">
                   {entries.map((entry) => {
                     const theyOweMe = breakdown === 'owed' || (breakdown === 'net' && owedIds.has(entry.user.id));
                     return (
                       <li
                         key={`${entry.user.id}-${theyOweMe ? 'in' : 'out'}`}
-                        className="flex items-center justify-between gap-3 border-t border-slate-100 px-3 py-3 first:border-t-0"
+                        className="flex items-center justify-between gap-3 border-t border-border px-3 py-3 first:border-t-0"
                       >
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-slate-900">
+                          <p className="truncate text-sm font-medium text-foreground">
                             {entry.user.fullName}
                           </p>
                           <p className="t-meta">{theyOweMe ? 'owes you' : 'you owe'}</p>
                         </div>
                         <span
                           className={`t-money shrink-0 text-sm ${
-                            theyOweMe ? 'text-emerald-600' : 'text-red-600'
+                            theyOweMe ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
                           }`}
                         >
                           {formatPaise(entry.amountPaise)}

@@ -305,3 +305,168 @@ describe('excel export', () => {
       .expect(404);
   });
 });
+
+/* ========================================================================== */
+/* Export builder: several people, and sheet selection                        */
+/* ========================================================================== */
+
+describe('export scoping', () => {
+  /** Titles in the Expenses sheet, so a filter can be checked against real rows. */
+  const expenseTitles = (workbook: ExcelJS.Workbook): string[] => {
+    const sheet = workbook.getWorksheet('Expenses');
+    if (!sheet) return [];
+    const titles: string[] = [];
+    sheet.eachRow((row, index) => {
+      // Row 1 is the header.
+      if (index === 1) return;
+      const value = row.values as unknown[];
+      for (const cell of value) {
+        if (typeof cell === 'string' && cell.startsWith('E-')) titles.push(cell);
+      }
+    });
+    return titles;
+  };
+
+  /**
+   * Three people, one expense each, each involving only its payer, so every expense
+   * belongs to exactly one person and a filter's effect is unambiguous.
+   */
+  const scoped = async () => {
+    const { groupId, people } = await setup(3);
+    await spend(groupId, people[0]!.userId, 100, {
+      title: 'E-alpha',
+      participantIds: [people[0]!.userId],
+    });
+    await spend(groupId, people[1]!.userId, 200, {
+      title: 'E-bravo',
+      participantIds: [people[1]!.userId],
+    });
+    await spend(groupId, people[2]!.userId, 300, {
+      title: 'E-charlie',
+      participantIds: [people[2]!.userId],
+    });
+    return { groupId, people };
+  };
+
+  it('includes everything when no people are named', async () => {
+    const { groupId, people } = await scoped();
+    const { workbook } = await downloadWorkbook(people[0]!.cookie, groupId);
+    expect(expenseTitles(workbook).sort()).toEqual(['E-alpha', 'E-bravo', 'E-charlie']);
+  });
+
+  it('narrows to a single person', async () => {
+    const { groupId, people } = await scoped();
+    const { workbook } = await downloadWorkbook(people[0]!.cookie, groupId, {
+      memberIds: people[1]!.userId,
+    });
+    expect(expenseTitles(workbook)).toEqual(['E-bravo']);
+  });
+
+  it('narrows to two people, and to neither of the others', async () => {
+    const { groupId, people } = await scoped();
+    const { workbook } = await downloadWorkbook(people[0]!.cookie, groupId, {
+      memberIds: `${people[0]!.userId},${people[2]!.userId}`,
+    });
+    expect(expenseTitles(workbook).sort()).toEqual(['E-alpha', 'E-charlie']);
+  });
+
+  it('ignores a repeated id rather than double-counting the rows', async () => {
+    const { groupId, people } = await scoped();
+    const { workbook } = await downloadWorkbook(people[0]!.cookie, groupId, {
+      memberIds: `${people[1]!.userId},${people[1]!.userId}`,
+    });
+    expect(expenseTitles(workbook)).toEqual(['E-bravo']);
+  });
+
+  it('rejects an id that is not a UUID', async () => {
+    const { groupId, people } = await scoped();
+    await api()
+      .get(`/api/groups/${groupId}/reports/export?memberIds=not-a-uuid`)
+      .set('Cookie', people[0]!.cookie)
+      .expect(400);
+  });
+
+  it('rejects an empty people list', async () => {
+    const { groupId, people } = await scoped();
+    await api()
+      .get(`/api/groups/${groupId}/reports/export?memberIds=`)
+      .set('Cookie', people[0]!.cookie)
+      .expect(400);
+  });
+
+  it('builds only the requested sheets', async () => {
+    const { groupId, people } = await scoped();
+
+    const { workbook } = await downloadWorkbook(people[0]!.cookie, groupId, {
+      sections: 'expenses',
+    });
+    expect(workbook.worksheets.map((sheet) => sheet.name)).toEqual(['Expenses']);
+
+    const both = await downloadWorkbook(people[0]!.cookie, groupId, {
+      sections: 'summary,settlements',
+    });
+    expect(both.workbook.worksheets.map((sheet) => sheet.name)).toEqual([
+      'Summary',
+      'Settlements',
+    ]);
+  });
+
+  it('keeps the sheet order fixed regardless of the order requested', async () => {
+    const { groupId, people } = await scoped();
+    const { workbook } = await downloadWorkbook(people[0]!.cookie, groupId, {
+      sections: 'settlements,summary',
+    });
+    expect(workbook.worksheets.map((sheet) => sheet.name)).toEqual(['Summary', 'Settlements']);
+  });
+
+  it('rejects an unknown sheet name and an empty selection', async () => {
+    const { groupId, people } = await scoped();
+
+    await api()
+      .get(`/api/groups/${groupId}/reports/export?sections=payroll`)
+      .set('Cookie', people[0]!.cookie)
+      .expect(400);
+
+    await api()
+      .get(`/api/groups/${groupId}/reports/export?sections=`)
+      .set('Cookie', people[0]!.cookie)
+      .expect(400);
+  });
+
+  it('still rejects a range that runs backwards', async () => {
+    const { groupId, people } = await scoped();
+    await api()
+      .get(
+        `/api/groups/${groupId}/reports/export?from=${dayOffset(5)}&to=${dayOffset(-5)}`,
+      )
+      .set('Cookie', people[0]!.cookie)
+      .expect(400);
+  });
+
+  it('does not let a non-member export the group', async () => {
+    const { groupId } = await scoped();
+    const outsider = await member('outsider');
+
+    await api()
+      .get(`/api/groups/${groupId}/reports/export`)
+      .set('Cookie', outsider.cookie)
+      .expect(404);
+  });
+
+  it('ignores a groupId in the query and exports the group in the path', async () => {
+    const { groupId, people } = await scoped();
+
+    const other = await api()
+      .post('/api/groups')
+      .set('Cookie', people[1]!.cookie)
+      .send({ name: 'Other' })
+      .expect(201);
+
+    const { workbook } = await downloadWorkbook(people[0]!.cookie, groupId, {
+      groupId: other.body.data.group.id as string,
+    });
+
+    // Three expenses means it read Flat 402, not the empty group named in the query.
+    expect(expenseTitles(workbook)).toHaveLength(3);
+  });
+});

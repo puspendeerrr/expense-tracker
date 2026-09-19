@@ -71,9 +71,9 @@ export const LoginPage: React.FC = () => {
 
   return (
     <AuthLayout>
-      <Card className="border-slate-200 shadow-xl shadow-slate-900/5">
+      <Card className="border-border shadow-xl shadow-slate-900/5">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">
+          <CardTitle className="text-2xl font-bold tracking-tight text-foreground">
             Sign in to your account
           </CardTitle>
           <CardDescription>
@@ -94,7 +94,7 @@ export const LoginPage: React.FC = () => {
                 Email address
               </Label>
               <div className="relative">
-                <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
+                <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="email"
                   type="email"
@@ -117,14 +117,14 @@ export const LoginPage: React.FC = () => {
                 </Label>
                 <Link
                   to="/forgot-password"
-                  className="text-xs font-medium text-primary hover:underline hover:text-emerald-700 transition-colors"
+                  className="text-xs font-medium text-primary hover:underline hover:text-emerald-700 dark:text-emerald-400 transition-colors"
                 >
                   Forgot password?
                 </Link>
               </div>
 
               <div className="relative">
-                <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
+                <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
@@ -139,7 +139,7 @@ export const LoginPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 focus:outline-none focus:text-slate-900 transition-colors"
+                  className="absolute right-3 top-3 text-muted-foreground hover:text-foreground focus:outline-none focus:text-foreground transition-colors"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                   tabIndex={-1}
                 >
@@ -159,11 +159,11 @@ export const LoginPage: React.FC = () => {
             </Button>
           </form>
 
-          <div className="mt-6 pt-5 border-t border-slate-100 text-center text-sm text-slate-600">
+          <div className="mt-6 pt-5 border-t border-border text-center text-sm text-muted-foreground">
             Don't have an account?{' '}
             <Link
               to="/signup"
-              className="font-semibold text-primary hover:text-emerald-700 hover:underline transition-colors"
+              className="font-semibold text-primary hover:text-emerald-700 dark:text-emerald-400 hover:underline transition-colors"
             >
               Create an account
             </Link>

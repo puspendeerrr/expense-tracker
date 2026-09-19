@@ -168,18 +168,18 @@ export const VerifyEmailPage: React.FC = () => {
 
   return (
     <AuthLayout>
-      <Card className="border-slate-200 shadow-xl shadow-slate-900/5">
+      <Card className="border-border shadow-xl shadow-slate-900/5">
         <CardHeader className="text-center space-y-1 pb-4">
-          <div className="mx-auto mb-3 h-12 w-12 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700">
+          <div className="mx-auto mb-3 h-12 w-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-700 dark:text-emerald-400">
             <Mail className="h-6 w-6" />
           </div>
-          <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">
+          <CardTitle className="text-2xl font-bold tracking-tight text-foreground">
             Check your email
           </CardTitle>
           <CardDescription className="text-sm">
             We sent a 6-digit verification code to
             <br />
-            <span className="font-semibold text-slate-800 font-mono text-sm">
+            <span className="font-semibold text-foreground font-mono text-sm">
               {challenge.maskedEmail}
             </span>
           </CardDescription>
@@ -208,7 +208,7 @@ export const VerifyEmailPage: React.FC = () => {
                 hasError={Boolean(errorMessage)}
               />
 
-              <div className="text-xs text-slate-500 pt-2 flex flex-col items-center gap-1">
+              <div className="text-xs text-muted-foreground pt-2 flex flex-col items-center gap-1">
                 <div className="flex items-center gap-1.5">
                   <span>Code expires in</span>
                   <CountdownTimer
@@ -216,12 +216,12 @@ export const VerifyEmailPage: React.FC = () => {
                     serverTimeIso={challenge.serverTime}
                     prefix=""
                     suffix="s"
-                    className="font-mono font-semibold text-slate-700"
+                    className="font-mono font-semibold text-foreground/80"
                     onExpire={() => setErrorMessage('Code expired. Please click resend below.')}
                   />
                 </div>
                 {attemptsRemaining !== null && (
-                  <span className="text-xs font-semibold text-amber-700">
+                  <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">
                     {attemptsRemaining} {attemptsRemaining === 1 ? 'attempt' : 'attempts'} remaining before lockout
                   </span>
                 )}
@@ -241,11 +241,11 @@ export const VerifyEmailPage: React.FC = () => {
             </Button>
           </div>
 
-          <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
+          <div className="pt-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
             <button
               type="button"
               onClick={handleChangeEmail}
-              className="inline-flex items-center text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors"
+              className="inline-flex items-center text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
               <ArrowLeft className="mr-1 h-3.5 w-3.5" />
               Change email
@@ -259,19 +259,19 @@ export const VerifyEmailPage: React.FC = () => {
                   size="sm"
                   onClick={handleResend}
                   isLoading={isResending}
-                  className="text-xs text-primary font-semibold hover:text-emerald-800 p-0 h-auto"
+                  className="text-xs text-primary font-semibold hover:text-emerald-800 dark:text-emerald-300 p-0 h-auto"
                 >
                   <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
                   Resend code
                 </Button>
               ) : (
-                <span className="text-xs text-slate-400 font-medium">
+                <span className="text-xs text-muted-foreground font-medium">
                   Resend code in{' '}
                   <CountdownTimer
                     targetIso={challenge.resendAvailableAt}
                     serverTimeIso={challenge.serverTime}
                     onExpire={() => setCanResend(true)}
-                    className="font-mono font-bold text-slate-600"
+                    className="font-mono font-bold text-muted-foreground"
                   />
                 </span>
               )}

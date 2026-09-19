@@ -101,20 +101,20 @@ export const UserActionsDialog: React.FC<UserActionsDialogProps> = ({
         </DialogHeader>
 
         <DialogBody className="space-y-5">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-sm text-slate-700">{user.email}</p>
+          <div className="rounded-xl border border-border bg-muted p-3">
+            <p className="text-sm text-foreground/80">{user.email}</p>
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
               <span
                 className={cn(
                   'rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide',
                   user.status === 'active'
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : 'bg-red-100 text-red-700',
+                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
+                    : 'bg-red-500/15 text-red-700 dark:text-red-400',
                 )}
               >
                 {user.status}
               </span>
-              <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-slate-600">
+              <span className="rounded-full bg-accent px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
                 {user.role}
               </span>
               <span className="t-meta">{user.activeSessions} active sessions</span>
@@ -131,9 +131,9 @@ export const UserActionsDialog: React.FC<UserActionsDialogProps> = ({
           )}
 
           {isSelf && (
-            <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-              <p className="text-sm text-amber-900">
+            <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+              <p className="text-sm text-amber-900 dark:text-amber-300">
                 This is your own account. Actions that would lock you out are disabled.
               </p>
             </div>
@@ -144,7 +144,7 @@ export const UserActionsDialog: React.FC<UserActionsDialogProps> = ({
             <h3 className="t-eyebrow">Access</h3>
             <div className="flex flex-col gap-2">
               {user.status === 'active' ? (
-                <div className="space-y-2 rounded-xl border border-slate-200 p-3">
+                <div className="space-y-2 rounded-xl border border-border p-3">
                   <Label htmlFor="disable-reason">Reason (shown to them at sign-in)</Label>
                   <Input
                     id="disable-reason"
@@ -155,7 +155,7 @@ export const UserActionsDialog: React.FC<UserActionsDialogProps> = ({
                   />
                   <Button
                     variant="outline"
-                    className="w-full text-destructive hover:bg-red-50"
+                    className="w-full text-destructive hover:bg-red-500/10"
                     disabled={isSelf || busy !== null}
                     onClick={() =>
                       void run(
@@ -244,7 +244,7 @@ export const UserActionsDialog: React.FC<UserActionsDialogProps> = ({
           {/* ---- Password ---- */}
           <section className="space-y-2">
             <h3 className="t-eyebrow">Set a new password</h3>
-            <div className="space-y-2 rounded-xl border border-slate-200 p-3">
+            <div className="space-y-2 rounded-xl border border-border p-3">
               <Label htmlFor="new-password">New password</Label>
               <Input
                 id="new-password"

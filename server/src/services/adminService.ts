@@ -28,8 +28,8 @@ const toIso = (value: unknown): string | null => {
 };
 
 export type PlatformStats = {
-  users: { total: number; verified: number; admins: number; newLast30Days: number };
-  groups: { total: number; active30Days: number };
+  users: { total: number; verified: number; admins: number; disabled: number; newLast30Days: number };
+  groups: { total: number; active30Days: number; disabled: number };
   expenses: { total: number; totalValuePaise: number; last30Days: number };
   settlements: { total: number; completed: number; pending: number; completedValuePaise: number };
 };
@@ -40,9 +40,11 @@ export const getPlatformStats = async (): Promise<PlatformStats> => {
       (select count(*) from users)::int as user_total,
       (select count(*) from users where email_verified_at is not null)::int as user_verified,
       (select count(*) from users where role = 'admin')::int as user_admins,
+      (select count(*) from users where status = 'disabled')::int as user_disabled,
       (select count(*) from users where created_at > now() - interval '30 days')::int
         as user_recent,
       (select count(*) from groups)::int as group_total,
+      (select count(*) from groups where status = 'disabled')::int as group_disabled,
       (select count(distinct e.group_id) from expenses e
         where e.created_at > now() - interval '30 days')::int as group_active,
       (select count(*) from expenses)::int as expense_total,
@@ -65,9 +67,14 @@ export const getPlatformStats = async (): Promise<PlatformStats> => {
       total: num('user_total'),
       verified: num('user_verified'),
       admins: num('user_admins'),
+      disabled: num('user_disabled'),
       newLast30Days: num('user_recent'),
     },
-    groups: { total: num('group_total'), active30Days: num('group_active') },
+    groups: {
+      total: num('group_total'),
+      active30Days: num('group_active'),
+      disabled: num('group_disabled'),
+    },
     expenses: {
       total: num('expense_total'),
       totalValuePaise: num('expense_value'),
@@ -86,6 +93,8 @@ export type UserFilters = {
   search?: string;
   role?: 'admin' | 'user';
   verified?: boolean;
+  /** Account status, as set by disable/enable. */
+  status?: 'active' | 'disabled';
   limit: number;
   offset: number;
 };
@@ -98,6 +107,7 @@ export const listUsers = async (filters: UserFilters) => {
     conditions.push(sql`(u.full_name ilike ${pattern} or u.email ilike ${pattern})`);
   }
   if (filters.role) conditions.push(sql`u.role = ${filters.role}::user_role`);
+  if (filters.status) conditions.push(sql`u.status = ${filters.status}::account_status`);
   if (filters.verified !== undefined) {
     conditions.push(
       filters.verified
@@ -149,7 +159,12 @@ export const listUsers = async (filters: UserFilters) => {
   };
 };
 
-export type GroupFilters = { search?: string; limit: number; offset: number };
+export type GroupFilters = {
+  search?: string;
+  status?: 'active' | 'disabled';
+  limit: number;
+  offset: number;
+};
 
 export const listGroups = async (filters: GroupFilters) => {
   const conditions = [sql`true`];
@@ -157,6 +172,7 @@ export const listGroups = async (filters: GroupFilters) => {
     const pattern = `%${filters.search.replace(/[%_\\]/g, (m) => `\\${m}`)}%`;
     conditions.push(sql`(g.name ilike ${pattern} or g.invite_code ilike ${pattern})`);
   }
+  if (filters.status) conditions.push(sql`g.status = ${filters.status}::account_status`);
   const where = sql.join(conditions, sql` and `);
 
   const rows = await db.execute<Record<string, unknown>>(sql`
@@ -252,5 +268,83 @@ export const listExpenses = async (filters: AdminExpenseFilters) => {
     })),
     total: totalResult.rows[0]?.count ?? 0,
     totalValuePaise: Number(totalResult.rows[0]?.value ?? 0),
+  };
+};
+
+/**
+ * Platform-wide activity feed.
+ *
+ * Reads the same `activities` rows the group feed uses, so wording and history rules are
+ * preserved exactly -- including migrated entries that carry their original sentence in
+ * `metadata.legacyAction`. Nothing is re-derived or reworded here.
+ *
+ * Metadata is passed through as stored. It describes what happened (titles, amounts) and
+ * has never held a credential; the activity writers record domain facts only.
+ */
+export type ActivityFilters = {
+  limit: number;
+  offset: number;
+  groupId?: string;
+  actorId?: string;
+  type?: string;
+  from?: string;
+  to?: string;
+  search?: string;
+};
+
+export const listActivity = async (filters: ActivityFilters) => {
+  const conditions = [sql`true`];
+
+  if (filters.groupId) conditions.push(sql`a.group_id = ${filters.groupId}`);
+  if (filters.actorId) conditions.push(sql`a.actor_user_id = ${filters.actorId}`);
+  if (filters.type) conditions.push(sql`a.type = ${filters.type}::activity_type`);
+  if (filters.from) conditions.push(sql`a.created_at >= ${`${filters.from}T00:00:00.000Z`}`);
+  if (filters.to) conditions.push(sql`a.created_at <= ${`${filters.to}T23:59:59.999Z`}`);
+  if (filters.search) {
+    const pattern = `%${filters.search.replace(/[%_\\]/g, (m) => `\\${m}`)}%`;
+    conditions.push(
+      sql`(u.full_name ilike ${pattern} or u.email ilike ${pattern} or g.name ilike ${pattern}
+           or a.metadata::text ilike ${pattern})`,
+    );
+  }
+
+  const where = sql.join(conditions, sql` and `);
+
+  const rows = await db.execute<Record<string, unknown>>(sql`
+    select a.id, a.type, a.entity_type, a.entity_id, a.metadata, a.created_at,
+           u.id as actor_id, u.full_name as actor_name, u.email as actor_email,
+           g.id as group_id, g.name as group_name
+      from activities a
+      join users u on u.id = a.actor_user_id
+      join groups g on g.id = a.group_id
+     where ${where}
+     order by a.created_at desc
+     limit ${filters.limit} offset ${filters.offset}
+  `);
+
+  const totalResult = await db.execute<{ count: number }>(sql`
+    select count(*)::int as count
+      from activities a
+      join users u on u.id = a.actor_user_id
+      join groups g on g.id = a.group_id
+     where ${where}
+  `);
+
+  return {
+    rows: rows.rows.map((row) => ({
+      id: String(row.id),
+      type: String(row.type),
+      entityType: row.entity_type ? String(row.entity_type) : null,
+      entityId: row.entity_id ? String(row.entity_id) : null,
+      metadata: (row.metadata ?? {}) as Record<string, unknown>,
+      createdAt: toIso(row.created_at),
+      actor: {
+        id: String(row.actor_id),
+        fullName: String(row.actor_name),
+        email: String(row.actor_email),
+      },
+      group: { id: String(row.group_id), name: String(row.group_name) },
+    })),
+    total: totalResult.rows[0]?.count ?? 0,
   };
 };

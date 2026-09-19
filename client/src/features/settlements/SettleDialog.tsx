@@ -157,11 +157,11 @@ export const SettleDialog: React.FC<SettleDialogProps> = ({
             {isLoadingOutstanding ? (
               <Skeleton className="h-16 w-full rounded-xl" />
             ) : (
-              <div className="rounded-xl bg-slate-50 p-3 text-center">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              <div className="rounded-xl bg-muted p-3 text-center">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   You currently owe
                 </p>
-                <p className="mt-0.5 font-mono text-2xl font-bold tabular-nums text-slate-900">
+                <p className="mt-0.5 font-mono text-2xl font-bold tabular-nums text-foreground">
                   {formatPaise(outstandingPaise ?? 0)}
                 </p>
               </div>
@@ -194,7 +194,7 @@ export const SettleDialog: React.FC<SettleDialogProps> = ({
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                     actionType === option.value
                       ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+                      : 'border-border bg-card text-muted-foreground hover:bg-accent',
                   )}
                 >
                   {option.label}
@@ -205,7 +205,7 @@ export const SettleDialog: React.FC<SettleDialogProps> = ({
             <div className="space-y-1.5">
               <Label htmlFor="settle-amount">Amount</Label>
               <div className="relative">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-base font-medium text-slate-400">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-base font-medium text-muted-foreground">
                   ₹
                 </span>
                 <Input
@@ -248,7 +248,7 @@ export const SettleDialog: React.FC<SettleDialogProps> = ({
                           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                           paymentMethod === option.value
                             ? 'border-primary bg-primary/10 text-primary'
-                            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+                            : 'border-border bg-card text-muted-foreground hover:bg-accent',
                         )}
                       >
                         {option.label}
@@ -267,7 +267,7 @@ export const SettleDialog: React.FC<SettleDialogProps> = ({
                       placeholder="https://…"
                       inputMode="url"
                     />
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-muted-foreground">
                       Required for UPI so the receiver can verify the transfer.
                     </p>
                   </div>
@@ -285,7 +285,7 @@ export const SettleDialog: React.FC<SettleDialogProps> = ({
               />
             </div>
 
-            <p className="text-xs leading-relaxed text-slate-500">
+            <p className="text-xs leading-relaxed text-muted-foreground">
               {counterpart?.fullName} confirms the payment before it reduces your balance.
             </p>
           </DialogBody>

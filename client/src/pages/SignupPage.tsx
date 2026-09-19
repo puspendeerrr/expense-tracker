@@ -122,9 +122,9 @@ export const SignupPage: React.FC = () => {
 
   return (
     <AuthLayout>
-      <Card className="border-slate-200 shadow-xl shadow-slate-900/5">
+      <Card className="border-border shadow-xl shadow-slate-900/5">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">
+          <CardTitle className="text-2xl font-bold tracking-tight text-foreground">
             Create an account
           </CardTitle>
           <CardDescription>
@@ -145,7 +145,7 @@ export const SignupPage: React.FC = () => {
                 Full name
               </Label>
               <div className="relative">
-                <UserIcon className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
+                <UserIcon className="absolute left-3.5 top-3.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="fullName"
                   type="text"
@@ -169,7 +169,7 @@ export const SignupPage: React.FC = () => {
                 Email address
               </Label>
               <div className="relative">
-                <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
+                <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="email"
                   type="email"
@@ -193,7 +193,7 @@ export const SignupPage: React.FC = () => {
                 Password
               </Label>
               <div className="relative">
-                <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
+                <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
@@ -209,7 +209,7 @@ export const SignupPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors"
+                  className="absolute right-3 top-3 text-muted-foreground hover:text-foreground focus:outline-none transition-colors"
                   tabIndex={-1}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -226,7 +226,7 @@ export const SignupPage: React.FC = () => {
                 Confirm password
               </Label>
               <div className="relative">
-                <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
+                <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="confirmPassword"
                   type={showConfirmPassword ? 'text' : 'password'}
@@ -242,7 +242,7 @@ export const SignupPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors"
+                  className="absolute right-3 top-3 text-muted-foreground hover:text-foreground focus:outline-none transition-colors"
                   tabIndex={-1}
                 >
                   {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -266,11 +266,11 @@ export const SignupPage: React.FC = () => {
             </Button>
           </form>
 
-          <div className="mt-6 pt-5 border-t border-slate-100 text-center text-sm text-slate-600">
+          <div className="mt-6 pt-5 border-t border-border text-center text-sm text-muted-foreground">
             Already have an account?{' '}
             <Link
               to="/login"
-              className="font-semibold text-primary hover:text-emerald-700 hover:underline transition-colors"
+              className="font-semibold text-primary hover:text-emerald-700 dark:text-emerald-400 hover:underline transition-colors"
             >
               Sign in instead
             </Link>

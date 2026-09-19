@@ -33,9 +33,9 @@ export const PasswordStrengthIndicator: React.FC<PasswordStrengthProps> = ({
 
   return (
     <div className={cn('space-y-2 mt-2 pt-1', className)}>
-      <div className="flex items-center justify-between text-xs text-slate-500">
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>Password strength</span>
-        <span className="font-semibold text-slate-700">
+        <span className="font-semibold text-foreground/80">
           {metCount === 4 ? 'Strong' : metCount >= 2 ? 'Medium' : 'Weak'}
         </span>
       </div>
@@ -48,13 +48,13 @@ export const PasswordStrengthIndicator: React.FC<PasswordStrengthProps> = ({
             key={idx}
             className={cn(
               'flex items-center gap-1.5 text-xs transition-colors',
-              rule.met ? 'text-emerald-700 font-medium' : 'text-slate-400',
+              rule.met ? 'text-emerald-700 dark:text-emerald-400 font-medium' : 'text-muted-foreground',
             )}
           >
             {rule.met ? (
-              <Check className="h-3.5 w-3.5 text-emerald-600 flex-shrink-0" />
+              <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
             ) : (
-              <X className="h-3.5 w-3.5 text-slate-300 flex-shrink-0" />
+              <X className="h-3.5 w-3.5 text-muted-foreground/60 flex-shrink-0" />
             )}
             <span className="truncate">{rule.label}</span>
           </div>

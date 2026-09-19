@@ -1,6 +1,19 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from '@/context/AuthContext';
+import { ThemeProvider } from '@/context/ThemeContext';
+import { RequireAdmin } from '@/features/admin/RequireAdmin';
+import { AdminOverview } from '@/features/admin/pages/AdminOverview';
+import { AdminUsers } from '@/features/admin/pages/AdminUsers';
+import { AdminUserDetail } from '@/features/admin/pages/AdminUserDetail';
+import { AdminGroups } from '@/features/admin/pages/AdminGroups';
+import { AdminGroupDetail } from '@/features/admin/pages/AdminGroupDetail';
+import { AdminExpenses } from '@/features/admin/pages/AdminExpenses';
+import { AdminSettlements } from '@/features/admin/pages/AdminSettlements';
+import { AdminActivity } from '@/features/admin/pages/AdminActivity';
+import { AdminPermissions } from '@/features/admin/pages/AdminPermissions';
+import { AdminReports } from '@/features/admin/pages/AdminReports';
+import { AdminAudit } from '@/features/admin/pages/AdminAudit';
 import { GroupProvider } from '@/context/GroupContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { PublicOnlyRoute } from '@/components/PublicOnlyRoute';
@@ -16,7 +29,6 @@ import { MembersPage } from '@/features/members/MembersPage';
 import { SettlementsPage } from '@/features/settlements/SettlementsPage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
 import { ActivityPage } from '@/features/activity/ActivityPage';
-import { AdminPage } from '@/features/admin/AdminPage';
 import { SpendingPage } from '@/features/insights/SpendingPage';
 import {
   CreateGroupPage,
@@ -24,16 +36,42 @@ import {
   JoinGroupPage,
 } from '@/features/groups/GroupPages';
 import { ProfilePage } from '@/pages/ProfilePage';
+import { SecurityPage } from '@/pages/SecurityPage';
+import { NotificationsPage } from '@/pages/NotificationsPage';
 import { LandingPage } from '@/pages/LandingPage';
 import { Toaster } from '@/components/ui/sonner';
+import { useAuth } from '@/context/AuthContext';
+import { useLocation } from 'react-router-dom';
+import { AiChatProvider } from '@/hooks/useAiChat';
+import { AiChatButton } from '@/components/ai/AiChatButton';
+import { AiChatPanel } from '@/components/ai/AiChatPanel';
+
+const AuthenticatedAssistant: React.FC = () => {
+  const { isAuthenticated } = useAuth();
+  const location = useLocation();
+
+  if (!isAuthenticated || !location.pathname.startsWith('/app')) {
+    return null;
+  }
+
+  return (
+    <>
+      <AiChatButton />
+      <AiChatPanel />
+    </>
+  );
+};
 
 export const App: React.FC = () => {
   return (
+    <ThemeProvider>
     <AuthProvider>
       <Toaster />
       <GroupProvider>
-        <BrowserRouter>
-        <Routes>
+        <AiChatProvider>
+          <BrowserRouter>
+          <AuthenticatedAssistant />
+          <Routes>
           {/* Public-only authentication routes */}
           <Route
             path="/login"
@@ -133,14 +171,8 @@ export const App: React.FC = () => {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/app/admin"
-            element={
-              <ProtectedRoute>
-                <AdminPage />
-              </ProtectedRoute>
-            }
-          />
+          {/* The admin console moved out of the user shell; keep old links working. */}
+          <Route path="/app/admin" element={<Navigate to="/admin" replace />} />
           <Route
             path="/app/groups"
             element={
@@ -175,6 +207,22 @@ export const App: React.FC = () => {
             }
           />
           <Route
+            path="/app/notifications"
+            element={
+              <ProtectedRoute>
+                <NotificationsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/app/security"
+            element={
+              <ProtectedRoute>
+                <SecurityPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/app/profile"
             element={
               <ProtectedRoute>
@@ -184,12 +232,103 @@ export const App: React.FC = () => {
           />
 
           {/* Landing page */}
+          <Route
+            path="/admin"
+            element={
+              <RequireAdmin>
+                <AdminOverview />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <RequireAdmin>
+                <AdminUsers />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/admin/users/:id"
+            element={
+              <RequireAdmin>
+                <AdminUserDetail />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/admin/groups"
+            element={
+              <RequireAdmin>
+                <AdminGroups />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/admin/groups/:id"
+            element={
+              <RequireAdmin>
+                <AdminGroupDetail />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/admin/expenses"
+            element={
+              <RequireAdmin>
+                <AdminExpenses />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/admin/settlements"
+            element={
+              <RequireAdmin>
+                <AdminSettlements />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/admin/activity"
+            element={
+              <RequireAdmin>
+                <AdminActivity />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/admin/permissions"
+            element={
+              <RequireAdmin>
+                <AdminPermissions />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/admin/reports"
+            element={
+              <RequireAdmin>
+                <AdminReports />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/admin/audit"
+            element={
+              <RequireAdmin>
+                <AdminAudit />
+              </RequireAdmin>
+            }
+          />
+
           <Route path="/" element={<LandingPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         </BrowserRouter>
+        </AiChatProvider>
       </GroupProvider>
     </AuthProvider>
+    </ThemeProvider>
   );
 };
 

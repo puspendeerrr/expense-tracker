@@ -57,8 +57,8 @@ const MoneyTooltip: React.FC<{
   if (!active || !payload?.length) return null;
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-lg">
-      <p className="mb-1 text-xs font-semibold text-slate-900">{label}</p>
+    <div className="rounded-xl border border-border bg-card px-3 py-2 shadow-lg">
+      <p className="mb-1 text-xs font-semibold text-foreground">{label}</p>
       {payload.map((item) => (
         <div key={String(item.dataKey)} className="flex items-center gap-2 text-xs">
           <span
@@ -67,8 +67,8 @@ const MoneyTooltip: React.FC<{
             style={{ backgroundColor: item.color }}
           />
           {/* Text stays in ink; the swatch carries the identity. */}
-          <span className="text-slate-500">{item.name}</span>
-          <span className="ml-auto font-mono font-semibold tabular-nums text-slate-900">
+          <span className="text-muted-foreground">{item.name}</span>
+          <span className="ml-auto font-mono font-semibold tabular-nums text-foreground">
             {formatPaise(Number(item.value ?? 0) * 100)}
           </span>
         </div>
@@ -82,8 +82,8 @@ const EmptyChart: React.FC<{ message: string; icon: React.ReactNode }> = ({
   icon,
 }) => (
   <div className="flex h-[220px] flex-col items-center justify-center gap-2 text-center">
-    <span className="text-slate-300">{icon}</span>
-    <p className="max-w-[24ch] text-sm font-medium text-slate-500">{message}</p>
+    <span className="text-muted-foreground/60">{icon}</span>
+    <p className="max-w-[24ch] text-sm font-medium text-muted-foreground">{message}</p>
   </div>
 );
 
@@ -137,25 +137,25 @@ export const SpendingAnalytics: React.FC<SpendingAnalyticsProps> = ({
     <section aria-labelledby="analytics-heading" className="space-y-3">
       <h2
         id="analytics-heading"
-        className="flex items-center gap-2 text-sm font-bold text-slate-900"
+        className="flex items-center gap-2 text-sm font-bold text-foreground"
       >
-        <TrendingUp className="h-4 w-4 text-slate-400" />
+        <TrendingUp className="h-4 w-4 text-muted-foreground" />
         Spending analytics
       </h2>
 
       {/* ---- Spending over time ---- */}
       <div
         className={cn(
-          'rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-opacity',
+          'rounded-2xl border border-border bg-card p-4 shadow-sm transition-opacity',
           chartRefreshing && 'opacity-70',
         )}
       >
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold text-slate-900">Spending over time</h3>
+          <h3 className="text-sm font-semibold text-foreground">Spending over time</h3>
 
           {/* Changing the grouping refetches the chart region only. */}
           <div
-            className="flex rounded-lg bg-slate-100 p-0.5"
+            className="flex rounded-lg bg-muted p-0.5"
             role="group"
             aria-label="Chart grouping"
           >
@@ -170,8 +170,8 @@ export const SpendingAnalytics: React.FC<SpendingAnalyticsProps> = ({
                   'min-h-[44px] rounded-md px-3 text-xs font-semibold transition-colors sm:min-h-[32px] sm:px-2.5',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   groupBy === option.value
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700',
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
                 )}
               >
                 {option.label}
@@ -182,7 +182,7 @@ export const SpendingAnalytics: React.FC<SpendingAnalyticsProps> = ({
 
         {chartError ? (
           <div className="flex h-[220px] flex-col items-center justify-center gap-3">
-            <p className="text-sm text-slate-500">{chartError}</p>
+            <p className="text-sm text-muted-foreground">{chartError}</p>
             <Button size="sm" variant="outline" onClick={onRetryChart}>
               Retry
             </Button>
@@ -250,7 +250,7 @@ export const SpendingAnalytics: React.FC<SpendingAnalyticsProps> = ({
               </ResponsiveContainer>
             </div>
             {chart?.grouping && (
-              <p className="mt-1 text-center text-xs text-slate-400">
+              <p className="mt-1 text-center text-xs text-muted-foreground">
                 Grouped by {chart.grouping}
               </p>
             )}
@@ -296,8 +296,8 @@ const TopPeopleCard: React.FC<TopPeopleCardProps> = ({
   isLoading,
   emptyMessage,
 }) => (
-  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-    <h3 className="mb-3 text-sm font-semibold text-slate-900">{title}</h3>
+  <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+    <h3 className="mb-3 text-sm font-semibold text-foreground">{title}</h3>
 
     {isLoading ? (
       <Skeleton className="h-[180px] w-full rounded-xl" />

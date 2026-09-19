@@ -30,17 +30,17 @@ export const DashboardPlaceholder: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="min-h-screen bg-muted flex flex-col">
       {/* Top Navbar */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
+      <header className="bg-card border-b border-border sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center text-white shadow-sm shadow-emerald-700/20">
               <Wallet className="h-5 w-5" />
             </div>
             <div className="flex flex-col">
-              <span className="text-lg font-extrabold tracking-tight text-slate-950">SplitWise</span>
-              <span className="text-[9px] uppercase font-bold tracking-widest text-emerald-700 -mt-1">
+              <span className="text-lg font-extrabold tracking-tight text-foreground">SplitWise</span>
+              <span className="text-[9px] uppercase font-bold tracking-widest text-emerald-700 dark:text-emerald-400 -mt-1">
                 Workspace
               </span>
             </div>
@@ -58,7 +58,7 @@ export const DashboardPlaceholder: React.FC = () => {
         <div className="bg-gradient-to-r from-emerald-800 to-teal-900 rounded-2xl p-6 sm:p-8 text-white shadow-lg shadow-emerald-950/10">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-emerald-100 text-xs font-semibold mb-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-card/10 text-emerald-100 text-xs font-semibold mb-2">
                 <Shield className="h-3.5 w-3.5" />
                 <span>Protected Authentication Session Verified</span>
               </div>
@@ -84,7 +84,7 @@ export const DashboardPlaceholder: React.FC = () => {
           <Card className="md:col-span-2">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
-                <UserIcon className="h-5 w-5 text-emerald-700" />
+                <UserIcon className="h-5 w-5 text-emerald-700 dark:text-emerald-400" />
                 Account Profile & Roles
               </CardTitle>
               <CardDescription>
@@ -93,18 +93,18 @@ export const DashboardPlaceholder: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                  <span className="text-xs text-slate-400 font-medium block">Full Name</span>
-                  <span className="font-semibold text-slate-800">{user?.fullName}</span>
+                <div className="p-3 bg-muted rounded-xl border border-border">
+                  <span className="text-xs text-muted-foreground font-medium block">Full Name</span>
+                  <span className="font-semibold text-foreground">{user?.fullName}</span>
                 </div>
 
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                  <span className="text-xs text-slate-400 font-medium block">Email Address</span>
-                  <span className="font-semibold text-slate-800 font-mono text-xs">{user?.email}</span>
+                <div className="p-3 bg-muted rounded-xl border border-border">
+                  <span className="text-xs text-muted-foreground font-medium block">Email Address</span>
+                  <span className="font-semibold text-foreground font-mono text-xs">{user?.email}</span>
                 </div>
 
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                  <span className="text-xs text-slate-400 font-medium block">System Role</span>
+                <div className="p-3 bg-muted rounded-xl border border-border">
+                  <span className="text-xs text-muted-foreground font-medium block">System Role</span>
                   <div className="mt-1">
                     <Badge variant={user?.role === 'admin' ? 'admin' : 'secondary'}>
                       {user?.role === 'admin' ? 'Administrator' : 'Standard User'}
@@ -112,16 +112,16 @@ export const DashboardPlaceholder: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                  <span className="text-xs text-slate-400 font-medium block">Account Created</span>
-                  <span className="font-medium text-slate-700 text-xs flex items-center gap-1 mt-1">
-                    <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                <div className="p-3 bg-muted rounded-xl border border-border">
+                  <span className="text-xs text-muted-foreground font-medium block">Account Created</span>
+                  <span className="font-medium text-foreground/80 text-xs flex items-center gap-1 mt-1">
+                    <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
                     {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Just now'}
                   </span>
                 </div>
               </div>
 
-              <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-xl text-xs text-slate-600">
+              <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs text-muted-foreground">
                 <p className="font-semibold text-emerald-950 mb-1">Scope Compliance Notice:</p>
                 <p>
                   Per the prompt instructions, dashboard expense tracking, group management, and settlement
@@ -135,7 +135,7 @@ export const DashboardPlaceholder: React.FC = () => {
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
-                <Activity className="h-5 w-5 text-emerald-700" />
+                <Activity className="h-5 w-5 text-emerald-700 dark:text-emerald-400" />
                 API Connection
               </CardTitle>
               <CardDescription>
@@ -143,22 +143,22 @@ export const DashboardPlaceholder: React.FC = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
-              <div className="flex items-center justify-between py-2 border-b border-slate-100">
-                <span className="text-xs text-slate-500">API Gateway</span>
-                <span className="text-xs font-semibold text-emerald-700 flex items-center gap-1">
+              <div className="flex items-center justify-between py-2 border-b border-border">
+                <span className="text-xs text-muted-foreground">API Gateway</span>
+                <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
                   <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                   Connected
                 </span>
               </div>
 
-              <div className="flex items-center justify-between py-2 border-b border-slate-100">
-                <span className="text-xs text-slate-500">Auth Gate</span>
-                <span className="text-xs font-mono font-medium text-slate-700">/api/app/overview</span>
+              <div className="flex items-center justify-between py-2 border-b border-border">
+                <span className="text-xs text-muted-foreground">Auth Gate</span>
+                <span className="text-xs font-mono font-medium text-foreground/80">/api/app/overview</span>
               </div>
 
-              <div className="flex items-center justify-between py-2 border-b border-slate-100">
-                <span className="text-xs text-slate-500">Session Cookie</span>
-                <span className="text-xs font-mono font-medium text-slate-700">sw_session (HttpOnly)</span>
+              <div className="flex items-center justify-between py-2 border-b border-border">
+                <span className="text-xs text-muted-foreground">Session Cookie</span>
+                <span className="text-xs font-mono font-medium text-foreground/80">sw_session (HttpOnly)</span>
               </div>
 
               <div className="pt-2">

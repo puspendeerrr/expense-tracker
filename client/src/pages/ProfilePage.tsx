@@ -193,9 +193,9 @@ export const ProfilePage: React.FC = () => {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="min-h-screen bg-muted flex flex-col">
       {/* Top Navbar */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
+      <header className="bg-card border-b border-border sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link to="/app" className="flex items-center gap-3 group">
@@ -203,8 +203,8 @@ export const ProfilePage: React.FC = () => {
                 <Wallet className="h-5 w-5" />
               </div>
               <div className="flex flex-col">
-                <span className="text-lg font-extrabold tracking-tight text-slate-950">SplitWise</span>
-                <span className="text-[9px] uppercase font-bold tracking-widest text-emerald-700 -mt-1">
+                <span className="text-lg font-extrabold tracking-tight text-foreground">SplitWise</span>
+                <span className="text-[9px] uppercase font-bold tracking-widest text-emerald-700 dark:text-emerald-400 -mt-1">
                   Workspace
                 </span>
               </div>
@@ -220,21 +220,21 @@ export const ProfilePage: React.FC = () => {
       {/* Main Content */}
       <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         {/* Breadcrumb Navigation */}
-        <nav className="flex items-center gap-2 text-xs font-medium text-slate-500">
-          <Link to="/app" className="hover:text-emerald-700 transition-colors">
+        <nav className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+          <Link to="/app" className="hover:text-emerald-700 dark:text-emerald-400 transition-colors">
             Workspace
           </Link>
-          <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
-          <span className="text-slate-900 font-semibold">Account Profile</span>
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-foreground font-semibold">Account Profile</span>
         </nav>
 
         {/* Page Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200/80">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border/80">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
               Account Profile
             </h1>
-            <p className="text-sm text-slate-600 mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               Manage your personal identity, payment settlement information, and security credentials.
             </p>
           </div>
@@ -249,10 +249,10 @@ export const ProfilePage: React.FC = () => {
         {/* Grid Sections */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* CARD 1: Personal Details */}
-          <Card className="shadow-sm border-slate-200">
+          <Card className="shadow-sm border-border">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
-                <UserIcon className="h-5 w-5 text-emerald-700" />
+                <UserIcon className="h-5 w-5 text-emerald-700 dark:text-emerald-400" />
                 Personal Details
               </CardTitle>
               <CardDescription>Your public identity across your SplitWise groups</CardDescription>
@@ -260,7 +260,7 @@ export const ProfilePage: React.FC = () => {
             <CardContent>
               <form onSubmit={handleSavePersonalInfo} className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="fullName" className="text-xs font-semibold text-slate-700">
+                  <Label htmlFor="fullName" className="text-xs font-semibold text-foreground/80">
                     Full Name
                   </Label>
                   <Input
@@ -274,37 +274,37 @@ export const ProfilePage: React.FC = () => {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-700">Email Address</Label>
+                  <Label className="text-xs font-semibold text-foreground/80">Email Address</Label>
                   <div className="relative">
                     <Input
                       value={user.email}
                       readOnly
                       disabled
-                      className="h-10 bg-slate-50 font-mono text-xs text-slate-600 cursor-not-allowed pr-28"
+                      className="h-10 bg-muted font-mono text-xs text-muted-foreground cursor-not-allowed pr-28"
                     />
                     <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
                       <Badge variant="verified" className="text-[10px] py-0.5 px-2">
-                        <CheckCircle2 className="h-3 w-3 mr-1 text-emerald-600" />
+                        <CheckCircle2 className="h-3 w-3 mr-1 text-emerald-600 dark:text-emerald-400" />
                         Verified
                       </Badge>
                     </div>
                   </div>
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-[11px] text-muted-foreground">
                     Your email address is the primary identifier used for authentication and group invites.
                   </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 pt-2">
-                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                    <span className="text-[11px] text-slate-400 font-medium block">Account Role</span>
-                    <span className="text-xs font-bold text-slate-800 uppercase tracking-wider mt-0.5 block">
+                  <div className="p-3 bg-muted rounded-xl border border-border">
+                    <span className="text-[11px] text-muted-foreground font-medium block">Account Role</span>
+                    <span className="text-xs font-bold text-foreground uppercase tracking-wider mt-0.5 block">
                       {user.role}
                     </span>
                   </div>
-                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                    <span className="text-[11px] text-slate-400 font-medium block">Member Since</span>
-                    <span className="text-xs font-medium text-slate-800 mt-0.5 flex items-center gap-1">
-                      <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                  <div className="p-3 bg-muted rounded-xl border border-border">
+                    <span className="text-[11px] text-muted-foreground font-medium block">Member Since</span>
+                    <span className="text-xs font-medium text-foreground mt-0.5 flex items-center gap-1">
+                      <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
                       {user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Recently'}
                     </span>
                   </div>
@@ -325,10 +325,10 @@ export const ProfilePage: React.FC = () => {
           </Card>
 
           {/* CARD 2: UPI & Payment QR Code */}
-          <Card className="shadow-sm border-slate-200">
+          <Card className="shadow-sm border-border">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
-                <CreditCard className="h-5 w-5 text-emerald-700" />
+                <CreditCard className="h-5 w-5 text-emerald-700 dark:text-emerald-400" />
                 Payment & UPI Settings
               </CardTitle>
               <CardDescription>
@@ -340,13 +340,13 @@ export const ProfilePage: React.FC = () => {
                 {/* UPI ID */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="upiId" className="text-xs font-semibold text-slate-700">
+                    <Label htmlFor="upiId" className="text-xs font-semibold text-foreground/80">
                       UPI ID (VPA)
                     </Label>
                     {upiId && (
                       <span
                         className={`text-[10px] font-semibold ${
-                          isUpiValid ? 'text-emerald-600' : 'text-red-500'
+                          isUpiValid ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'
                         }`}
                       >
                         {isUpiValid ? 'Valid UPI ID' : 'Invalid format'}
@@ -360,30 +360,30 @@ export const ProfilePage: React.FC = () => {
                     placeholder="e.g. yourname@okhdfcbank"
                     className="h-10 font-mono text-sm"
                   />
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-[11px] text-muted-foreground">
                     Format: username@bank (e.g. john@oksbi, alex@paytm).
                   </p>
                 </div>
 
                 {/* QR Code Upload / Manager */}
                 <div className="space-y-2 pt-1">
-                  <Label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
+                  <Label className="text-xs font-semibold text-foreground/80 flex items-center justify-between">
                     <span>Payment QR Code</span>
                     {qrCodeUrl && (
-                      <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                      <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
                         Active QR Attached
                       </span>
                     )}
                   </Label>
 
                   {qrCodeUrl ? (
-                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col sm:flex-row items-center gap-4">
+                    <div className="p-4 bg-muted border border-border rounded-2xl flex flex-col sm:flex-row items-center gap-4">
                       {/* QR Thumbnail */}
                       <div className="relative group/qr flex-shrink-0">
                         <img
                           src={qrCodeUrl}
                           alt="Payment QR Code"
-                          className="h-28 w-28 rounded-xl object-contain bg-white border border-slate-200 shadow-sm p-1.5"
+                          className="h-28 w-28 rounded-xl object-contain bg-card border border-border shadow-sm p-1.5"
                         />
                         <button
                           type="button"
@@ -397,10 +397,10 @@ export const ProfilePage: React.FC = () => {
 
                       {/* QR Actions */}
                       <div className="flex-1 space-y-2 w-full text-center sm:text-left">
-                        <p className="text-xs font-semibold text-slate-800">
+                        <p className="text-xs font-semibold text-foreground">
                           Custom Payment QR Code
                         </p>
-                        <p className="text-[11px] text-slate-500">
+                        <p className="text-[11px] text-muted-foreground">
                           Square cropped and formatted for high-contrast mobile scanning.
                         </p>
                         <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1">
@@ -414,7 +414,7 @@ export const ProfilePage: React.FC = () => {
                             }}
                             className="h-8 text-xs gap-1.5"
                           >
-                            <Crop className="h-3.5 w-3.5 text-slate-600" />
+                            <Crop className="h-3.5 w-3.5 text-muted-foreground" />
                             Re-crop
                           </Button>
                           <Button
@@ -424,7 +424,7 @@ export const ProfilePage: React.FC = () => {
                             onClick={() => fileInputRef.current?.click()}
                             className="h-8 text-xs gap-1.5"
                           >
-                            <Upload className="h-3.5 w-3.5 text-slate-600" />
+                            <Upload className="h-3.5 w-3.5 text-muted-foreground" />
                             Replace
                           </Button>
                           <Button
@@ -432,7 +432,7 @@ export const ProfilePage: React.FC = () => {
                             variant="ghost"
                             size="sm"
                             onClick={handleRemoveQR}
-                            className="h-8 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 gap-1.5"
+                            className="h-8 text-xs text-red-600 dark:text-red-400 hover:text-red-700 dark:text-red-400 hover:bg-red-500/10 gap-1.5"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                             Remove
@@ -451,18 +451,18 @@ export const ProfilePage: React.FC = () => {
                           handleFileSelect(e.dataTransfer.files[0]);
                         }
                       }}
-                      className="border-2 border-dashed border-slate-200 hover:border-emerald-600 hover:bg-emerald-50/20 rounded-2xl p-6 text-center cursor-pointer transition-all duration-150 flex flex-col items-center justify-center group"
+                      className="border-2 border-dashed border-border hover:border-emerald-600 hover:bg-emerald-500/10 rounded-2xl p-6 text-center cursor-pointer transition-all duration-150 flex flex-col items-center justify-center group"
                     >
-                      <div className="h-11 w-11 rounded-2xl bg-slate-100 group-hover:bg-emerald-100 flex items-center justify-center text-slate-600 group-hover:text-emerald-700 transition-colors mb-2">
+                      <div className="h-11 w-11 rounded-2xl bg-muted group-hover:bg-emerald-500/15 flex items-center justify-center text-muted-foreground group-hover:text-emerald-700 dark:text-emerald-400 transition-colors mb-2">
                         <QrCode className="h-6 w-6" />
                       </div>
-                      <p className="text-xs font-bold text-slate-800">
+                      <p className="text-xs font-bold text-foreground">
                         Upload Payment QR Code
                       </p>
-                      <p className="text-[11px] text-slate-400 mt-0.5">
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
                         Drag & drop or click to browse (PNG, JPG, WEBP up to 8MB)
                       </p>
-                      <p className="text-[10px] text-emerald-700 font-medium mt-2 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100">
+                      <p className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium mt-2 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
                         Includes interactive square crop editor
                       </p>
                     </div>
@@ -498,10 +498,10 @@ export const ProfilePage: React.FC = () => {
           </Card>
 
           {/* CARD 3: Change Password */}
-          <Card className="lg:col-span-2 shadow-sm border-slate-200">
+          <Card className="lg:col-span-2 shadow-sm border-border">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
-                <KeyRound className="h-5 w-5 text-emerald-700" />
+                <KeyRound className="h-5 w-5 text-emerald-700 dark:text-emerald-400" />
                 Change Password
               </CardTitle>
               <CardDescription>
@@ -512,7 +512,7 @@ export const ProfilePage: React.FC = () => {
               <form onSubmit={handleChangePassword} className="space-y-4 max-w-2xl">
                 {/* Current Password */}
                 <div className="space-y-1.5">
-                  <Label htmlFor="currentPassword" className="text-xs font-semibold text-slate-700">
+                  <Label htmlFor="currentPassword" className="text-xs font-semibold text-foreground/80">
                     Current Password
                   </Label>
                   <div className="relative">
@@ -528,7 +528,7 @@ export const ProfilePage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setShowCurrentPassword((prev) => !prev)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     >
                       {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
@@ -539,7 +539,7 @@ export const ProfilePage: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* New Password */}
                   <div className="space-y-1.5">
-                    <Label htmlFor="newPassword" className="text-xs font-semibold text-slate-700">
+                    <Label htmlFor="newPassword" className="text-xs font-semibold text-foreground/80">
                       New Password
                     </Label>
                     <div className="relative">
@@ -555,7 +555,7 @@ export const ProfilePage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setShowNewPassword((prev) => !prev)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                       >
                         {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
@@ -564,7 +564,7 @@ export const ProfilePage: React.FC = () => {
 
                   {/* Confirm Password */}
                   <div className="space-y-1.5">
-                    <Label htmlFor="confirmPassword" className="text-xs font-semibold text-slate-700">
+                    <Label htmlFor="confirmPassword" className="text-xs font-semibold text-foreground/80">
                       Confirm New Password
                     </Label>
                     <div className="relative">
@@ -580,7 +580,7 @@ export const ProfilePage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setShowConfirmPassword((prev) => !prev)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                       >
                         {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
@@ -590,7 +590,7 @@ export const ProfilePage: React.FC = () => {
 
                 {/* Password Mismatch Warning */}
                 {confirmPassword && newPassword !== confirmPassword && (
-                  <p className="text-xs text-red-600 font-medium">
+                  <p className="text-xs text-red-600 dark:text-red-400 font-medium">
                     New passwords do not match.
                   </p>
                 )}
@@ -633,26 +633,26 @@ export const ProfilePage: React.FC = () => {
       {/* Fullscreen QR Preview Modal */}
       {previewFullQR && qrCodeUrl && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in-0">
-          <div className="bg-white rounded-3xl p-6 max-w-sm w-full flex flex-col items-center gap-4 relative shadow-2xl">
+          <div className="bg-card rounded-3xl p-6 max-w-sm w-full flex flex-col items-center gap-4 relative shadow-2xl">
             <button
               type="button"
               onClick={() => setPreviewFullQR(false)}
-              className="absolute top-4 right-4 h-8 w-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors"
+              className="absolute top-4 right-4 h-8 w-8 rounded-full bg-muted hover:bg-accent text-muted-foreground flex items-center justify-center transition-colors"
             >
               <X className="h-4 w-4" />
             </button>
             <div className="text-center pt-2">
-              <h3 className="font-bold text-slate-900 text-base">{user.fullName}</h3>
-              <p className="text-xs text-slate-500 font-mono mt-0.5">{upiId || user.email}</p>
+              <h3 className="font-bold text-foreground text-base">{user.fullName}</h3>
+              <p className="text-xs text-muted-foreground font-mono mt-0.5">{upiId || user.email}</p>
             </div>
-            <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl shadow-inner">
+            <div className="p-3 bg-muted border border-border rounded-2xl shadow-inner">
               <img
                 src={qrCodeUrl}
                 alt="Fullsize Payment QR"
-                className="w-64 h-64 object-contain rounded-xl bg-white p-2"
+                className="w-64 h-64 object-contain rounded-xl bg-card p-2"
               />
             </div>
-            <p className="text-[11px] text-slate-400 text-center">
+            <p className="text-[11px] text-muted-foreground text-center">
               Scan with any UPI app (Google Pay, PhonePe, Paytm, BHIM)
             </p>
           </div>

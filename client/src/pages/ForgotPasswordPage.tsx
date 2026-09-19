@@ -64,12 +64,12 @@ export const ForgotPasswordPage: React.FC = () => {
 
   return (
     <AuthLayout>
-      <Card className="border-slate-200 shadow-xl shadow-slate-900/5">
+      <Card className="border-border shadow-xl shadow-slate-900/5">
         <CardHeader className="space-y-1">
-          <div className="mb-2 h-10 w-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700">
+          <div className="mb-2 h-10 w-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-700 dark:text-amber-400">
             <KeyRound className="h-5 w-5" />
           </div>
-          <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">
+          <CardTitle className="text-2xl font-bold tracking-tight text-foreground">
             Reset your password
           </CardTitle>
           <CardDescription>
@@ -90,7 +90,7 @@ export const ForgotPasswordPage: React.FC = () => {
                 Email address
               </Label>
               <div className="relative">
-                <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
+                <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="email"
                   type="email"
@@ -117,10 +117,10 @@ export const ForgotPasswordPage: React.FC = () => {
             </Button>
           </form>
 
-          <div className="mt-6 pt-5 border-t border-slate-100 text-center">
+          <div className="mt-6 pt-5 border-t border-border text-center">
             <Link
               to="/login"
-              className="inline-flex items-center text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+              className="inline-flex items-center text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
             >
               <ArrowLeft className="mr-1.5 h-4 w-4" />
               Back to sign in

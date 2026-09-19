@@ -6,9 +6,12 @@ import { env } from './config/env.js';
 import authRoutes from './routes/authRoutes.js';
 import groupRoutes from './routes/groupRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
+import searchRoutes from './routes/searchRoutes.js';
+import dashboardRoutes from './routes/dashboardRoutes.js';
 import pushRoutes from './routes/pushRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import insightRoutes from './routes/insightRoutes.js';
+import aiRoutes from './routes/aiRoutes.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { loadSession, requireAuth } from './middleware/requireAuth.js';
 import { asyncHandler, sendOk } from './utils/http.js';
@@ -75,6 +78,9 @@ export const createApp = (): Express => {
   app.use('/api/push', pushRoutes);
   app.use('/api/admin', adminRoutes);
   app.use('/api/insights', insightRoutes);
+  app.use('/api/search', searchRoutes);
+  app.use('/api/dashboard', dashboardRoutes);
+  app.use('/api/ai', aiRoutes);
 
   /**
    * Placeholder for the authenticated area. The real dashboard is out of scope for this

@@ -293,10 +293,22 @@ export const cancelSettlement = async (
   settlementId: string,
   groupId: string,
   actorUserId: string,
+  /**
+   * Lets an administrator cancel a settlement they are not party to.
+   *
+   * Authorisation only. The status transition, its guards and the balance consequences
+   * are unchanged -- cancelling still simply stops the row counting toward a balance,
+   * which the balance engine derives rather than stores.
+   */
+  options: { bypassParticipantCheck?: boolean } = {},
 ): Promise<Settlement> => {
   const settlement = await loadSettlement(settlementId, groupId);
 
-  if (settlement.payerId !== actorUserId && settlement.receiverId !== actorUserId) {
+  if (
+    !options.bypassParticipantCheck &&
+    settlement.payerId !== actorUserId &&
+    settlement.receiverId !== actorUserId
+  ) {
     throw forbidden(ERROR_CODES.FORBIDDEN, 'You are not part of this settlement.');
   }
 

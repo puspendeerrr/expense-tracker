@@ -36,6 +36,9 @@ const DialogOverlay = React.forwardRef<
       'fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-[2px]',
       'data-[state=open]:animate-in data-[state=closed]:animate-out',
       'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
+      // Slightly quicker than the panel it sits behind, so the scrim is already there
+      // when the panel arrives rather than racing it.
+      'duration-200',
       className,
     )}
     {...props}
@@ -45,10 +48,16 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 const dialogContentVariants = cva(
   cn(
-    'fixed z-50 flex flex-col bg-white shadow-2xl',
+    'fixed z-50 flex flex-col bg-card shadow-2xl',
     'focus-visible:outline-none',
     'data-[state=open]:animate-in data-[state=closed]:animate-out',
     'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
+    // Without an explicit duration these run at the library's 150ms default with a
+    // linear-ish curve, which is what makes a bottom sheet feel like it snaps into
+    // place instead of settling. `ease-sheet` decelerates hard at the end.
+    // Qualified with the same data variant as `animate-in`: unqualified, the library's
+    // own 150ms wins the cascade and the sheet snaps rather than settles.
+    'data-[state=open]:duration-280 data-[state=closed]:duration-200 ease-sheet',
   ),
   {
     variants: {
@@ -98,7 +107,7 @@ const DialogContent = React.forwardRef<
       {showCloseButton && (
         <DialogPrimitive.Close
           // 44px touch target, comfortably above the 24px icon it contains.
-          className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label="Close"
         >
           <X className="h-5 w-5" />
@@ -113,7 +122,7 @@ DialogContent.displayName = DialogPrimitive.Content.displayName;
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      'flex shrink-0 flex-col gap-1 border-b border-slate-100 px-5 py-4 pr-14 sm:px-6 sm:py-5',
+      'flex shrink-0 flex-col gap-1 border-b border-border px-5 py-4 pr-14 sm:px-6 sm:py-5',
       className,
     )}
     {...props}
@@ -151,7 +160,7 @@ const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivEleme
       // Column order on mobile puts the primary action last, i.e. lowest on screen and
       // easiest to reach with a thumb; the row reverts to the conventional
       // secondary-then-primary order from `sm` up.
-      'flex shrink-0 flex-col gap-2 border-t border-slate-100 px-5 py-4 sm:flex-row sm:justify-end sm:px-6',
+      'flex shrink-0 flex-col gap-2 border-t border-border px-5 py-4 sm:flex-row sm:justify-end sm:px-6',
       'pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-4',
       className,
     )}
@@ -166,7 +175,7 @@ const DialogTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Title
     ref={ref}
-    className={cn('text-lg font-bold tracking-tight text-slate-900', className)}
+    className={cn('text-lg font-bold tracking-tight text-foreground', className)}
     {...props}
   />
 ));
@@ -178,7 +187,7 @@ const DialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Description
     ref={ref}
-    className={cn('text-sm leading-relaxed text-slate-500', className)}
+    className={cn('text-sm leading-relaxed text-muted-foreground', className)}
     {...props}
   />
 ));

@@ -361,7 +361,7 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({
             <div className="space-y-1.5">
               <Label htmlFor="expense-amount">Amount</Label>
               <div className="relative">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-base font-medium text-slate-400">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-base font-medium text-muted-foreground">
                   ₹
                 </span>
                 <Input
@@ -422,7 +422,7 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({
                       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                       splitType === option.value
                         ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+                        : 'border-border bg-card text-muted-foreground hover:bg-accent',
                     )}
                   >
                     {splitType === option.value && <Check className="h-4 w-4" />}
@@ -437,11 +437,11 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label>Participants</Label>
-                  <span className="text-xs font-medium text-slate-500">
+                  <span className="text-xs font-medium text-muted-foreground">
                     {participantIds.length} selected
                   </span>
                 </div>
-                <div className="overflow-hidden rounded-xl border border-slate-200">
+                <div className="overflow-hidden rounded-xl border border-border">
                   {members.map((member, index) => {
                     const checked = participantIds.includes(member.id);
                     return (
@@ -450,15 +450,15 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({
                         key={member.id}
                         className={cn(
                           'flex min-h-[52px] cursor-pointer items-center gap-3 px-3 py-2 transition-colors',
-                          index > 0 && 'border-t border-slate-100',
-                          checked ? 'bg-primary/5' : 'bg-white hover:bg-slate-50',
+                          index > 0 && 'border-t border-border',
+                          checked ? 'bg-primary/5' : 'bg-card hover:bg-accent',
                         )}
                       >
                         <Checkbox
                           checked={checked}
                           onCheckedChange={() => toggleParticipant(member.id)}
                         />
-                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-900">
+                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
                           {member.id === currentUserId ? 'You' : member.fullName}
                         </span>
                       </label>
@@ -492,18 +492,18 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({
 
             {/* Split preview — exactly what the server will store. */}
             {sharePreview && (
-              <div className="flex items-start gap-2.5 rounded-xl bg-slate-50 p-3">
-                <Users className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-                <p className="text-sm text-slate-600">
+              <div className="flex items-start gap-2.5 rounded-xl bg-muted p-3">
+                <Users className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
                   Split {sharePreview.count} ways —{' '}
-                  <span className="font-semibold text-slate-900">
+                  <span className="font-semibold text-foreground">
                     {sharePreview.hasRemainder
                       ? `${formatPaise(sharePreview.low)} – ${formatPaise(sharePreview.high)}`
                       : formatPaise(sharePreview.low)}
                   </span>{' '}
                   each
                   {sharePreview.hasRemainder && (
-                    <span className="block text-xs text-slate-500">
+                    <span className="block text-xs text-muted-foreground">
                       The leftover paisa goes to the first few people so the split adds up
                       exactly.
                     </span>
@@ -532,7 +532,7 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({
                       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                       paymentMode === option.value
                         ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+                        : 'border-border bg-card text-muted-foreground hover:bg-accent',
                     )}
                   >
                     {option.label}

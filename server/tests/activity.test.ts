@@ -342,3 +342,147 @@ describe('payment reminders', () => {
     ).toBe(false);
   });
 });
+
+/* ========================================================================== */
+/* Feed filters                                                               */
+/* ========================================================================== */
+
+describe('activity feed filters', () => {
+  /** Adds one expense per person so there is something to filter apart. */
+  const seeded = async () => {
+    const { groupId, people } = await setup(2);
+
+    await api()
+      .post(`/api/groups/${groupId}/expenses`)
+      .set('Cookie', people[0]!.cookie)
+      .send({ title: 'Paneer dinner', amount: 900, expenseDate: TODAY })
+      .expect(201);
+
+    await api()
+      .post(`/api/groups/${groupId}/expenses`)
+      .set('Cookie', people[1]!.cookie)
+      .send({ title: 'Metro card', amount: 200, expenseDate: TODAY })
+      .expect(201);
+
+    await waitForActivity(people[0]!.cookie, groupId, 'expense_created');
+    // Both inserts are fired after the response, so wait for the second as well.
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      const rows = await listActivities(people[0]!.cookie, groupId);
+      if (rows.filter((row) => row.type === 'expense_created').length >= 2) break;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+
+    return { groupId, people };
+  };
+
+  const fetchFeed = async (cookie: string, groupId: string, query: string) => {
+    const res = await api()
+      .get(`/api/groups/${groupId}/activities?limit=50&offset=0&${query}`)
+      .set('Cookie', cookie)
+      .expect(200);
+    return res.body.data as {
+      activities: { type: string; actor: { id: string }; metadata: Record<string, unknown> }[];
+      pagination: { total: number };
+    };
+  };
+
+  it('filters by activity type', async () => {
+    const { groupId, people } = await seeded();
+
+    const data = await fetchFeed(people[0]!.cookie, groupId, 'type=expense_created');
+    expect(data.activities.length).toBeGreaterThanOrEqual(2);
+    expect(data.activities.every((row) => row.type === 'expense_created')).toBe(true);
+
+    const none = await fetchFeed(people[0]!.cookie, groupId, 'type=settlement_approved');
+    expect(none.activities).toHaveLength(0);
+    expect(none.pagination.total).toBe(0);
+  });
+
+  it('filters by actor', async () => {
+    const { groupId, people } = await seeded();
+
+    const data = await fetchFeed(people[0]!.cookie, groupId, `actorId=${people[1]!.userId}`);
+    expect(data.activities.length).toBeGreaterThan(0);
+    expect(data.activities.every((row) => row.actor.id === people[1]!.userId)).toBe(true);
+  });
+
+  it('searches the expense title stored in metadata', async () => {
+    const { groupId, people } = await seeded();
+
+    const data = await fetchFeed(people[0]!.cookie, groupId, 'search=Paneer');
+    expect(data.activities.length).toBe(1);
+    expect(String(data.activities[0]!.metadata.title)).toContain('Paneer');
+  });
+
+  it('reports a total for the filtered set, not the whole group', async () => {
+    const { groupId, people } = await seeded();
+
+    const all = await fetchFeed(people[0]!.cookie, groupId, '');
+    const one = await fetchFeed(people[0]!.cookie, groupId, 'search=Paneer');
+
+    // A total describing the unfiltered group would make "load more" offer pages that
+    // do not exist for this query.
+    expect(one.pagination.total).toBe(1);
+    expect(all.pagination.total).toBeGreaterThan(one.pagination.total);
+  });
+
+  it('excludes entries outside the date range', async () => {
+    const { groupId, people } = await seeded();
+
+    const past = await fetchFeed(people[0]!.cookie, groupId, 'from=2020-01-01&to=2020-01-02');
+    expect(past.activities).toHaveLength(0);
+
+    const covering = await fetchFeed(people[0]!.cookie, groupId, `from=${TODAY}&to=${TODAY}`);
+    expect(covering.activities.length).toBeGreaterThan(0);
+  });
+
+  it('rejects a malformed date and a non-uuid actor', async () => {
+    const { groupId, people } = await seeded();
+
+    await api()
+      .get(`/api/groups/${groupId}/activities?from=01-01-2020`)
+      .set('Cookie', people[0]!.cookie)
+      .expect(400);
+
+    await api()
+      .get(`/api/groups/${groupId}/activities?actorId=not-a-uuid`)
+      .set('Cookie', people[0]!.cookie)
+      .expect(400);
+  });
+
+  it('lists only the types this group actually has', async () => {
+    const { groupId, people } = await seeded();
+
+    const res = await api()
+      .get(`/api/groups/${groupId}/activities/types`)
+      .set('Cookie', people[0]!.cookie)
+      .expect(200);
+
+    const types = res.body.data.types as string[];
+    expect(types).toContain('expense_created');
+    expect(types).not.toContain('settlement_approved');
+  });
+
+  it('hides the types from a non-member', async () => {
+    const { groupId } = await seeded();
+    const outsider = await member('outsider');
+
+    // 404 rather than 403: the membership middleware does not confirm that a group
+    // exists to someone who is not in it.
+    await api()
+      .get(`/api/groups/${groupId}/activities/types`)
+      .set('Cookie', outsider.cookie)
+      .expect(404);
+  });
+
+  it('records one feed entry per expense, not one per write path', async () => {
+    const { groupId, people } = await seeded();
+
+    const data = await fetchFeed(people[0]!.cookie, groupId, 'search=Paneer');
+
+    // The service writes this row inside the expense transaction. A second write from
+    // the controller used to duplicate every entry in the feed.
+    expect(data.activities).toHaveLength(1);
+    expect(data.pagination.total).toBe(1);
+  });
+});

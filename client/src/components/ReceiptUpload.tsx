@@ -43,12 +43,12 @@ export const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
 
   if (!env.cloudinary.isConfigured) {
     return (
-      <div className="rounded-xl bg-slate-50 p-3">
+      <div className="rounded-xl bg-muted p-3">
         <p className="t-eyebrow mb-1">{label}</p>
-        <p className="text-xs leading-relaxed text-slate-500">
+        <p className="text-xs leading-relaxed text-muted-foreground">
           Image uploads are not configured on this deployment. Set{' '}
-          <code className="rounded bg-slate-200 px-1">VITE_CLOUDINARY_CLOUD_NAME</code> and{' '}
-          <code className="rounded bg-slate-200 px-1">VITE_CLOUDINARY_UPLOAD_PRESET</code>.
+          <code className="rounded bg-accent px-1">VITE_CLOUDINARY_CLOUD_NAME</code> and{' '}
+          <code className="rounded bg-accent px-1">VITE_CLOUDINARY_UPLOAD_PRESET</code>.
         </p>
       </div>
     );
@@ -104,14 +104,14 @@ export const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
       />
 
       {value ? (
-        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-2">
+        <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-2">
           <img
             src={value}
             alt="Attached receipt"
             className="h-16 w-16 shrink-0 rounded-lg object-cover"
           />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-slate-900">Image attached</p>
+            <p className="text-sm font-medium text-foreground">Image attached</p>
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
@@ -125,7 +125,7 @@ export const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
             type="button"
             variant="outline"
             size="icon"
-            className="h-11 w-11 shrink-0 text-destructive hover:bg-red-50"
+            className="h-11 w-11 shrink-0 text-destructive hover:bg-red-500/10"
             onClick={() => onChange(null)}
             disabled={disabled}
             aria-label="Remove image"
@@ -134,14 +134,14 @@ export const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
           </Button>
         </div>
       ) : isUploading ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-3">
+        <div className="rounded-xl border border-border bg-card p-3">
           <div className="flex items-center gap-2">
             <Loader2 className="h-4 w-4 animate-spin text-primary" />
-            <span className="flex-1 text-sm text-slate-700">Uploading… {progress}%</span>
+            <span className="flex-1 text-sm text-foreground/80">Uploading… {progress}%</span>
             <button
               type="button"
               onClick={() => abortRef.current?.abort()}
-              className="text-xs font-semibold text-slate-500 hover:underline"
+              className="text-xs font-semibold text-muted-foreground hover:underline"
             >
               Cancel
             </button>
@@ -154,14 +154,14 @@ export const ReceiptUpload: React.FC<ReceiptUploadProps> = ({
           onClick={() => inputRef.current?.click()}
           disabled={disabled}
           className={cn(
-            'flex min-h-[56px] w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-3 text-sm font-medium text-slate-600 transition-colors',
+            'flex min-h-[56px] w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-input bg-muted px-3 text-sm font-medium text-muted-foreground transition-colors',
             'hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             disabled && 'cursor-not-allowed opacity-50',
           )}
         >
-          <Camera className="h-4 w-4 text-slate-400" />
+          <Camera className="h-4 w-4 text-muted-foreground" />
           Take a photo or choose an image
-          <Paperclip className="h-4 w-4 text-slate-400" />
+          <Paperclip className="h-4 w-4 text-muted-foreground" />
         </button>
       )}
 

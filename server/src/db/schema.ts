@@ -113,6 +113,14 @@ export const sessions = pgTable(
     tokenHash: text('token_hash').notNull(),
     userAgent: text('user_agent'),
     ipAddress: text('ip_address'),
+    /**
+     * A name the account holder gave this device, e.g. "Work laptop".
+     *
+     * Null means "not named", and the UI then derives something readable from the user
+     * agent. Stored rather than derived-only because the whole point is to let someone
+     * tell two identical-looking Chrome-on-Windows rows apart.
+     */
+    deviceName: text('device_name'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     lastUsedAt: timestamp('last_used_at', { withTimezone: true }).notNull().defaultNow(),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
@@ -211,6 +219,17 @@ export const notificationType = pgEnum('notification_type', [
   'settlement_rejected',
   'member_joined',
   'payment_reminder',
+  /*
+   * Security notifications.
+   *
+   * Deliberately part of the same table as everything else, so there is one inbox and
+   * one unread count. They are distinguished by type rather than by living somewhere
+   * separate, which is what lets the UI treat them as high priority without a second
+   * notification system.
+   */
+  'security_new_device',
+  'security_password_changed',
+  'security_session_revoked',
 ]);
 
 export const groups = pgTable(
@@ -230,6 +249,17 @@ export const groups = pgTable(
     inviteRotatedAt: timestamp('invite_rotated_at', { withTimezone: true }).notNull().defaultNow(),
     status: accountStatus('status').notNull().default('active'),
     disabledAt: timestamp('disabled_at', { withTimezone: true }),
+    /**
+     * Group imagery, hosted on Cloudinary.
+     *
+     * The public id is stored alongside each URL because that is the only handle that
+     * can later delete or transform the asset; a secure URL on its own leaks the asset
+     * once it is replaced. Both are nullable and always written as a pair.
+     */
+    avatarUrl: text('avatar_url'),
+    avatarPublicId: text('avatar_public_id'),
+    coverUrl: text('cover_url'),
+    coverPublicId: text('cover_public_id'),
     /** Day of month (1-31) the billing cycle rolls over on. */
     payday: integer('payday'),
     createdBy: uuid('created_by')
@@ -437,6 +467,97 @@ export const notifications = pgTable(
   ],
 );
 
+/**
+ * Account-level security events.
+ *
+ * One table serves both the login history and the account activity timeline, because
+ * they are the same records filtered differently -- splitting them would mean two
+ * places to write to and two chances to forget one.
+ *
+ * Failed logins are recorded only for addresses that belong to a real account. Storing
+ * attempts against unknown addresses would fill the table with attacker-supplied
+ * strings that no one can ever be shown, since there is no account to show them to.
+ */
+export const accountEventType = pgEnum('account_event_type', [
+  'login_succeeded',
+  'login_failed',
+  'logout',
+  'new_device_detected',
+  'session_revoked',
+  'sessions_revoked_all',
+  'password_changed',
+  'password_reset',
+  'device_renamed',
+  'profile_updated',
+  'account_deactivated',
+  'account_reactivated',
+  'data_exported',
+]);
+
+export const accountEvents = pgTable(
+  'account_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    type: accountEventType('type').notNull(),
+    /** The session this happened on or to, where one applies. */
+    sessionId: uuid('session_id').references(() => sessions.id, { onDelete: 'set null' }),
+    ipAddress: text('ip_address'),
+    userAgent: text('user_agent'),
+    /**
+     * Coarse device signature -- browser and OS family only.
+     *
+     * Used to decide whether a login is from a new device. Deliberately coarse: a
+     * signature that included the full version string would fire a "new device" alert
+     * every time Chrome updated itself, and an alert that cries wolf is worse than no
+     * alert at all.
+     */
+    deviceSignature: text('device_signature'),
+    metadata: jsonb('metadata').$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('account_events_user_created_idx').on(table.userId, table.createdAt.desc()),
+    // Powers the new-device lookup, which asks for one user's prior signatures.
+    index('account_events_user_signature_idx').on(table.userId, table.deviceSignature),
+  ],
+);
+
+export type AccountEvent = typeof accountEvents.$inferSelect;
+
+/**
+ * Per-user dashboard layout.
+ *
+ * One row per account rather than per account-and-group: someone who arranges their
+ * dashboard means "this is how I like to see a dashboard", not "this is how I like to
+ * see Flat 402". Making it per-group would mean rearranging it again for every group
+ * they join.
+ *
+ * `widgets` holds order and visibility for the widgets this user has an opinion about.
+ * It is not the list of widgets that exist -- the code is. Merging the two at read time
+ * means a widget added in a later release appears for everyone instead of being
+ * invisible to every account that saved a layout before it existed.
+ */
+export const dashboardMode = pgEnum('dashboard_mode', ['summary', 'detailed']);
+export const dashboardView = pgEnum('dashboard_view', ['group', 'personal']);
+
+export const userDashboardPreferences = pgTable('user_dashboard_preferences', {
+  userId: uuid('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  mode: dashboardMode('mode').notNull().default('detailed'),
+  view: dashboardView('view').notNull().default('group'),
+  widgets: jsonb('widgets')
+    .$type<{ id: string; visible: boolean }[]>()
+    .notNull()
+    .default([]),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type UserDashboardPreferences = typeof userDashboardPreferences.$inferSelect;
+
 export type User = typeof users.$inferSelect;
 export type OtpChallenge = typeof otpChallenges.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
@@ -575,5 +696,43 @@ export const purgeAudits = pgTable(
   (table) => [
     index('purge_audits_group_idx').on(table.groupId),
     index('purge_audits_created_idx').on(table.createdAt.desc()),
+  ],
+);
+
+/**
+ * Immutable record of administrative mutations.
+ *
+ * Generalises the pattern `purge_audits` proved: what happened, who did it, to whom,
+ * and when -- written in the same transaction as the change itself so the record cannot
+ * be lost while the change succeeds.
+ *
+ * Actor and target identities are denormalised alongside their foreign keys. The keys
+ * are `set null` on delete so history survives the deletion of an account or group,
+ * which is exactly when an audit trail matters most.
+ *
+ * `metadata` is for describing the change. It must never carry a credential: there is a
+ * strip step in the service, because an audit log is one of the easiest places to leak a
+ * password by accident.
+ */
+export const adminAudits = pgTable(
+  'admin_audits',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    actorUserId: uuid('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
+    actorEmail: text('actor_email').notNull(),
+    /** Dotted action key, e.g. `user.disabled`, `group.creator_transferred`. */
+    action: text('action').notNull(),
+    targetType: text('target_type'),
+    targetId: uuid('target_id'),
+    /** Human label captured at the time, so a deleted target is still identifiable. */
+    targetLabel: text('target_label'),
+    metadata: jsonb('metadata').notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('admin_audits_created_idx').on(table.createdAt.desc()),
+    index('admin_audits_actor_idx').on(table.actorUserId),
+    index('admin_audits_target_idx').on(table.targetType, table.targetId),
+    index('admin_audits_action_idx').on(table.action),
   ],
 );

@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { sendOk } from '../utils/http.js';
 import { validatedQuery } from '../middleware/validate.js';
-import { reportFiltersSchema } from '../validation/reportSchemas.js';
+import { exportQuerySchema, reportFiltersSchema } from '../validation/reportSchemas.js';
 import {
   buildAnalyticsRegion,
   buildChartRegion,
@@ -83,13 +83,15 @@ export const getRelationships = async (req: Request, res: Response): Promise<voi
  * so the workbook always represents exactly what the user was looking at.
  */
 export const exportReport = async (req: Request, res: Response): Promise<void> => {
+  const query = validatedQuery(req, exportQuerySchema);
   const ctx = contextFrom(req);
   const dataset = await buildExportDataset(ctx);
 
-  const { buffer, filename } = await generateFinancialReport(dataset, {
-    fullName: req.user!.fullName,
-    email: req.user!.email,
-  });
+  const { buffer, filename } = await generateFinancialReport(
+    dataset,
+    { fullName: req.user!.fullName, email: req.user!.email },
+    query.sections,
+  );
 
   res.setHeader(
     'Content-Type',

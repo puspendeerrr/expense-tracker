@@ -108,7 +108,7 @@ export const FilterDialog: React.FC<FilterDialogProps> = ({
         <DialogBody className="space-y-5">
           {/* ---- Date range ---- */}
           <fieldset className="space-y-2">
-            <legend className="mb-2 text-sm font-semibold text-slate-900">Date range</legend>
+            <legend className="mb-2 text-sm font-semibold text-foreground">Date range</legend>
             <div className="grid grid-cols-2 gap-2">
               {DATE_PRESETS.map((preset) => {
                 const isActive = draft.preset === preset.value;
@@ -124,7 +124,7 @@ export const FilterDialog: React.FC<FilterDialogProps> = ({
                       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                       isActive
                         ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+                        : 'border-border bg-card text-muted-foreground hover:bg-accent',
                     )}
                   >
                     {preset.label}

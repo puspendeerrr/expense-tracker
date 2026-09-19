@@ -13,7 +13,6 @@ const PAGES = [
   ['/app/activity', 'activity'],
   ['/app/spending', 'spending'],
   ['/app/settings', 'settings'],
-  ['/app/admin', 'admin'],
 ];
 
 const VIEWPORTS = [

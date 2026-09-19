@@ -58,7 +58,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
         <DialogBody className="flex flex-col items-center justify-center bg-slate-900/[0.03] p-0">
           {failed ? (
             <div className="px-6 py-16 text-center">
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-muted-foreground">
                 This image could not be loaded. It may have been removed from storage.
               </p>
               {src && (
@@ -79,7 +79,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({
             >
               {isLoading && (
                 <div className="flex h-64 items-center justify-center">
-                  <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
               )}
               {src && (

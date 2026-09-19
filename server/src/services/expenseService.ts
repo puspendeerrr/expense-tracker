@@ -448,6 +448,16 @@ export const deleteExpense = async (
   expenseId: string,
   groupId: string,
   actorUserId: string,
+  /**
+   * Lets an administrator delete an expense they did not pay for.
+   *
+   * This waives AUTHORISATION only -- who is permitted to act -- and nothing else. The
+   * deletion still runs the same transaction, participant rows still cascade, and
+   * balances are still derived from what remains, so financial integrity is untouched.
+   * An admin can never bypass a domain rule this way, only an ownership check, and the
+   * caller records an audit row for it.
+   */
+  options: { bypassOwnership?: boolean } = {},
 ): Promise<{ deleted: Expense; receiptStorageKey: string | null }> => {
   const existingRows = await db
     .select()
@@ -458,7 +468,7 @@ export const deleteExpense = async (
   const existing = existingRows[0];
   if (!existing) throw notFound('Expense not found.');
 
-  if (existing.paidBy !== actorUserId) {
+  if (!options.bypassOwnership && existing.paidBy !== actorUserId) {
     throw forbidden(
       ERROR_CODES.FORBIDDEN,
       'Only the person who paid for this expense can delete it.',

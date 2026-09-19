@@ -64,10 +64,10 @@ export const SplitEditor: React.FC<SplitEditorProps> = ({
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
         <Label>Each person&rsquo;s share</Label>
-        <span className="text-xs text-slate-500">{copy.hint}</span>
+        <span className="text-xs text-muted-foreground">{copy.hint}</span>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200">
+      <div className="overflow-hidden rounded-xl border border-border">
         {members.map((member, index) => {
           const sharePaise = shareByUser.get(member.id) ?? 0;
 
@@ -75,14 +75,14 @@ export const SplitEditor: React.FC<SplitEditorProps> = ({
             <div
               key={member.id}
               className={cn(
-                'flex min-h-[56px] items-center gap-3 bg-white px-3 py-2',
-                index > 0 && 'border-t border-slate-100',
+                'flex min-h-[56px] items-center gap-3 bg-card px-3 py-2',
+                index > 0 && 'border-t border-border',
               )}
             >
               <div className="min-w-0 flex-1">
                 <label
                   htmlFor={`split-${member.id}`}
-                  className="block truncate text-sm font-medium text-slate-900"
+                  className="block truncate text-sm font-medium text-foreground"
                 >
                   {member.id === currentUserId ? 'You' : member.fullName}
                 </label>
@@ -93,7 +93,7 @@ export const SplitEditor: React.FC<SplitEditorProps> = ({
 
               <div className="relative w-28 shrink-0">
                 {splitType === 'exact' && (
-                  <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-slate-400">
+                  <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
                     ₹
                   </span>
                 )}
@@ -112,7 +112,7 @@ export const SplitEditor: React.FC<SplitEditorProps> = ({
                   )}
                 />
                 {splitType !== 'exact' && (
-                  <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-sm text-slate-400">
+                  <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
                     {copy.suffix}
                   </span>
                 )}
@@ -129,8 +129,8 @@ export const SplitEditor: React.FC<SplitEditorProps> = ({
         className={cn(
           'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium',
           evaluation.isBalanced
-            ? 'bg-emerald-50 text-emerald-700'
-            : 'bg-slate-100 text-slate-600',
+            ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+            : 'bg-muted text-muted-foreground',
         )}
       >
         {evaluation.isBalanced ? (

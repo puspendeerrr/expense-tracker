@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { asyncHandler } from '../utils/http.js';
 import { requireGroupMember } from '../middleware/requireGroupMember.js';
 import { validateQuery } from '../middleware/validate.js';
-import { reportFiltersSchema } from '../validation/reportSchemas.js';
+import { exportQuerySchema, reportFiltersSchema } from '../validation/reportSchemas.js';
 import { exportReport, getRelationships, getReport } from '../controllers/reportController.js';
 import { requirePermission } from '../middleware/requirePermission.js';
 
@@ -21,7 +21,7 @@ router.get('/relationships', validateQuery(reportFiltersSchema), asyncHandler(ge
 router.get(
   '/export',
   requirePermission('reports.export'),
-  validateQuery(reportFiltersSchema),
+  validateQuery(exportQuerySchema),
   asyncHandler(exportReport),
 );
 

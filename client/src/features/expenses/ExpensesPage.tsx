@@ -68,7 +68,7 @@ const initials = (name: string): string =>
     .join('') || '?';
 
 const ExpenseRowSkeleton: React.FC = () => (
-  <li className="flex items-center gap-3 border-t border-slate-100 px-4 py-3 first:border-t-0">
+  <li className="flex items-center gap-3 border-t border-border px-4 py-3 first:border-t-0">
     <Skeleton className="h-10 w-10 rounded-full" />
     <div className="flex-1 space-y-1.5">
       <Skeleton className="h-4 w-40" />
@@ -222,10 +222,16 @@ export const ExpensesPage: React.FC = () => {
       title="Expenses"
       toolbar={
         <>
+          {/* Add, then Filters, then any contextual menu: one order across every screen,
+              so the primary action is always in the same place under the thumb. */}
+          <Button onClick={() => setCreating(true)} className="h-11 flex-1 sm:flex-none">
+            <Plus className="mr-1.5 h-4 w-4" />
+            Add Expense
+          </Button>
           <Button
             variant="outline"
             onClick={() => setFiltersOpen(true)}
-            className="h-11 px-3"
+            className="h-11 shrink-0 px-3"
             aria-label="Filters"
           >
             <Filter className="h-4 w-4 sm:mr-2" />
@@ -238,17 +244,13 @@ export const ExpensesPage: React.FC = () => {
               </span>
             )}
           </Button>
-          <Button onClick={() => setCreating(true)} className="h-11 flex-1 sm:flex-none">
-            <Plus className="mr-1.5 h-4 w-4" />
-            Add Expense
-          </Button>
         </>
       }
     >
       <div className="mx-auto max-w-5xl space-y-4 px-4 py-5 sm:px-6">
         {/* ---- Search ---- */}
         <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -260,7 +262,7 @@ export const ExpensesPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setSearch('')}
-              className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100"
+              className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
               aria-label="Clear search"
             >
               <X className="h-4 w-4" />
@@ -294,13 +296,13 @@ export const ExpensesPage: React.FC = () => {
         {/* ---- Ledger ---- */}
         <div
           className={cn(
-            'overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-opacity',
+            'overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-opacity',
             isRefreshing && !isLoading && 'opacity-70',
           )}
         >
           {error ? (
             <div className="px-4 py-10 text-center">
-              <p className="text-sm text-slate-600">{error}</p>
+              <p className="text-sm text-muted-foreground">{error}</p>
               <Button
                 size="sm"
                 variant="outline"
@@ -318,8 +320,8 @@ export const ExpensesPage: React.FC = () => {
             </ul>
           ) : (expenses?.length ?? 0) === 0 ? (
             <div className="px-4 py-14 text-center">
-              <Receipt className="mx-auto h-9 w-9 text-slate-300" />
-              <p className="mt-3 text-sm font-semibold text-slate-700">
+              <Receipt className="mx-auto h-9 w-9 text-muted-foreground/60" />
+              <p className="mt-3 text-sm font-semibold text-foreground/80">
                 {activeCount > 0 ? 'No expenses match these filters' : 'No expenses yet'}
               </p>
               <p className="mx-auto mt-1 max-w-xs t-meta">
@@ -339,7 +341,7 @@ export const ExpensesPage: React.FC = () => {
               {expenses?.map((expense) => {
                 const isMine = expense.paidBy === user?.id;
                 return (
-                  <li key={expense.id} className="border-t border-slate-100 first:border-t-0">
+                  <li key={expense.id} className="border-t border-border first:border-t-0">
                     <div className="flex items-center gap-3 px-4 py-3">
                       <button
                         type="button"
@@ -347,12 +349,12 @@ export const ExpensesPage: React.FC = () => {
                         className="flex min-w-0 flex-1 items-center gap-3 text-left"
                       >
                         <Avatar className="h-10 w-10 shrink-0">
-                          <AvatarFallback className="bg-slate-100 text-slate-600">
+                          <AvatarFallback className="bg-muted text-muted-foreground">
                             {initials(expense.payer?.fullName ?? '?')}
                           </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-slate-900">
+                          <p className="truncate text-sm font-semibold text-foreground">
                             {expense.title}
                           </p>
                           <p className="truncate t-meta">
@@ -363,17 +365,17 @@ export const ExpensesPage: React.FC = () => {
                           </p>
                         </div>
                         <div className="shrink-0 text-right">
-                          <p className="t-money text-sm text-slate-900">
+                          <p className="t-money text-sm text-foreground">
                             {formatPaise(expense.amountPaise)}
                           </p>
                           <p
                             className={cn(
                               'text-xs',
                               expense.involvement === 'paid_by_me'
-                                ? 'text-emerald-600'
+                                ? 'text-emerald-600 dark:text-emerald-400'
                                 : expense.involvement === 'paid_by_others_for_me'
-                                  ? 'text-red-600'
-                                  : 'text-slate-400',
+                                  ? 'text-red-600 dark:text-red-400'
+                                  : 'text-muted-foreground',
                             )}
                           >
                             {expense.involvement === 'not_involved'
@@ -389,7 +391,7 @@ export const ExpensesPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => setEditing(expense)}
-                            className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                            className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                             aria-label={`Edit ${expense.title}`}
                           >
                             <Pencil className="h-4 w-4" />
@@ -397,7 +399,7 @@ export const ExpensesPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => setDeleting(expense)}
-                            className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-destructive"
+                            className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-red-500/10 hover:text-destructive"
                             aria-label={`Delete ${expense.title}`}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -413,7 +415,7 @@ export const ExpensesPage: React.FC = () => {
 
           {/* ---- Pagination ---- */}
           {pagination && pagination.total > PAGE_SIZE && (
-            <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3">
+            <div className="flex items-center justify-between border-t border-border px-4 py-3">
               <span className="t-meta">
                 {page * PAGE_SIZE + 1}–
                 {Math.min((page + 1) * PAGE_SIZE, pagination.total)} of {pagination.total}
@@ -494,42 +496,42 @@ export const ExpensesPage: React.FC = () => {
             <DialogTitle>{detail?.title}</DialogTitle>
           </DialogHeader>
           <DialogBody className="space-y-4">
-            <div className="rounded-xl bg-slate-50 p-4 text-center">
+            <div className="rounded-xl bg-muted p-4 text-center">
               <p className="t-eyebrow">Total</p>
-              <p className="t-money mt-1 text-2xl text-slate-900">
+              <p className="t-money mt-1 text-2xl text-foreground">
                 {formatPaise(detail?.amountPaise ?? 0)}
               </p>
             </div>
 
             <dl className="space-y-2 text-sm">
               <div className="flex justify-between gap-3">
-                <dt className="text-slate-500">Paid by</dt>
-                <dd className="font-medium text-slate-900">
+                <dt className="text-muted-foreground">Paid by</dt>
+                <dd className="font-medium text-foreground">
                   {detail?.paidBy === user?.id ? 'You' : detail?.payer?.fullName}
                 </dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt className="text-slate-500">Date</dt>
-                <dd className="font-medium text-slate-900">{detail?.expenseDate}</dd>
+                <dt className="text-muted-foreground">Date</dt>
+                <dd className="font-medium text-foreground">{detail?.expenseDate}</dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt className="text-slate-500">Payment mode</dt>
-                <dd className="font-medium text-slate-900">
+                <dt className="text-muted-foreground">Payment mode</dt>
+                <dd className="font-medium text-foreground">
                   {detail?.paymentMode === 'upi' ? 'UPI / Online' : 'Cash'}
                 </dd>
               </div>
               {detail?.category && (
                 <div className="flex justify-between gap-3">
-                  <dt className="text-slate-500">Category</dt>
-                  <dd className="font-medium text-slate-900">
+                  <dt className="text-muted-foreground">Category</dt>
+                  <dd className="font-medium text-foreground">
                     {CATEGORY_LABELS[detail.category]}
                   </dd>
                 </div>
               )}
               {detail?.notes && (
                 <div className="flex justify-between gap-3">
-                  <dt className="shrink-0 text-slate-500">Notes</dt>
-                  <dd className="text-right font-medium text-slate-900">{detail.notes}</dd>
+                  <dt className="shrink-0 text-muted-foreground">Notes</dt>
+                  <dd className="text-right font-medium text-foreground">{detail.notes}</dd>
                 </div>
               )}
             </dl>
@@ -538,7 +540,7 @@ export const ExpensesPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setReceiptViewing(detail)}
-                className="flex w-full items-center gap-3 rounded-xl border border-slate-200 p-2 text-left transition-colors hover:bg-slate-50"
+                className="flex w-full items-center gap-3 rounded-xl border border-border p-2 text-left transition-colors hover:bg-accent"
               >
                 <img
                   src={detail.receiptUrl}
@@ -546,7 +548,7 @@ export const ExpensesPage: React.FC = () => {
                   className="h-14 w-14 shrink-0 rounded-lg object-cover"
                 />
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium text-slate-900">Receipt</span>
+                  <span className="block text-sm font-medium text-foreground">Receipt</span>
                   <span className="t-meta">Tap to view full size</span>
                 </span>
               </button>
@@ -559,20 +561,20 @@ export const ExpensesPage: React.FC = () => {
                 {detail?.splitType === 'percentage' && ' · by percentage'}
                 {detail?.splitType === 'shares' && ' · by shares'}
               </p>
-              <ul className="overflow-hidden rounded-xl border border-slate-200">
+              <ul className="overflow-hidden rounded-xl border border-border">
                 {detail?.participants.map((participant) => {
                   const member = members.find((m) => m.id === participant.userId);
                   return (
                     <li
                       key={participant.userId}
-                      className="flex items-center justify-between gap-3 border-t border-slate-100 px-3 py-2.5 first:border-t-0"
+                      className="flex items-center justify-between gap-3 border-t border-border px-3 py-2.5 first:border-t-0"
                     >
-                      <span className="min-w-0 truncate text-sm text-slate-700">
+                      <span className="min-w-0 truncate text-sm text-foreground/80">
                         {participant.userId === user?.id
                           ? 'You'
                           : (member?.fullName ?? participant.fullName ?? 'Member')}
                       </span>
-                      <span className="t-money shrink-0 text-sm text-slate-900">
+                      <span className="t-money shrink-0 text-sm text-foreground">
                         {formatPaise(participant.sharePaise)}
                       </span>
                     </li>
@@ -604,8 +606,8 @@ export const ExpensesPage: React.FC = () => {
             <DialogTitle>Delete this expense?</DialogTitle>
           </DialogHeader>
           <DialogBody>
-            <p className="text-sm leading-relaxed text-slate-600">
-              <span className="font-semibold text-slate-900">{deleting?.title}</span> (
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              <span className="font-semibold text-foreground">{deleting?.title}</span> (
               {formatPaise(deleting?.amountPaise ?? 0)}) will be removed and everyone&apos;s
               balances will be recalculated. This cannot be undone.
             </p>

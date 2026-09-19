@@ -11,6 +11,7 @@ import {
 } from '../db/schema.js';
 import { ERROR_CODES, badRequest, notFound } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
+import * as auditService from './auditService.js';
 import { uuidList } from '../utils/sqlHelpers.js';
 
 /**
@@ -384,6 +385,29 @@ export const executePurge = async (
       settlements: settlementIds.length,
       activities: activitiesDeleted,
     });
+
+    // Also recorded on the platform audit trail, in the same transaction, so a purge
+    // appears alongside every other administrative action rather than only in the
+    // purge-specific table.
+    await auditService.record(
+      {
+        actorUserId: actor.id,
+        actorEmail: actor.email,
+        action: auditService.AUDIT_ACTIONS.HISTORY_PURGED,
+        targetType: 'group',
+        targetId: group.id,
+        targetLabel: group.name,
+        metadata: {
+          from: filters.from,
+          to: filters.to,
+          expensesDeleted: expenseIds.length,
+          settlementsDeleted: settlementIds.length,
+          activitiesDeleted,
+          amountPaise,
+        },
+      },
+      tx,
+    );
 
     return {
       expensesDeleted: expenseIds.length,

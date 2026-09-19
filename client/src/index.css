@@ -34,12 +34,111 @@
     --ring: 160 84% 36%;
 
     --radius: 0.625rem;
+
+    /*
+     * Admin console surfaces.
+     *
+     * The console is a different product from the consumer app and should read that
+     * way, but SplitWise is a light green product and inverting it would just look
+     * broken. So the separation is done with a cooler, slightly recessed chrome --
+     * tinted navigation, a marginally deeper canvas, sharper corners -- while the
+     * brand green stays the only accent. No new hues.
+     */
+    --admin-canvas: 214 30% 96%;
+    --admin-nav: 215 28% 97%;
+    --admin-nav-foreground: 215 20% 40%;
+    --admin-chrome: 0 0% 100%;
+    --admin-border: 214 25% 88%;
+    --admin-radius: 0.5rem;
+  }
+
+  /*
+   * Dark theme.
+   *
+   * Applied by adding `.dark` to <html>, which ThemeProvider manages. Only components
+   * written against these semantic tokens follow it -- anything using a literal
+   * `bg-white` or `text-slate-900` stays light. The admin console is built entirely on
+   * tokens; the rest of the product predates them and is noted as a migration.
+   */
+  .dark {
+    --background: 222 47% 8%;
+    --foreground: 210 40% 96%;
+
+    --card: 222 45% 11%;
+    --card-foreground: 210 40% 96%;
+
+    --popover: 222 45% 11%;
+    --popover-foreground: 210 40% 96%;
+
+    --primary: 160 72% 45%;
+    --primary-foreground: 222 47% 8%;
+
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 96%;
+
+    --muted: 217 33% 15%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 217 33% 17%;
+    --accent-foreground: 210 40% 96%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217 33% 20%;
+    --input: 217 33% 24%;
+    --ring: 160 72% 45%;
+
+    --admin-canvas: 222 47% 7%;
+    --admin-nav: 222 45% 9%;
+    --admin-nav-foreground: 215 20% 62%;
+    --admin-chrome: 222 45% 11%;
+    --admin-border: 217 33% 18%;
+  }
+}
+
+@layer base {
+  /*
+   * Landing page opt-out.
+   *
+   * The marketing page has its own art direction and is authored in literal colours, so
+   * it stays light whatever the app preference is. Re-declaring the light values on a
+   * wrapper means the shared primitives inside it -- buttons, inputs -- resolve their
+   * tokens to light too, instead of turning dark on a white page.
+   */
+  .force-light {
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 160 84% 36%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 88%;
+    --ring: 160 84% 36%;
+    color-scheme: light;
   }
 }
 
 @layer base {
   * {
     @apply border-border;
+  }
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
   }
   body {
     @apply bg-background text-foreground;
@@ -60,23 +159,23 @@
    * read as a single glyph-cluster, not as prose.
    */
   h1, .t-display {
-    @apply text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl;
+    @apply text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl;
     letter-spacing: -0.022em;
   }
 
   h2, .t-title {
-    @apply text-lg font-bold tracking-tight text-slate-900 sm:text-xl;
+    @apply text-lg font-bold tracking-tight text-foreground sm:text-xl;
     letter-spacing: -0.018em;
   }
 
   h3, .t-subtitle {
-    @apply text-sm font-bold tracking-tight text-slate-900;
+    @apply text-sm font-bold tracking-tight text-foreground;
     letter-spacing: -0.01em;
   }
 
   /* Section eyebrow: the small uppercase label above a group of cards. */
   .t-eyebrow {
-    @apply text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500;
+    @apply text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground;
   }
 
   /* Money. Tabular figures stop amounts jittering as they refresh, and the tighter
@@ -88,7 +187,7 @@
   }
 
   .t-meta {
-    @apply text-xs text-slate-500;
+    @apply text-xs text-muted-foreground;
   }
 }
 
@@ -124,7 +223,7 @@
 
   /* Standard hover treatment for an interactive row. */
   .row-interactive {
-    @apply transition-colors duration-150 hover:bg-slate-50;
+    @apply transition-colors duration-150 hover:bg-accent;
   }
 
   /* Respects users who ask for less motion, across every animation in the app. */

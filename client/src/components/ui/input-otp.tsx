@@ -114,14 +114,14 @@ export const InputOTP: React.FC<InputOTPProps> = ({
             onKeyDown={(e) => handleKeyDown(index, e)}
             aria-label={`Digit ${index + 1} of 6`}
             className={cn(
-              'h-12 w-10 sm:h-14 sm:w-12 text-center text-xl sm:text-2xl font-bold font-mono rounded-xl border bg-white text-slate-900 transition-all duration-150',
+              'h-12 w-10 sm:h-14 sm:w-12 text-center text-xl sm:text-2xl font-bold font-mono rounded-xl border bg-card text-foreground transition-all duration-150',
               'outline-none focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary',
               hasError
                 ? 'border-destructive text-destructive focus:border-destructive focus:ring-destructive'
                 : isFilled
-                  ? 'border-primary/60 bg-emerald-50/20 text-slate-900'
-                  : 'border-slate-300 hover:border-slate-400',
-              disabled && 'opacity-50 cursor-not-allowed bg-slate-100',
+                  ? 'border-primary/60 bg-emerald-500/10 text-foreground'
+                  : 'border-input hover:border-muted-foreground/50',
+              disabled && 'opacity-50 cursor-not-allowed bg-muted',
             )}
           />
         );

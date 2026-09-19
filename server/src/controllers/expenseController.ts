@@ -13,7 +13,6 @@ import { publishToGroup } from '../realtime/socketServer.js';
 import { REALTIME_EVENTS } from '../realtime/events.js';
 import * as notificationService from '../services/notificationService.js';
 import * as pushService from '../services/pushService.js';
-import * as activityService from '../services/activityService.js';
 import { formatPaise } from '../utils/money.js';
 import type { Expense, User } from '../db/schema.js';
 
@@ -121,17 +120,6 @@ export const createExpense = async (req: Request, res: Response): Promise<void> 
       entityId: expense.id,
     },
   );
-
-  // The title is stored on the row so the feed still reads correctly after the expense
-  // is edited or deleted -- history describes what happened at the time, not now.
-  void activityService.recordActivity({
-    groupId,
-    actorUserId: req.user!.id,
-    type: 'expense_created',
-    entityType: 'expense',
-    entityId: expense.id,
-    metadata: { title: expense.title, amountPaise: expense.amountPaise },
-  });
 
   void pushService.sendToUsers(
     expense.participants
@@ -241,15 +229,6 @@ export const updateExpense = async (req: Request, res: Response): Promise<void> 
     actorId: req.user!.id,
   });
 
-  void activityService.recordActivity({
-    groupId: req.group!.id,
-    actorUserId: req.user!.id,
-    type: 'expense_updated',
-    entityType: 'expense',
-    entityId: expense.id,
-    metadata: { title: expense.title, amountPaise: expense.amountPaise },
-  });
-
   publishToGroup({
     event: REALTIME_EVENTS.EXPENSE_UPDATED,
     groupId: req.group!.id,
@@ -275,15 +254,6 @@ export const deleteExpense = async (req: Request, res: Response): Promise<void> 
     expenseId: result.deleted.id,
     groupId: req.group!.id,
     actorId: req.user!.id,
-  });
-
-  void activityService.recordActivity({
-    groupId: req.group!.id,
-    actorUserId: req.user!.id,
-    type: 'expense_deleted',
-    entityType: 'expense',
-    entityId: result.deleted.id,
-    metadata: { title: result.deleted.title, amountPaise: result.deleted.amountPaise },
   });
 
   publishToGroup({

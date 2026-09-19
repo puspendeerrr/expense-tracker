@@ -1,4 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { SettlementDetail } from './SettlementDetail';
 import { toast } from 'sonner';
 import {
   Check,
@@ -32,6 +34,7 @@ import {
   cancelSettlement,
   getGroup,
   listSettlements,
+  getOutstanding,
   rejectSettlement,
 } from '@/lib/domainApi';
 import { formatPaise } from '@/lib/money';
@@ -72,27 +75,27 @@ const STATUS_META: Record<
 > = {
   completed: {
     label: 'Confirmed',
-    className: 'bg-emerald-100 text-emerald-800',
+    className: 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300',
     affectsBalance: true,
   },
   paid_pending_approval: {
     label: 'Awaiting confirmation',
-    className: 'bg-amber-100 text-amber-800',
+    className: 'bg-amber-500/15 text-amber-800 dark:text-amber-300',
     affectsBalance: false,
   },
   will_pay_soon: {
     label: 'Promised',
-    className: 'bg-sky-100 text-sky-800',
+    className: 'bg-sky-500/15 text-sky-800 dark:text-sky-300',
     affectsBalance: false,
   },
   rejected: {
     label: 'Not confirmed',
-    className: 'bg-red-100 text-red-800',
+    className: 'bg-red-500/15 text-red-800 dark:text-red-300',
     affectsBalance: false,
   },
   cancelled: {
     label: 'Cancelled',
-    className: 'bg-slate-100 text-slate-600',
+    className: 'bg-muted text-muted-foreground',
     affectsBalance: false,
   },
 };
@@ -108,8 +111,28 @@ const initials = (name: string): string =>
 export const SettlementsPage: React.FC = () => {
   const { user } = useAuth();
   const { activeGroupId, activeGroup } = useGroups();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
-  const [status, setStatus] = useState<SettlementStatus | 'all'>('all');
+  /*
+   * Seeded from the URL so a deep link can open this screen already narrowed --
+   * "3 payments awaiting you" on the dashboard lands here showing exactly those.
+   * Validated against the known statuses rather than trusted, since it is user input.
+   */
+  const initialStatus = (() => {
+    const raw = searchParams.get('status');
+    const known: (SettlementStatus | 'all')[] = [
+      'all',
+      'will_pay_soon',
+      'paid_pending_approval',
+      'completed',
+      'rejected',
+      'cancelled',
+    ];
+    return known.includes(raw as SettlementStatus) ? (raw as SettlementStatus) : 'all';
+  })();
+
+  const [status, setStatus] = useState<SettlementStatus | 'all'>(initialStatus);
   const [page, setPage] = useState(0);
   const [settlements, setSettlements] = useState<Settlement[] | null>(null);
   const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -125,6 +148,117 @@ export const SettlementsPage: React.FC = () => {
   const [settling, setSettling] = useState<PersonRef | null>(null);
   /** Bumped whenever a settlement changes, so the plan recomputes. */
   const [planKey, setPlanKey] = useState(0);
+
+  /**
+   * The settlement open in the detail sheet, addressed by URL.
+   *
+   * Held in the query string rather than in state so a notification can deep-link
+   * straight to one, and so closing the sheet is a back-navigation rather than a
+   * separate gesture the browser knows nothing about.
+   */
+  const detailId = searchParams.get('settlement');
+
+  const openDetail = useCallback(
+    (id: string | null) => {
+      setSearchParams(
+        (current) => {
+          const next = new URLSearchParams(current);
+          if (id) next.set('settlement', id);
+          else next.delete('settlement');
+          return next;
+        },
+        { replace: !id },
+      );
+    },
+    [setSearchParams],
+  );
+
+  /**
+   * The live debt between the two people in the open settlement.
+   *
+   * Fetched from the balance engine rather than derived from the settlement amount:
+   * what someone still owes depends on every other expense and payment between them,
+   * which this screen has no business recomputing.
+   */
+  const [outstandingPaise, setOutstandingPaise] = useState<number | null>(null);
+
+  const detailSettlement = useMemo(
+    () => settlements?.find((row) => row.id === detailId) ?? null,
+    [settlements, detailId],
+  );
+
+  /**
+   * Headline figures for the settlements on screen.
+   *
+   * Summed from the rows the server returned for the current filter, and labelled as
+   * such -- these are not a second opinion on anyone's balance, which only the balance
+   * engine gives. Cancelled and rejected settlements are excluded from every total
+   * because they moved no money.
+   */
+  const insights = useMemo(() => {
+    const rows = settlements ?? [];
+    const settled = rows.filter((row) => row.status === 'completed');
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    return {
+      paid: settled
+        .filter((row) => row.payerId === user?.id)
+        .reduce((total, row) => total + row.amountPaise, 0),
+      received: settled
+        .filter((row) => row.receiverId === user?.id)
+        .reduce((total, row) => total + row.amountPaise, 0),
+      pending: rows
+        .filter((row) => row.status === 'paid_pending_approval')
+        .reduce((total, row) => total + row.amountPaise, 0),
+      completedThisMonth: settled.filter(
+        (row) => new Date(row.verifiedAt ?? row.createdAt) >= startOfMonth,
+      ).length,
+      count: rows.length,
+    };
+  }, [settlements, user?.id]);
+
+  useEffect(() => {
+    if (!activeGroupId || !detailSettlement || !user) {
+      setOutstandingPaise(null);
+      return;
+    }
+
+    const counterpartId =
+      detailSettlement.payerId === user.id
+        ? detailSettlement.receiverId
+        : detailSettlement.payerId;
+
+    // Someone else's settlement: this account is not party to that debt and has no
+    // business being shown a figure for it.
+    if (
+      detailSettlement.payerId !== user.id &&
+      detailSettlement.receiverId !== user.id
+    ) {
+      setOutstandingPaise(null);
+      return;
+    }
+
+    let cancelled = false;
+    setOutstandingPaise(null);
+
+    void getOutstanding(activeGroupId, counterpartId)
+      .then((data) => {
+        if (cancelled) return;
+        // Whichever direction this settlement runs, show the debt it was paying down.
+        setOutstandingPaise(
+          detailSettlement.payerId === user.id ? data.iOwePaise : data.theyOwePaise,
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setOutstandingPaise(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeGroupId, detailSettlement, user]);
 
   const nameOf = useCallback(
     (userId: string): string => {
@@ -228,6 +362,36 @@ export const SettlementsPage: React.FC = () => {
           />
         )}
 
+        {/* ---- Insights ----
+          *
+          * Totals for the settlements currently listed, not a restatement of anyone's
+          * balance. Labelled "in this view" so the figures cannot be mistaken for the
+          * authoritative outstanding amounts, which only the balance engine produces.
+          */}
+        {!isLoading && (settlements?.length ?? 0) > 0 && (
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {[
+              { label: 'You paid', value: formatPaise(insights.paid) },
+              { label: 'You received', value: formatPaise(insights.received) },
+              { label: 'Awaiting confirmation', value: formatPaise(insights.pending) },
+              {
+                label: 'Completed this month',
+                value: String(insights.completedThisMonth),
+              },
+            ].map((item) => (
+              <div
+                key={item.label}
+                className="rounded-xl border border-border bg-card p-2.5"
+              >
+                <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {item.label}
+                </p>
+                <p className="t-money mt-0.5 truncate text-sm">{item.value}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* ---- Status filter ---- */}
         <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
           {STATUS_FILTERS.map((option) => (
@@ -244,7 +408,7 @@ export const SettlementsPage: React.FC = () => {
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 status === option.value
                   ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+                  : 'border-border bg-card text-muted-foreground hover:bg-accent',
               )}
             >
               {option.label}
@@ -254,13 +418,13 @@ export const SettlementsPage: React.FC = () => {
 
         <div
           className={cn(
-            'overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-opacity',
+            'overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-opacity',
             isRefreshing && !isLoading && 'opacity-70',
           )}
         >
           {error ? (
             <div className="px-4 py-10 text-center">
-              <p className="text-sm text-slate-600">{error}</p>
+              <p className="text-sm text-muted-foreground">{error}</p>
               <Button size="sm" variant="outline" className="mt-3" onClick={load}>
                 Retry
               </Button>
@@ -270,7 +434,7 @@ export const SettlementsPage: React.FC = () => {
               {[0, 1, 2, 3].map((index) => (
                 <li
                   key={index}
-                  className="flex items-center gap-3 border-t border-slate-100 px-4 py-3 first:border-t-0"
+                  className="flex items-center gap-3 border-t border-border px-4 py-3 first:border-t-0"
                 >
                   <Skeleton className="h-10 w-10 rounded-full" />
                   <div className="flex-1 space-y-1.5">
@@ -283,8 +447,8 @@ export const SettlementsPage: React.FC = () => {
             </ul>
           ) : (settlements?.length ?? 0) === 0 ? (
             <div className="px-4 py-14 text-center">
-              <History className="mx-auto h-9 w-9 text-slate-300" />
-              <p className="mt-3 text-sm font-semibold text-slate-700">
+              <History className="mx-auto h-9 w-9 text-muted-foreground/60" />
+              <p className="mt-3 text-sm font-semibold text-foreground/80">
                 No settlements {status !== 'all' && 'with this status'}
               </p>
               <p className="mx-auto mt-1 max-w-xs t-meta">
@@ -307,16 +471,24 @@ export const SettlementsPage: React.FC = () => {
                 const isBusy = busyId === settlement.id;
 
                 return (
-                  <li key={settlement.id} className="border-t border-slate-100 first:border-t-0">
-                    <div className="flex items-start gap-3 px-4 py-3">
+                  <li key={settlement.id} className="border-t border-border first:border-t-0">
+                    {/* The whole row opens the detail. Rendered as a button so it is
+                        reachable by keyboard and announced as actionable, rather than a
+                        div with a click handler that neither is. */}
+                    <button
+                      type="button"
+                      onClick={() => openDetail(settlement.id)}
+                      aria-label={`Settlement of ${formatPaise(settlement.amountPaise)} from ${nameOf(settlement.payerId)} to ${nameOf(settlement.receiverId)}`}
+                      className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:bg-accent"
+                    >
                       <Avatar className="h-10 w-10 shrink-0">
-                        <AvatarFallback className="bg-slate-100 text-slate-600">
+                        <AvatarFallback className="bg-muted text-muted-foreground">
                           {initials(nameOf(settlement.payerId))}
                         </AvatarFallback>
                       </Avatar>
 
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-slate-900">
+                        <p className="text-sm font-semibold text-foreground">
                           {nameOf(settlement.payerId)} → {nameOf(settlement.receiverId)}
                         </p>
                         <div className="mt-1 flex flex-wrap items-center gap-1.5">
@@ -337,23 +509,21 @@ export const SettlementsPage: React.FC = () => {
                           </span>
                         </div>
                         {settlement.hasProof && (
-                          <button
-                            type="button"
-                            onClick={() => setProofViewing(settlement)}
-                            className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
-                          >
+                          // A plain marker rather than a nested button: a button inside a
+                          // button is invalid, and the proof is one tap away in the detail.
+                          <span className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-primary">
                             <ImageIcon className="h-3.5 w-3.5" />
-                            View payment proof
-                          </button>
+                            Proof attached
+                          </span>
                         )}
                         {settlement.rejectionReason && (
-                          <p className="mt-1 text-xs text-red-600">
+                          <p className="mt-1 text-xs text-red-600 dark:text-red-400">
                             {settlement.rejectionReason}
                           </p>
                         )}
                         {/* The single most important fact about a settlement row. */}
                         {!meta.affectsBalance && (
-                          <p className="mt-1 text-[11px] text-slate-400">
+                          <p className="mt-1 text-[11px] text-muted-foreground">
                             Does not affect balances
                           </p>
                         )}
@@ -363,16 +533,16 @@ export const SettlementsPage: React.FC = () => {
                         <p
                           className={cn(
                             't-money text-sm',
-                            meta.affectsBalance ? 'text-slate-900' : 'text-slate-400',
+                            meta.affectsBalance ? 'text-foreground' : 'text-muted-foreground',
                           )}
                         >
                           {formatPaise(settlement.amountPaise)}
                         </p>
                       </div>
-                    </div>
+                    </button>
 
                     {(canApprove || canCancel) && (
-                      <div className="flex flex-wrap gap-2 border-t border-slate-50 bg-slate-50/60 px-4 py-2.5">
+                      <div className="flex flex-wrap gap-2 border-t border-border bg-muted/60 px-4 py-2.5">
                         {canApprove && (
                           <>
                             <Button
@@ -420,7 +590,7 @@ export const SettlementsPage: React.FC = () => {
           )}
 
           {pagination && pagination.total > PAGE_SIZE && (
-            <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3">
+            <div className="flex items-center justify-between border-t border-border px-4 py-3">
               <span className="t-meta">
                 {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, pagination.total)} of{' '}
                 {pagination.total}
@@ -471,7 +641,7 @@ export const SettlementsPage: React.FC = () => {
             <DialogTitle>Payment not received?</DialogTitle>
           </DialogHeader>
           <DialogBody className="space-y-3">
-            <p className="text-sm leading-relaxed text-slate-600">
+            <p className="text-sm leading-relaxed text-muted-foreground">
               {rejecting && nameOf(rejecting.payerId)} will be told this{' '}
               {formatPaise(rejecting?.amountPaise ?? 0)} payment was not confirmed. The
               balance stays as it is.
@@ -512,6 +682,50 @@ export const SettlementsPage: React.FC = () => {
           }}
         />
       )}
+      {/* Deep-linkable: a notification can point straight at one settlement. */}
+      <SettlementDetail
+        open={detailSettlement !== null}
+        onOpenChange={(next) => !next && openDetail(null)}
+        settlement={detailSettlement}
+        groupName={activeGroup?.name ?? ''}
+        nameOf={nameOf}
+        counterpart={
+          detailSettlement
+            ? (members.find(
+                (member) =>
+                  member.id ===
+                  (detailSettlement.payerId === user?.id
+                    ? detailSettlement.receiverId
+                    : detailSettlement.payerId),
+              ) ?? null)
+            : null
+        }
+        outstandingPaise={outstandingPaise}
+        isBusy={busyId === detailSettlement?.id}
+        canApprove={
+          detailSettlement?.receiverId === user?.id &&
+          detailSettlement?.status === 'paid_pending_approval'
+        }
+        canCancel={
+          Boolean(detailSettlement) &&
+          (detailSettlement!.payerId === user?.id ||
+            detailSettlement!.receiverId === user?.id) &&
+          ['paid_pending_approval', 'rejected'].includes(detailSettlement!.status)
+        }
+        onApprove={() => detailSettlement && void act(detailSettlement, 'approve')}
+        onReject={() => {
+          if (detailSettlement) setRejecting(detailSettlement);
+          openDetail(null);
+        }}
+        onCancel={() => detailSettlement && void act(detailSettlement, 'cancel')}
+        onViewProof={() => {
+          if (detailSettlement) setProofViewing(detailSettlement);
+        }}
+        onViewRelatedExpenses={() => {
+          openDetail(null);
+          navigate('/app/expenses');
+        }}
+      />
     </AppShell>
   );
 };

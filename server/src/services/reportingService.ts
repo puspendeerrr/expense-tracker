@@ -1,4 +1,5 @@
 import { SQL, sql } from 'drizzle-orm';
+import { uuidList } from '../utils/sqlHelpers.js';
 import { db } from '../db/client.js';
 import { paiseToRupees } from '../utils/money.js';
 import { calculateBillingCycle } from '../utils/billingCycle.js';
@@ -59,13 +60,23 @@ const buildScope = (groupId: string, userId: string, filters: ReportFilters): SQ
     conditions.push(sql`e.category = ${filters.category}::expense_category`);
   }
 
-  // Member filter: the expense must involve that person as payer or beneficiary.
-  if (filters.memberId !== 'all') {
+  // Member filter: the expense must involve one of those people as payer or
+  // beneficiary. `memberIds` (the export's multi-select) wins over the dashboard's
+  // single `memberId` when both are present.
+  const selectedMembers =
+    filters.memberIds && filters.memberIds.length > 0
+      ? filters.memberIds
+      : filters.memberId !== 'all'
+        ? [filters.memberId]
+        : [];
+
+  if (selectedMembers.length > 0) {
+    const list = uuidList(selectedMembers);
     conditions.push(sql`(
-      e.paid_by = ${filters.memberId}
+      e.paid_by in ${list}
       or exists (
         select 1 from expense_participants ep
-         where ep.expense_id = e.id and ep.user_id = ${filters.memberId}
+         where ep.expense_id = e.id and ep.user_id in ${list}
       )
     )`);
   }
@@ -521,20 +532,71 @@ export const buildLiveRegion = async (ctx: ReportContext) => {
 };
 
 /** ANALYTICS region — period attribution. Never produces an obligation. */
+const DAY_MS = 86_400_000;
+
+/**
+ * The window of equal length immediately before this one.
+ *
+ * "Equal length" rather than "the previous calendar month", because the filter can be
+ * any range at all -- comparing a 10-day window against a whole month would produce a
+ * fall in spending that is an artefact of the arithmetic rather than anything that
+ * happened. Both bounds are inclusive calendar days, matching `expense_date`.
+ *
+ * Returns null when the range is open-ended: "all time" has nothing before it, and
+ * inventing a comparison there would be inventing a number.
+ */
+export const previousWindow = (
+  from: string | undefined,
+  to: string | undefined,
+): { from: string; to: string } | null => {
+  if (!from || !to) return null;
+
+  const start = Date.parse(`${from}T00:00:00.000Z`);
+  const end = Date.parse(`${to}T00:00:00.000Z`);
+  if (Number.isNaN(start) || Number.isNaN(end) || end < start) return null;
+
+  const days = Math.round((end - start) / DAY_MS) + 1;
+  const previousEnd = start - DAY_MS;
+  const previousStart = previousEnd - (days - 1) * DAY_MS;
+
+  const iso = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+  return { from: iso(previousStart), to: iso(previousEnd) };
+};
+
 export const buildAnalyticsRegion = async (ctx: ReportContext) => {
   const { group, userId, filters } = ctx;
 
-  const [summary, attribution, recentExpenses, members] = await Promise.all([
-    getPeriodSummary(group.id, userId, filters),
-    getAttribution(group.id, userId, filters),
-    getRecentExpenses(group.id, userId, filters),
-    listGroupMembers(group.id),
-  ]);
+  const previous = previousWindow(filters.from, filters.to);
+
+  const [summary, attribution, recentExpenses, members, previousSummary] =
+    await Promise.all([
+      getPeriodSummary(group.id, userId, filters),
+      getAttribution(group.id, userId, filters),
+      getRecentExpenses(group.id, userId, filters),
+      listGroupMembers(group.id),
+      // Same aggregate, shifted window. Reusing it rather than writing a second query
+      // is what guarantees the two halves of a comparison are computed identically.
+      previous
+        ? getPeriodSummary(group.id, userId, {
+            ...filters,
+            from: previous.from,
+            to: previous.to,
+          })
+        : Promise.resolve(null),
+    ]);
 
   const directory = new Map(members.map((row) => [row.user.id, row]));
 
   const relationships = [...attribution.values()]
-    .filter((row) => filters.memberId === 'all' || row.personId === filters.memberId)
+    .filter((row) => {
+      const ids =
+        filters.memberIds && filters.memberIds.length > 0
+          ? filters.memberIds
+          : filters.memberId !== 'all'
+            ? [filters.memberId]
+            : null;
+      return ids === null || ids.includes(row.personId);
+    })
     .map((row) => {
       const found = directory.get(row.personId);
       return {
@@ -580,6 +642,24 @@ export const buildAnalyticsRegion = async (ctx: ReportContext) => {
       expenseCount: summary.expenseCount,
       largestExpense: summary.largestExpense,
     },
+    /**
+     * The same figures for the preceding window, or null when the range is open-ended.
+     *
+     * Deliberately raw figures rather than a percentage change: the client can render a
+     * direction from these, and a server-computed "up 12%" would be a third number that
+     * could disagree with the two it came from.
+     */
+    previousPeriod:
+      previous && previousSummary
+        ? {
+            from: previous.from,
+            to: previous.to,
+            totalExpense: withRupees(previousSummary.totalExpensePaise),
+            totalPaidByMe: withRupees(previousSummary.totalPaidByMePaise),
+            myShare: withRupees(previousSummary.mySharePaise),
+            expenseCount: previousSummary.expenseCount,
+          }
+        : null,
     relationships,
     topPeopleIPaidFor,
     topPeopleWhoPaidForMe,
@@ -789,6 +869,21 @@ export const getExportSettlements = async (groupId: string, filters: ReportFilte
   if (filters.from) conditions.push(sql`s.created_at >= ${filters.from}::date`);
   // `to` is inclusive of the whole day, so compare against the following midnight.
   if (filters.to) conditions.push(sql`s.created_at < (${filters.to}::date + interval '1 day')`);
+
+  // A settlement involves exactly two people, so "about these people" means either
+  // side of it. Without this the Settlements sheet ignored the person selection and
+  // quietly widened an export someone had deliberately narrowed.
+  const settlementMembers =
+    filters.memberIds && filters.memberIds.length > 0
+      ? filters.memberIds
+      : filters.memberId !== 'all'
+        ? [filters.memberId]
+        : [];
+
+  if (settlementMembers.length > 0) {
+    const list = uuidList(settlementMembers);
+    conditions.push(sql`(s.payer_id in ${list} or s.receiver_id in ${list})`);
+  }
 
   const result = await db.execute<Record<string, unknown>>(sql`
     select s.id, s.amount_paise, s.status, s.payment_method, s.rejection_reason, s.note,

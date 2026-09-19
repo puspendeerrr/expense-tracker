@@ -100,8 +100,8 @@ export const UpiPayPanel: React.FC<UpiPayPanelProps> = ({
 
   if (!hasUpiId && !hasBankQr) {
     return (
-      <div className="rounded-xl bg-slate-50 p-3">
-        <p className="text-sm text-slate-600">
+      <div className="rounded-xl bg-muted p-3">
+        <p className="text-sm text-muted-foreground">
           {counterpart.fullName} has not added a UPI ID yet, so pay them however you
           usually do and record it below.
         </p>
@@ -110,7 +110,7 @@ export const UpiPayPanel: React.FC<UpiPayPanelProps> = ({
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3">
+    <div className="rounded-xl border border-border bg-card p-3">
       <div className="flex items-center justify-between gap-2">
         <p className="t-eyebrow">Pay over UPI</p>
         {hasBankQr && hasUpiId && (
@@ -128,7 +128,7 @@ export const UpiPayPanel: React.FC<UpiPayPanelProps> = ({
       <div className="mt-3 flex flex-col items-center">
         {showBankQr && counterpart.qrCodeUrl ? (
           <>
-            <div className="rounded-xl border border-slate-200 bg-white p-2">
+            <div className="rounded-xl border border-border bg-card p-2">
               <img
                 src={counterpart.qrCodeUrl}
                 alt={`${counterpart.fullName}'s payment QR code`}
@@ -143,7 +143,7 @@ export const UpiPayPanel: React.FC<UpiPayPanelProps> = ({
           <Skeleton className="h-40 w-40 rounded-xl" />
         ) : qrDataUrl ? (
           <>
-            <div className="rounded-xl border border-slate-200 bg-white p-2">
+            <div className="rounded-xl border border-border bg-card p-2">
               <img
                 src={qrDataUrl}
                 alt={`UPI QR code to pay ${payeeName}`}
@@ -175,19 +175,19 @@ export const UpiPayPanel: React.FC<UpiPayPanelProps> = ({
         <button
           type="button"
           onClick={copyUpiId}
-          className="mt-2 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 font-mono text-sm text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="mt-2 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-border px-3 font-mono text-sm text-foreground/80 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label={`Copy UPI ID ${counterpart.upiId}`}
         >
           {counterpart.upiId}
           {copied ? (
             <Check className="h-4 w-4 shrink-0 text-primary" />
           ) : (
-            <Copy className="h-4 w-4 shrink-0 text-slate-400" />
+            <Copy className="h-4 w-4 shrink-0 text-muted-foreground" />
           )}
         </button>
       )}
 
-      <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
+      <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
         Paying here does not record the settlement — UPI cannot tell us it succeeded.
         Confirm the amount below once you have paid.
       </p>

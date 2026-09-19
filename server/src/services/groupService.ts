@@ -414,6 +414,59 @@ export const setPayday = async (
     return updated[0]!;
   });
 
+/**
+ * Sets or clears the group's avatar and cover.
+ *
+ * Only the fields present in the input are touched, so changing a cover cannot
+ * accidentally clear an avatar. Deliberately not recorded in the activity feed: that
+ * feed is the group's financial history, and "Ana changed the picture" in among the
+ * expenses devalues every row around it.
+ *
+ * The previous Cloudinary public ids are returned so the caller can report what was
+ * replaced. The assets themselves are left in place -- deleting them needs the API
+ * secret, which by design never leaves the server's environment into this path, and an
+ * orphaned image is a storage cost rather than a correctness problem.
+ */
+export const setGroupMedia = async (
+  groupId: string,
+  media: {
+    avatar?: { url: string | null; publicId: string | null };
+    cover?: { url: string | null; publicId: string | null };
+  },
+): Promise<{ group: Group; replaced: string[] }> => {
+  const existing = await db
+    .select({
+      avatarPublicId: groups.avatarPublicId,
+      coverPublicId: groups.coverPublicId,
+    })
+    .from(groups)
+    .where(eq(groups.id, groupId))
+    .limit(1);
+
+  const previous = existing[0];
+  if (!previous) throw notFound('Group not found.');
+
+  const replaced: string[] = [];
+  if (media.avatar && previous.avatarPublicId) replaced.push(previous.avatarPublicId);
+  if (media.cover && previous.coverPublicId) replaced.push(previous.coverPublicId);
+
+  const updated = await db
+    .update(groups)
+    .set({
+      ...(media.avatar
+        ? { avatarUrl: media.avatar.url, avatarPublicId: media.avatar.publicId }
+        : {}),
+      ...(media.cover
+        ? { coverUrl: media.cover.url, coverPublicId: media.cover.publicId }
+        : {}),
+      updatedAt: new Date(),
+    })
+    .where(eq(groups.id, groupId))
+    .returning();
+
+  return { group: updated[0]!, replaced };
+};
+
 /** Creator-only hard delete. Cascades remove members, expenses, settlements, activity. */
 export const deleteGroup = async (groupId: string): Promise<void> => {
   await db.delete(groups).where(eq(groups.id, groupId));

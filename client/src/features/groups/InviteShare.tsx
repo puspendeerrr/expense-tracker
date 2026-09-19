@@ -174,8 +174,8 @@ export const InviteShare: React.FC<InviteShareProps> = ({
 
         <DialogBody className="space-y-5">
           {error ? (
-            <div className="rounded-xl bg-slate-50 p-4 text-center">
-              <p className="text-sm text-slate-600">{error}</p>
+            <div className="rounded-xl bg-muted p-4 text-center">
+              <p className="text-sm text-muted-foreground">{error}</p>
               <Button size="sm" variant="outline" className="mt-3" onClick={load}>
                 Retry
               </Button>
@@ -187,7 +187,7 @@ export const InviteShare: React.FC<InviteShareProps> = ({
                 {isLoading ? (
                   <Skeleton className="h-52 w-52 rounded-2xl" />
                 ) : qrDataUrl ? (
-                  <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                  <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
                     <img
                       src={qrDataUrl}
                       alt={`QR code to join ${info?.groupName}`}
@@ -197,7 +197,7 @@ export const InviteShare: React.FC<InviteShareProps> = ({
                     />
                   </div>
                 ) : (
-                  <div className="flex h-44 w-44 items-center justify-center rounded-2xl border border-dashed border-slate-300 text-center">
+                  <div className="flex h-44 w-44 items-center justify-center rounded-2xl border border-dashed border-input text-center">
                     <p className="px-3 t-meta">
                       QR unavailable — use the code or link below.
                     </p>
@@ -219,18 +219,18 @@ export const InviteShare: React.FC<InviteShareProps> = ({
                     type="button"
                     onClick={() => info && copy(info.inviteCode, 'code')}
                     className={cn(
-                      'flex min-h-[56px] w-full items-center justify-center gap-3 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-3 transition-colors',
+                      'flex min-h-[56px] w-full items-center justify-center gap-3 rounded-xl border-2 border-dashed border-input bg-muted px-3 transition-colors',
                       'hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                     )}
                     aria-label={`Copy invite code ${info?.inviteCode}`}
                   >
-                    <span className="font-mono text-2xl font-extrabold tracking-[0.35em] text-slate-900">
+                    <span className="font-mono text-2xl font-extrabold tracking-[0.35em] text-foreground">
                       {info?.inviteCode}
                     </span>
                     {copied === 'code' ? (
                       <Check className="h-5 w-5 shrink-0 text-primary" />
                     ) : (
-                      <Copy className="h-5 w-5 shrink-0 text-slate-400" />
+                      <Copy className="h-5 w-5 shrink-0 text-muted-foreground" />
                     )}
                   </button>
                 )}
@@ -240,7 +240,7 @@ export const InviteShare: React.FC<InviteShareProps> = ({
               <div className="space-y-2">
                 <p className="t-eyebrow">Invite link</p>
                 <div className="flex items-center gap-2">
-                  <span className="min-w-0 flex-1 truncate rounded-lg bg-slate-50 px-3 py-2.5 font-mono text-xs text-slate-500">
+                  <span className="min-w-0 flex-1 truncate rounded-lg bg-muted px-3 py-2.5 font-mono text-xs text-muted-foreground">
                     {isLoading ? 'Loading…' : inviteUrl}
                   </span>
                   <Button
@@ -279,8 +279,8 @@ export const InviteShare: React.FC<InviteShareProps> = ({
 
               {/* ---- Rotate (creator only) ---- */}
               {info?.isCreator && (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                  <p className="text-xs leading-relaxed text-amber-900">
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
+                  <p className="text-xs leading-relaxed text-amber-900 dark:text-amber-300">
                     Regenerating creates a new code and link and immediately revokes the
                     current ones. Use it if an invite has been shared too widely.
                   </p>
@@ -289,7 +289,7 @@ export const InviteShare: React.FC<InviteShareProps> = ({
                     size="sm"
                     onClick={rotate}
                     disabled={isRotating}
-                    className="mt-2 w-full bg-white"
+                    className="mt-2 w-full bg-card"
                   >
                     {isRotating ? (
                       <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />

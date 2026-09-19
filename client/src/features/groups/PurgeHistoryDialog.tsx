@@ -21,7 +21,12 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { ApiClientError } from '@/lib/api';
-import { executePurge, previewPurge, type PurgePreview } from '@/lib/domainApi';
+import {
+  executePurge,
+  previewPurge,
+  type PurgeFilters,
+  type PurgePreview,
+} from '@/lib/domainApi';
 import { formatPaise } from '@/lib/money';
 import { toLocalIsoDate } from '@/lib/dateRange';
 import type { ExpenseCategory, PaymentMode, PersonRef } from '@/types/domain';
@@ -56,8 +61,22 @@ interface PurgeHistoryDialogProps {
   onOpenChange: (open: boolean) => void;
   groupId: string;
   groupName: string;
-  members: PersonRef[];
+  /** Only the fields the member picker reads, so any caller with a member list fits. */
+  members: Pick<PersonRef, 'id' | 'fullName'>[];
   onPurged: () => void;
+  /**
+   * Which endpoints to call. Defaults to the group-scoped, creator-only routes; the
+   * admin console passes its own pair. Injected rather than branched on a flag so that
+   * there is exactly one purge dialog, with one preview-then-confirm flow, however it
+   * is reached -- and so neither caller can quietly acquire different safety rules.
+   */
+  api?: {
+    preview: (groupId: string, filters: PurgeFilters) => Promise<PurgePreview>;
+    execute: (
+      groupId: string,
+      filters: PurgeFilters & { confirmation: string },
+    ) => Promise<unknown>;
+  };
 }
 
 export const PurgeHistoryDialog: React.FC<PurgeHistoryDialogProps> = ({
@@ -67,6 +86,7 @@ export const PurgeHistoryDialog: React.FC<PurgeHistoryDialogProps> = ({
   groupName,
   members,
   onPurged,
+  api = { preview: previewPurge, execute: executePurge },
 }) => {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -124,7 +144,7 @@ export const PurgeHistoryDialog: React.FC<PurgeHistoryDialogProps> = ({
     setIsPreviewing(true);
     setError(null);
     try {
-      setPreview(await previewPurge(groupId, filters()));
+      setPreview(await api.preview(groupId, filters()));
     } catch (err: unknown) {
       setError(err instanceof ApiClientError ? err.message : 'Could not check that range.');
     } finally {
@@ -137,7 +157,7 @@ export const PurgeHistoryDialog: React.FC<PurgeHistoryDialogProps> = ({
     setIsPurging(true);
     setError(null);
     try {
-      await executePurge(groupId, { ...filters(), confirmation });
+      await api.execute(groupId, { ...filters(), confirmation });
       onPurged();
       onOpenChange(false);
     } catch (err: unknown) {
@@ -172,9 +192,9 @@ export const PurgeHistoryDialog: React.FC<PurgeHistoryDialogProps> = ({
         </DialogHeader>
 
         <DialogBody className="space-y-5">
-          <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-            <p className="text-sm text-amber-900">
+          <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <p className="text-sm text-amber-900 dark:text-amber-300">
               This permanently deletes expenses and payments. It cannot be undone, and it
               is not an export &mdash; download a report first if you want a copy.
             </p>
@@ -250,12 +270,12 @@ export const PurgeHistoryDialog: React.FC<PurgeHistoryDialogProps> = ({
             </div>
           </div>
 
-          <label className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-xl border border-slate-200 px-3">
+          <label className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-xl border border-border px-3">
             <Checkbox
               checked={includeActivities}
               onCheckedChange={(next) => setIncludeActivities(next === true)}
             />
-            <span className="text-sm text-slate-700">
+            <span className="text-sm text-foreground/80">
               Also clear the activity feed for this period
             </span>
           </label>
@@ -286,11 +306,11 @@ export const PurgeHistoryDialog: React.FC<PurgeHistoryDialogProps> = ({
             </Button>
           ) : (
             <div className="animate-fade-in-up space-y-3">
-              <div className="overflow-hidden rounded-xl border border-slate-200">
-                <div className="border-b border-slate-100 bg-slate-50 px-3 py-2">
+              <div className="overflow-hidden rounded-xl border border-border">
+                <div className="border-b border-border bg-muted px-3 py-2">
                   <span className="t-eyebrow">Would be deleted</span>
                 </div>
-                <dl className="divide-y divide-slate-100">
+                <dl className="divide-y divide-border">
                   {[
                     ['Expenses', String(preview.expenseCount)],
                     ['Payments', String(preview.settlementCount)],
@@ -298,8 +318,8 @@ export const PurgeHistoryDialog: React.FC<PurgeHistoryDialogProps> = ({
                     ['Total value', formatPaise(preview.amountPaise)],
                   ].map(([label, value]) => (
                     <div key={label} className="flex items-center justify-between px-3 py-2">
-                      <dt className="text-sm text-slate-600">{label}</dt>
-                      <dd className="font-mono text-sm font-semibold tabular-nums text-slate-900">
+                      <dt className="text-sm text-muted-foreground">{label}</dt>
+                      <dd className="font-mono text-sm font-semibold tabular-nums text-foreground">
                         {value}
                       </dd>
                     </div>
@@ -308,14 +328,14 @@ export const PurgeHistoryDialog: React.FC<PurgeHistoryDialogProps> = ({
               </div>
 
               {nothingMatched ? (
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-muted-foreground">
                   Nothing matches that range. Widen the dates or clear a filter.
                 </p>
               ) : preview.safe ? (
                 <>
-                  <div className="flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                    <p className="text-sm text-emerald-900">
+                  <div className="flex items-start gap-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                    <p className="text-sm text-emerald-900 dark:text-emerald-300">
                       Everything in this range is settled, so clearing it will not change
                       what anyone owes.
                     </p>
@@ -338,7 +358,7 @@ export const PurgeHistoryDialog: React.FC<PurgeHistoryDialogProps> = ({
                 <div className="space-y-2 rounded-xl border border-destructive/30 bg-destructive/5 p-3">
                   <div className="flex items-start gap-2.5">
                     <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-                    <p className="text-sm text-slate-800">
+                    <p className="text-sm text-foreground">
                       This range still has money owed in it. Clearing it would change what
                       people owe, so it is blocked. Settle these first, or pick a narrower
                       range.
@@ -348,12 +368,12 @@ export const PurgeHistoryDialog: React.FC<PurgeHistoryDialogProps> = ({
                     {preview.blockingDebts.map((debt) => (
                       <li
                         key={`${debt.debtorId}-${debt.creditorId}`}
-                        className="flex items-center justify-between gap-2 rounded-lg bg-white px-2.5 py-1.5 text-sm"
+                        className="flex items-center justify-between gap-2 rounded-lg bg-card px-2.5 py-1.5 text-sm"
                       >
-                        <span className="min-w-0 truncate text-slate-700">
+                        <span className="min-w-0 truncate text-foreground/80">
                           {debt.debtorName} &rarr; {debt.creditorName}
                         </span>
-                        <span className="font-mono text-sm font-semibold tabular-nums text-slate-900">
+                        <span className="font-mono text-sm font-semibold tabular-nums text-foreground">
                           {formatPaise(Math.abs(debt.beforePaise))}
                         </span>
                       </li>

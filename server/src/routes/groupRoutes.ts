@@ -11,6 +11,7 @@ import {
   purgeExecuteSchema,
   purgeFiltersSchema,
 } from '../controllers/purgeController.js';
+import { groupMediaSchema } from '../validation/groupSchemas.js';
 import { requireGroupCreator, requireGroupMember } from '../middleware/requireGroupMember.js';
 import {
   createGroup,
@@ -20,11 +21,13 @@ import {
   joinGroup,
   leaveGroup,
   listActivities,
+  listActivityTypes,
   listMyGroups,
   remindMember,
   previewInvite,
   regenerateInvite,
   removeMember,
+  setGroupMedia,
   setPayday,
   updateGroup,
 } from '../controllers/groupController.js';
@@ -128,6 +131,14 @@ router.patch(
 );
 
 router.patch(
+  '/:groupId/media',
+  asyncHandler(requireGroupMember),
+  requireGroupCreator,
+  validateBody(groupMediaSchema),
+  asyncHandler(setGroupMedia),
+);
+
+router.patch(
   '/:groupId/payday',
   asyncHandler(requireGroupMember),
   requireGroupCreator,
@@ -173,6 +184,12 @@ router.get(
   asyncHandler(requireGroupMember),
   validateQuery(listActivitiesQuerySchema),
   asyncHandler(listActivities),
+);
+
+router.get(
+  '/:groupId/activities/types',
+  asyncHandler(requireGroupMember),
+  asyncHandler(listActivityTypes),
 );
 
 /**

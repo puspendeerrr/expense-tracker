@@ -84,6 +84,17 @@ export const uploadImage = async (
   const body = new FormData();
   body.append('file', compressed);
   body.append('upload_preset', env.cloudinary.uploadPreset);
+
+  /*
+   * Advisory, not authoritative.
+   *
+   * An unsigned preset that pins a folder wins over anything sent here -- which is the
+   * safe configuration, because the preset name is public and a client-chosen folder
+   * would let anyone holding it write anywhere in the account. This deployment's preset
+   * pins `VITE_CLOUDINARY_FOLDER`, so every asset lands there whatever a caller asks
+   * for. The parameter is still sent because a deployment whose preset leaves the
+   * folder open does honour it.
+   */
   body.append('folder', options.folder ?? env.cloudinary.folder);
 
   const endpoint = `https://api.cloudinary.com/v1_1/${env.cloudinary.cloudName}/image/upload`;

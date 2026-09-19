@@ -198,9 +198,9 @@ export const UserPermissionsDialog: React.FC<UserPermissionsDialogProps> = ({
           ) : (
             <>
               {role === 'admin' && (
-                <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3">
-                  <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-                  <p className="text-sm text-amber-900">
+                <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
+                  <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                  <p className="text-sm text-amber-900 dark:text-amber-300">
                     This account is a platform administrator, so it holds every
                     permission regardless of what is set here. Change its role first to
                     manage individual capabilities.
@@ -217,7 +217,7 @@ export const UserPermissionsDialog: React.FC<UserPermissionsDialogProps> = ({
               {grouped.map(([category, permissions]) => (
                 <section key={category} className="space-y-2">
                   <h3 className="t-eyebrow">{CATEGORY_LABELS[category] ?? category}</h3>
-                  <div className="overflow-hidden rounded-xl border border-slate-200">
+                  <div className="overflow-hidden rounded-xl border border-border">
                     {permissions.map((permission, index) => {
                       const effect = effects[permission.key] ?? null;
                       const on = isEffective(permission);
@@ -226,9 +226,9 @@ export const UserPermissionsDialog: React.FC<UserPermissionsDialogProps> = ({
                         <div
                           key={permission.key}
                           className={cn(
-                            'flex items-start gap-3 bg-white px-3 py-2.5 transition-colors',
-                            index > 0 && 'border-t border-slate-100',
-                            role !== 'admin' && 'hover:bg-slate-50',
+                            'flex items-start gap-3 bg-card px-3 py-2.5 transition-colors',
+                            index > 0 && 'border-t border-border',
+                            role !== 'admin' && 'hover:bg-muted',
                           )}
                         >
                           <Checkbox
@@ -241,11 +241,11 @@ export const UserPermissionsDialog: React.FC<UserPermissionsDialogProps> = ({
                           <div className="min-w-0 flex-1">
                             <Label
                               htmlFor={`perm-${permission.key}`}
-                              className="flex flex-wrap items-center gap-1.5 text-sm font-medium text-slate-900"
+                              className="flex flex-wrap items-center gap-1.5 text-sm font-medium text-foreground"
                             >
                               {permission.label}
                               {permission.sensitive && (
-                                <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">
+                                <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-400">
                                   Sensitive
                                 </span>
                               )}
@@ -254,8 +254,8 @@ export const UserPermissionsDialog: React.FC<UserPermissionsDialogProps> = ({
                                   className={cn(
                                     'rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide',
                                     effect === 'allow'
-                                      ? 'bg-emerald-100 text-emerald-700'
-                                      : 'bg-red-100 text-red-700',
+                                      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
+                                      : 'bg-red-500/15 text-red-700 dark:text-red-400',
                                   )}
                                 >
                                   {effect === 'allow' ? 'Granted' : 'Revoked'}
@@ -275,7 +275,7 @@ export const UserPermissionsDialog: React.FC<UserPermissionsDialogProps> = ({
               {spendingGranted && role !== 'admin' && (
                 <section className="animate-fade-in-up space-y-2">
                   <h3 className="t-eyebrow">Spending dashboard &mdash; what they may see</h3>
-                  <div className="space-y-2 rounded-xl border border-slate-200 p-3">
+                  <div className="space-y-2 rounded-xl border border-border p-3">
                     <label className="flex min-h-[40px] cursor-pointer items-center gap-2.5">
                       <input
                         type="radio"
@@ -284,7 +284,7 @@ export const UserPermissionsDialog: React.FC<UserPermissionsDialogProps> = ({
                         checked={scope.kind === 'all_groups'}
                         onChange={() => setScope({ kind: 'all_groups' })}
                       />
-                      <span className="text-sm text-slate-800">
+                      <span className="text-sm text-foreground">
                         Every group on the platform
                       </span>
                     </label>
@@ -299,13 +299,13 @@ export const UserPermissionsDialog: React.FC<UserPermissionsDialogProps> = ({
                           setScope({ kind: 'selected_groups', groupIds: selectedGroupIds })
                         }
                       />
-                      <span className="text-sm text-slate-800">Selected groups only</span>
+                      <span className="text-sm text-foreground">Selected groups only</span>
                     </label>
 
                     {scope.kind !== 'all_groups' && (
-                      <div className="max-h-52 overflow-y-auto rounded-lg border border-slate-100">
+                      <div className="max-h-52 overflow-y-auto rounded-lg border border-border">
                         {groups.length === 0 ? (
-                          <p className="px-3 py-4 text-sm text-slate-500">
+                          <p className="px-3 py-4 text-sm text-muted-foreground">
                             No groups on the platform yet.
                           </p>
                         ) : (
@@ -314,7 +314,7 @@ export const UserPermissionsDialog: React.FC<UserPermissionsDialogProps> = ({
                               key={group.id}
                               className={cn(
                                 'flex min-h-[40px] cursor-pointer items-center gap-2.5 px-3 py-1.5',
-                                index > 0 && 'border-t border-slate-100',
+                                index > 0 && 'border-t border-border',
                               )}
                             >
                               <Checkbox
@@ -327,7 +327,7 @@ export const UserPermissionsDialog: React.FC<UserPermissionsDialogProps> = ({
                                   )
                                 }
                               />
-                              <span className="min-w-0 flex-1 truncate text-sm text-slate-800">
+                              <span className="min-w-0 flex-1 truncate text-sm text-foreground">
                                 {group.name}
                               </span>
                               <span className="t-meta shrink-0">

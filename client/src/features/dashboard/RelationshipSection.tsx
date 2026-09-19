@@ -39,10 +39,10 @@ const MoneyCell: React.FC<{ paise: number; tone?: 'owe' | 'owed' | 'muted' }> = 
   <span
     className={cn(
       'font-mono text-sm font-semibold tabular-nums',
-      paise === 0 && 'text-slate-400',
-      paise > 0 && tone === 'owe' && 'text-red-600',
-      paise > 0 && tone === 'owed' && 'text-emerald-600',
-      paise > 0 && tone === 'muted' && 'text-slate-700',
+      paise === 0 && 'text-muted-foreground',
+      paise > 0 && tone === 'owe' && 'text-red-600 dark:text-red-400',
+      paise > 0 && tone === 'owed' && 'text-emerald-600 dark:text-emerald-400',
+      paise > 0 && tone === 'muted' && 'text-foreground/80',
     )}
   >
     {formatPaise(paise)}
@@ -55,27 +55,27 @@ const MobileCard: React.FC<{ row: RelationshipRow }> = ({ row }) => {
   const theyOwe = row.theyCurrentlyOwe?.paise ?? 0;
 
   return (
-    <li className="border-t border-slate-100 first:border-t-0">
+    <li className="border-t border-border first:border-t-0">
       <button
         type="button"
         onClick={() => setExpanded((current) => !current)}
         aria-expanded={expanded}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-50"
+        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-accent"
       >
         <Avatar className="h-9 w-9 shrink-0">
           <AvatarFallback>{initials(row.person.fullName)}</AvatarFallback>
         </Avatar>
 
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-slate-900">
+          <p className="truncate text-sm font-semibold text-foreground">
             {row.person.fullName}
             {!row.isStillMember && (
-              <span className="ml-1.5 text-xs font-normal text-slate-400">(left)</span>
+              <span className="ml-1.5 text-xs font-normal text-muted-foreground">(left)</span>
             )}
           </p>
           {/* Both directions are shown when both are live: this product never nets
               them, so hiding one would misrepresent the relationship. */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-500">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
             {iOwe === 0 && theyOwe === 0 ? (
               <span>Settled up</span>
             ) : (
@@ -97,37 +97,37 @@ const MobileCard: React.FC<{ row: RelationshipRow }> = ({ row }) => {
 
         <ChevronDown
           className={cn(
-            'h-4 w-4 shrink-0 text-slate-400 transition-transform',
+            'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
             expanded && 'rotate-180',
           )}
         />
       </button>
 
       {expanded && (
-        <dl className="space-y-2 bg-slate-50/70 px-4 py-3 text-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+        <dl className="space-y-2 bg-muted/70 px-4 py-3 text-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             This period
           </p>
           <div className="flex justify-between gap-3">
-            <dt className="text-slate-500">I paid for them</dt>
+            <dt className="text-muted-foreground">I paid for them</dt>
             <dd>
               <MoneyCell paise={row.iPaidForThem.paise} />
             </dd>
           </div>
           <div className="flex justify-between gap-3">
-            <dt className="text-slate-500">They paid for me</dt>
+            <dt className="text-muted-foreground">They paid for me</dt>
             <dd>
               <MoneyCell paise={row.theyPaidForMe.paise} />
             </dd>
           </div>
           <div className="flex justify-between gap-3">
-            <dt className="text-slate-500">Shared expenses</dt>
-            <dd className="text-sm font-medium text-slate-700">{row.relatedExpenseCount}</dd>
+            <dt className="text-muted-foreground">Shared expenses</dt>
+            <dd className="text-sm font-medium text-foreground/80">{row.relatedExpenseCount}</dd>
           </div>
           {row.lastRelatedExpenseDate && (
             <div className="flex justify-between gap-3">
-              <dt className="text-slate-500">Last activity</dt>
-              <dd className="text-sm font-medium text-slate-700">
+              <dt className="text-muted-foreground">Last activity</dt>
+              <dd className="text-sm font-medium text-foreground/80">
                 {formatDisplayDate(row.lastRelatedExpenseDate)}
               </dd>
             </div>
@@ -152,15 +152,15 @@ export const RelationshipSection: React.FC<RelationshipSectionProps> = ({
   <section aria-labelledby="relationships-heading" className="space-y-3">
     <h2
       id="relationships-heading"
-      className="flex items-center gap-2 text-sm font-bold text-slate-900"
+      className="flex items-center gap-2 text-sm font-bold text-foreground"
     >
-      <Users2 className="h-4 w-4 text-slate-400" />
+      <Users2 className="h-4 w-4 text-muted-foreground" />
       Financial relationships
     </h2>
 
     <div
       className={cn(
-        'overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-opacity',
+        'overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-opacity',
         isRefreshing && 'opacity-70',
       )}
     >
@@ -175,7 +175,7 @@ export const RelationshipSection: React.FC<RelationshipSectionProps> = ({
         </div>
       ) : relationships.length === 0 ? (
         <div className="px-4 py-10 text-center">
-          <p className="text-sm font-medium text-slate-500">
+          <p className="text-sm font-medium text-muted-foreground">
             No shared expenses with anyone yet.
           </p>
         </div>
@@ -192,51 +192,51 @@ export const RelationshipSection: React.FC<RelationshipSectionProps> = ({
           <div className="hidden overflow-x-auto lg:block">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/80">
-                  <th scope="col" className="px-4 py-3 text-left font-semibold text-slate-600">
+                <tr className="border-b border-border bg-muted/80">
+                  <th scope="col" className="px-4 py-3 text-left font-semibold text-muted-foreground">
                     Person
                   </th>
                   <th
                     scope="col"
                     colSpan={2}
-                    className="border-l border-slate-200 px-4 py-2 text-center text-xs font-semibold uppercase tracking-wide text-slate-400"
+                    className="border-l border-border px-4 py-2 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground"
                   >
                     This period
                   </th>
                   <th
                     scope="col"
                     colSpan={2}
-                    className="border-l border-slate-200 px-4 py-2 text-center text-xs font-semibold uppercase tracking-wide text-slate-400"
+                    className="border-l border-border px-4 py-2 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground"
                   >
                     Outstanding now
                   </th>
-                  <th scope="col" className="px-4 py-3 text-right font-semibold text-slate-600">
+                  <th scope="col" className="px-4 py-3 text-right font-semibold text-muted-foreground">
                     Shared
                   </th>
                 </tr>
-                <tr className="border-b border-slate-200 text-xs">
-                  <th scope="col" className="px-4 pb-2 text-left font-medium text-slate-400">
+                <tr className="border-b border-border text-xs">
+                  <th scope="col" className="px-4 pb-2 text-left font-medium text-muted-foreground">
                     &nbsp;
                   </th>
                   <th
                     scope="col"
-                    className="border-l border-slate-200 px-4 pb-2 text-right font-medium text-slate-500"
+                    className="border-l border-border px-4 pb-2 text-right font-medium text-muted-foreground"
                   >
                     I paid for them
                   </th>
-                  <th scope="col" className="px-4 pb-2 text-right font-medium text-slate-500">
+                  <th scope="col" className="px-4 pb-2 text-right font-medium text-muted-foreground">
                     They paid for me
                   </th>
                   <th
                     scope="col"
-                    className="border-l border-slate-200 px-4 pb-2 text-right font-medium text-slate-500"
+                    className="border-l border-border px-4 pb-2 text-right font-medium text-muted-foreground"
                   >
                     I owe
                   </th>
-                  <th scope="col" className="px-4 pb-2 text-right font-medium text-slate-500">
+                  <th scope="col" className="px-4 pb-2 text-right font-medium text-muted-foreground">
                     They owe
                   </th>
-                  <th scope="col" className="px-4 pb-2 text-right font-medium text-slate-400">
+                  <th scope="col" className="px-4 pb-2 text-right font-medium text-muted-foreground">
                     &nbsp;
                   </th>
                 </tr>
@@ -245,36 +245,36 @@ export const RelationshipSection: React.FC<RelationshipSectionProps> = ({
                 {relationships.map((row) => (
                   <tr
                     key={row.person.id}
-                    className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/60"
+                    className="border-b border-border last:border-b-0 hover:bg-accent/60"
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
                         <Avatar className="h-8 w-8">
                           <AvatarFallback>{initials(row.person.fullName)}</AvatarFallback>
                         </Avatar>
-                        <span className="font-medium text-slate-900">
+                        <span className="font-medium text-foreground">
                           {row.person.fullName}
                           {!row.isStillMember && (
-                            <span className="ml-1.5 text-xs font-normal text-slate-400">
+                            <span className="ml-1.5 text-xs font-normal text-muted-foreground">
                               (left)
                             </span>
                           )}
                         </span>
                       </div>
                     </td>
-                    <td className="border-l border-slate-100 px-4 py-3 text-right">
+                    <td className="border-l border-border px-4 py-3 text-right">
                       <MoneyCell paise={row.iPaidForThem.paise} />
                     </td>
                     <td className="px-4 py-3 text-right">
                       <MoneyCell paise={row.theyPaidForMe.paise} />
                     </td>
-                    <td className="border-l border-slate-100 px-4 py-3 text-right">
+                    <td className="border-l border-border px-4 py-3 text-right">
                       <MoneyCell paise={row.iCurrentlyOwe?.paise ?? 0} tone="owe" />
                     </td>
                     <td className="px-4 py-3 text-right">
                       <MoneyCell paise={row.theyCurrentlyOwe?.paise ?? 0} tone="owed" />
                     </td>
-                    <td className="px-4 py-3 text-right text-slate-500">
+                    <td className="px-4 py-3 text-right text-muted-foreground">
                       {row.relatedExpenseCount}
                     </td>
                   </tr>
@@ -286,7 +286,7 @@ export const RelationshipSection: React.FC<RelationshipSectionProps> = ({
       )}
     </div>
 
-    <p className="px-1 text-xs leading-relaxed text-slate-400">
+    <p className="px-1 text-xs leading-relaxed text-muted-foreground">
       Amounts on the left are what was spent in the selected period. Amounts on the right
       are what is still owed today — paying for someone does not mean they still owe you.
     </p>

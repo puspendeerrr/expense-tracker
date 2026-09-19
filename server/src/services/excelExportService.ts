@@ -406,21 +406,31 @@ const slugify = (value: string): string =>
 
 export type GeneratedReport = { buffer: Buffer; filename: string };
 
-/** Builds the six-sheet workbook. */
+/**
+ * Builds the workbook.
+ *
+ * `sections` selects which sheets to produce; omitting it keeps the original six, so
+ * every existing caller is unaffected. The builders run in a fixed order rather than in
+ * the order requested, because a workbook whose tabs move around between exports is
+ * harder to use than one that is always laid out the same way.
+ */
 export const generateFinancialReport = async (
   dataset: ExportDataset,
   user: { fullName: string; email: string },
+  sections?: readonly string[],
 ): Promise<GeneratedReport> => {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'SplitWise';
   workbook.created = new Date();
 
-  buildSummarySheet(workbook, dataset, user);
-  buildExpensesSheet(workbook, dataset);
-  buildSplitsSheet(workbook, dataset);
-  buildRelationshipSheet(workbook, dataset);
-  buildSettlementsSheet(workbook, dataset);
-  buildPeriodSheet(workbook, dataset);
+  const wanted = (name: string) => !sections || sections.includes(name);
+
+  if (wanted('summary')) buildSummarySheet(workbook, dataset, user);
+  if (wanted('expenses')) buildExpensesSheet(workbook, dataset);
+  if (wanted('splits')) buildSplitsSheet(workbook, dataset);
+  if (wanted('relationships')) buildRelationshipSheet(workbook, dataset);
+  if (wanted('settlements')) buildSettlementsSheet(workbook, dataset);
+  if (wanted('period')) buildPeriodSheet(workbook, dataset);
 
   const arrayBuffer = await workbook.xlsx.writeBuffer();
   const stamp = new Date().toISOString().slice(0, 10);

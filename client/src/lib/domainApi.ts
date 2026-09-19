@@ -56,6 +56,22 @@ export const getGroup = (groupId: string) =>
     `/api/groups/${groupId}`,
   );
 
+/**
+ * Sets or clears the group's avatar or cover.
+ *
+ * Send `{ url: null, publicId: null }` to remove one. Both fields always travel
+ * together: the server refuses a URL with no public id, because an asset with no handle
+ * can never be cleaned up.
+ */
+export const setGroupMedia = (
+  groupId: string,
+  media: Partial<Record<'avatar' | 'cover', { url: string | null; publicId: string | null }>>,
+) =>
+  apiRequest<{ group: Group }>(`/api/groups/${groupId}/media`, {
+    method: 'PATCH',
+    body: JSON.stringify(media),
+  });
+
 export const getShareInfo = (groupId: string) =>
   apiRequest<{
     groupId: string;

@@ -17,6 +17,9 @@ export interface Group {
   currency: string;
   inviteCode: string;
   payday: number | null;
+  /** Cloudinary URLs, or null when the group has no image of that kind. */
+  avatarUrl: string | null;
+  coverUrl: string | null;
   createdBy: string;
   createdAt: string;
   role?: GroupRole;
@@ -219,6 +222,19 @@ export interface AnalyticsRegion {
       expenseDate: string;
     } | null;
   };
+  /**
+   * The same headline figures for the equal-length window immediately before this one,
+   * or null when the filter is open-ended. Raw figures rather than a percentage, so the
+   * client cannot be handed a third number that disagrees with the two it came from.
+   */
+  previousPeriod: {
+    from: string;
+    to: string;
+    totalExpense: Money;
+    totalPaidByMe: Money;
+    myShare: Money;
+    expenseCount: number;
+  } | null;
   relationships: RelationshipRow[];
   topPeopleIPaidFor: { person: string; paise: number; rupees: number }[];
   topPeopleWhoPaidForMe: { person: string; paise: number; rupees: number }[];

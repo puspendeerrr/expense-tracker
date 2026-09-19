@@ -88,7 +88,7 @@ export const SettleUpPlan: React.FC<SettleUpPlanProps> = ({
 
   if (isLoading) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
         <Skeleton className="h-4 w-44" />
         <Skeleton className="mt-3 h-10 w-full" />
       </div>
@@ -97,8 +97,8 @@ export const SettleUpPlan: React.FC<SettleUpPlanProps> = ({
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 text-center shadow-sm">
-        <p className="text-sm text-slate-600">{error}</p>
+      <div className="rounded-2xl border border-border bg-card p-4 text-center shadow-sm">
+        <p className="text-sm text-muted-foreground">{error}</p>
         <Button size="sm" variant="outline" className="mt-3" onClick={() => void load()}>
           Retry
         </Button>
@@ -108,11 +108,11 @@ export const SettleUpPlan: React.FC<SettleUpPlanProps> = ({
 
   if (!plan || plan.allSettled) {
     return (
-      <div className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
-        <WalletMinimal className="h-5 w-5 shrink-0 text-emerald-600" />
+      <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4">
+        <WalletMinimal className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
         <div>
-          <p className="text-sm font-semibold text-emerald-900">Everyone is settled up</p>
-          <p className="t-meta text-emerald-700">There is nothing to pay right now.</p>
+          <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-300">Everyone is settled up</p>
+          <p className="t-meta text-emerald-700 dark:text-emerald-400">There is nothing to pay right now.</p>
         </div>
       </div>
     );
@@ -125,11 +125,11 @@ export const SettleUpPlan: React.FC<SettleUpPlanProps> = ({
   const rows = visible.length > 0 ? visible : plan.transfers;
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex items-start gap-3 border-b border-slate-100 bg-slate-50/60 px-4 py-3">
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <div className="flex items-start gap-3 border-b border-border bg-muted/60 px-4 py-3">
         <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
         <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-semibold text-slate-900">Settle up faster</h3>
+          <h3 className="text-sm font-semibold text-foreground">Settle up faster</h3>
           <p className="t-meta">
             {saved > 0
               ? `${plan.suggestedTransferCount} payment${
@@ -148,21 +148,21 @@ export const SettleUpPlan: React.FC<SettleUpPlanProps> = ({
             key={`${transfer.from.id}-${transfer.to.id}-${index}`}
             className={cn(
               'flex flex-wrap items-center gap-x-2 gap-y-2 px-4 py-3',
-              index > 0 && 'border-t border-slate-100',
+              index > 0 && 'border-t border-border',
               transfer.involvesMe && 'bg-primary/[0.03]',
             )}
           >
             <div className="flex min-w-0 flex-1 items-center gap-2 text-sm">
-              <span className="truncate font-semibold text-slate-900">
+              <span className="truncate font-semibold text-foreground">
                 {name(transfer.from, currentUserId)}
               </span>
-              <ArrowRight className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-              <span className="truncate font-semibold text-slate-900">
+              <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <span className="truncate font-semibold text-foreground">
                 {name(transfer.to, currentUserId)}
               </span>
             </div>
 
-            <span className="font-mono text-sm font-semibold tabular-nums text-slate-900">
+            <span className="font-mono text-sm font-semibold tabular-nums text-foreground">
               {formatPaise(transfer.amountPaise)}
             </span>
 
@@ -185,8 +185,8 @@ export const SettleUpPlan: React.FC<SettleUpPlanProps> = ({
         be logged as one payment against a debt that does not exist.
       */}
       {rows.some((transfer) => !transfer.recordable) && (
-        <div className="flex items-start gap-2 border-t border-slate-100 bg-slate-50 px-4 py-2.5">
-          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+        <div className="flex items-start gap-2 border-t border-border bg-muted px-4 py-2.5">
+          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           <p className="t-meta">
             Some of these net through another person, so they cannot be recorded as a
             single payment. Pay them as usual and log each one against who you actually
@@ -199,7 +199,7 @@ export const SettleUpPlan: React.FC<SettleUpPlanProps> = ({
         <button
           type="button"
           onClick={() => setIsExpanded(true)}
-          className="min-h-[44px] w-full border-t border-slate-100 text-xs font-semibold text-primary hover:bg-slate-50"
+          className="min-h-[44px] w-full border-t border-border text-xs font-semibold text-primary hover:bg-accent"
         >
           Show all {plan.transfers.length} payments
         </button>

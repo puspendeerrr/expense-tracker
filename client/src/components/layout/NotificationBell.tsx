@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { apiRequest } from '@/lib/api';
+import { notificationMeta, priorityTone } from '@/lib/notificationRouting';
 
 /**
  * Notification bell.
@@ -117,10 +118,10 @@ export const NotificationBell: React.FC = () => {
 
     setOpen(false);
 
-    // Route to whatever the notification is about.
-    if (item.entityType === 'expense') navigate('/app/expenses');
-    else if (item.entityType === 'settlement') navigate('/app/settlements');
-    else if (item.entityType === 'group') navigate('/app/members');
+    // Destination comes from the shared routing table rather than a local branch here,
+    // so a notification lands in the same place whether it was opened from the bell or
+    // from the notifications screen.
+    navigate(notificationMeta(item).href);
   };
 
   return (
@@ -128,7 +129,7 @@ export const NotificationBell: React.FC = () => {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="relative flex h-11 w-11 items-center justify-center rounded-full text-slate-600 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="relative flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label={
             unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'
           }
@@ -146,8 +147,8 @@ export const NotificationBell: React.FC = () => {
         align="end"
         className="w-[min(22rem,calc(100vw-1.5rem))] p-0"
       >
-        <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2.5">
-          <span className="text-sm font-bold text-slate-900">Notifications</span>
+        <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
+          <span className="text-sm font-bold text-foreground">Notifications</span>
           {unreadCount > 0 && (
             <Button
               variant="ghost"
@@ -178,46 +179,79 @@ export const NotificationBell: React.FC = () => {
             </div>
           ) : (items?.length ?? 0) === 0 ? (
             <div className="px-4 py-10 text-center">
-              <Bell className="mx-auto h-7 w-7 text-slate-300" />
-              <p className="mt-2 text-sm font-medium text-slate-500">
+              <Bell className="mx-auto h-7 w-7 text-muted-foreground/60" />
+              <p className="mt-2 text-sm font-medium text-muted-foreground">
                 You are all caught up.
               </p>
             </div>
           ) : (
             <ul>
-              {items?.map((item) => (
-                <li key={item.id}>
-                  <button
-                    type="button"
-                    onClick={() => void openNotification(item)}
-                    className={cn(
-                      'flex w-full gap-2.5 border-b border-slate-100 px-3 py-3 text-left transition-colors last:border-b-0 hover:bg-slate-50',
-                      !item.isRead && 'bg-primary/5',
-                    )}
-                  >
-                    <span
-                      aria-hidden
+              {items?.map((item) => {
+                const meta = notificationMeta(item);
+                return (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      onClick={() => void openNotification(item)}
                       className={cn(
-                        'mt-1.5 h-2 w-2 shrink-0 rounded-full',
-                        item.isRead ? 'bg-transparent' : 'bg-primary',
+                        'flex w-full gap-2.5 border-b border-border px-3 py-3 text-left transition-colors last:border-b-0 hover:bg-accent',
+                        !item.isRead && 'bg-primary/5',
                       )}
-                    />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold text-slate-900">
-                        {item.title}
+                    >
+                      {/* The icon carries the priority, so security and money-related
+                          items are distinguishable at a glance without a second badge. */}
+                      <span
+                        aria-hidden
+                        className={cn(
+                          'mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full',
+                          priorityTone(meta.priority),
+                        )}
+                      >
+                        <meta.icon className="h-3.5 w-3.5" />
                       </span>
-                      <span className="mt-0.5 block text-xs leading-relaxed text-slate-600">
-                        {item.message}
+                      <span className="min-w-0 flex-1">
+                        <span
+                          className={cn(
+                            'block truncate text-sm text-foreground',
+                            item.isRead ? 'font-semibold' : 'font-bold',
+                          )}
+                        >
+                          {item.title}
+                        </span>
+                        <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
+                          {item.message}
+                        </span>
+                        <span className="mt-1 block text-[11px] text-muted-foreground">
+                          {meta.category} · {relativeTime(item.createdAt)}
+                        </span>
                       </span>
-                      <span className="mt-1 block text-[11px] text-slate-400">
-                        {relativeTime(item.createdAt)}
-                      </span>
-                    </span>
-                  </button>
-                </li>
-              ))}
+                      {!item.isRead && (
+                        <span
+                          aria-label="Unread"
+                          className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary"
+                        />
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           )}
+        </div>
+
+        {/* The panel is a preview of the newest few; everything else lives on its own
+            screen, where it can be filtered and worked through. */}
+        <div className="border-t border-border p-1">
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              navigate('/app/notifications');
+            }}
+            className="flex min-h-[44px] w-full items-center justify-center rounded-lg text-sm font-semibold text-primary transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            View all notifications
+          </button>
         </div>
       </DropdownMenuContent>
     </DropdownMenu>

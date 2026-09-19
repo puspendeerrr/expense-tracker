@@ -18,6 +18,16 @@ import {
   updateProfile,
 } from '../controllers/authController.js';
 import {
+  eventQuerySchema,
+  listDevices,
+  listEvents,
+  renameDevice,
+  renameDeviceSchema,
+  revokeDevice,
+  revokeOtherDevices,
+} from '../controllers/securityController.js';
+import { validateQuery } from '../middleware/validate.js';
+import {
   changePasswordSchema,
   loginSchema,
   passwordRequestOtpSchema,
@@ -130,6 +140,44 @@ router.post(
   ipLimit('change_password', 20, HOUR),
   validateBody(changePasswordSchema),
   asyncHandler(changePassword),
+);
+
+/* ---- Security: devices and account history ---- */
+
+/*
+ * Every route below is scoped to the caller's own account by the controller, which
+ * reads `req.user.id` and never a parameter. The session id in the path identifies
+ * which of *your* devices to act on; a session belonging to someone else matches
+ * nothing, because ownership is part of the UPDATE predicate rather than a prior read.
+ */
+
+const authed = [asyncHandler(loadSession), requireAuth] as const;
+
+router.get('/security/devices', ...authed, asyncHandler(listDevices));
+
+router.patch(
+  '/security/devices/:sessionId',
+  ...authed,
+  validateBody(renameDeviceSchema),
+  asyncHandler(renameDevice),
+);
+
+router.delete('/security/devices/:sessionId', ...authed, asyncHandler(revokeDevice));
+
+router.post(
+  '/security/devices/revoke-others',
+  ...authed,
+  // A sign-out-everything action is worth rate limiting: it is cheap to call and
+  // expensive to be on the receiving end of.
+  ipLimit('revoke_sessions', 20, HOUR),
+  asyncHandler(revokeOtherDevices),
+);
+
+router.get(
+  '/security/events',
+  ...authed,
+  validateQuery(eventQuerySchema),
+  asyncHandler(listEvents),
 );
 
 export default router;

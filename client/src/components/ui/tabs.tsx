@@ -13,7 +13,7 @@ const TabsList = React.forwardRef<
     className={cn(
       // 52px outer minus 4px padding top and bottom leaves each trigger at exactly
       // 44px, the minimum comfortable touch target.
-      'inline-flex h-[52px] w-full items-center justify-center rounded-xl bg-slate-100 p-1 text-slate-500',
+      'inline-flex h-[52px] w-full items-center justify-center rounded-xl bg-muted p-1 text-muted-foreground',
       className,
     )}
     {...props}
@@ -28,7 +28,7 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      'inline-flex h-full flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 text-sm font-semibold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm',
+      'inline-flex h-full flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 text-sm font-semibold ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm',
       className,
     )}
     {...props}
@@ -42,7 +42,14 @@ const TabsContent = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <TabsPrimitive.Content
     ref={ref}
-    className={cn('mt-4 focus-visible:outline-none', className)}
+    className={cn(
+      'mt-4 focus-visible:outline-none',
+      // Radix unmounts the inactive panel, so this runs on every switch. Kept short and
+      // vertical-only: a panel that slides sideways competes with the tab strip above
+      // it for the eye.
+      'data-[state=active]:animate-fade-in-up',
+      className,
+    )}
     {...props}
   />
 ));

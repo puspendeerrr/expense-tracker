@@ -14,7 +14,6 @@ import { publishToGroup } from '../realtime/socketServer.js';
 import { REALTIME_EVENTS } from '../realtime/events.js';
 import * as notificationService from '../services/notificationService.js';
 import * as pushService from '../services/pushService.js';
-import * as activityService from '../services/activityService.js';
 import { getOutstandingBetween, getUserBalanceSummary } from '../services/balanceService.js';
 import * as settlementPlanService from '../services/settlementPlanService.js';
 import * as groupService from '../services/groupService.js';
@@ -65,7 +64,6 @@ export const createSettlement = async (req: Request, res: Response): Promise<voi
     status: settlement.status,
   });
 
-
   void notificationService.createNotification({
     recipientUserId: input.receiverId,
     senderUserId: req.user!.id,
@@ -86,15 +84,6 @@ export const createSettlement = async (req: Request, res: Response): Promise<voi
     body: `${req.user!.fullName} — ${formatPaise(settlement.amountPaise)}`,
     url: '/app/settlements',
     tag: `settlement-${settlement.id}`,
-  });
-
-  void activityService.recordActivity({
-    groupId: req.group!.id,
-    actorUserId: req.user!.id,
-    type: 'settlement_created',
-    entityType: 'settlement',
-    entityId: settlement.id,
-    metadata: { amountPaise: settlement.amountPaise },
   });
 
   publishToGroup({
@@ -133,15 +122,6 @@ export const approveSettlement = async (req: Request, res: Response): Promise<vo
     entityId: settlement.id,
   });
 
-  void activityService.recordActivity({
-    groupId: req.group!.id,
-    actorUserId: req.user!.id,
-    type: 'settlement_approved',
-    entityType: 'settlement',
-    entityId: settlement.id,
-    metadata: { amountPaise: settlement.amountPaise },
-  });
-
   publishToGroup({
     event: REALTIME_EVENTS.SETTLEMENT_APPROVED,
     groupId: req.group!.id,
@@ -173,15 +153,6 @@ export const rejectSettlement = async (req: Request, res: Response): Promise<voi
     message: `${req.user!.fullName} could not confirm your ${formatPaise(settlement.amountPaise)} payment. Reason: ${settlement.rejectionReason}`,
     entityType: 'settlement',
     entityId: settlement.id,
-  });
-
-  void activityService.recordActivity({
-    groupId: req.group!.id,
-    actorUserId: req.user!.id,
-    type: 'settlement_rejected',
-    entityType: 'settlement',
-    entityId: settlement.id,
-    metadata: { amountPaise: settlement.amountPaise },
   });
 
   publishToGroup({
@@ -225,15 +196,6 @@ export const cancelSettlement = async (req: Request, res: Response): Promise<voi
     req.group!.id,
     req.user!.id,
   );
-
-  void activityService.recordActivity({
-    groupId: req.group!.id,
-    actorUserId: req.user!.id,
-    type: 'settlement_cancelled',
-    entityType: 'settlement',
-    entityId: settlement.id,
-    metadata: { amountPaise: settlement.amountPaise },
-  });
 
   publishToGroup({
     event: REALTIME_EVENTS.SETTLEMENT_CANCELLED,

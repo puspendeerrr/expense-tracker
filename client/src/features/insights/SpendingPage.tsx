@@ -122,9 +122,9 @@ export const SpendingPage: React.FC = () => {
     return (
       <AppShell title="Spending">
         <div className="mx-auto max-w-lg px-4 py-16 text-center">
-          <Lock className="mx-auto h-10 w-10 text-slate-300" />
+          <Lock className="mx-auto h-10 w-10 text-muted-foreground/60" />
           <h2 className="mt-4 t-title">You do not have access to this dashboard</h2>
-          <p className="mx-auto mt-2 max-w-sm text-sm text-slate-600">
+          <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
             The spending dashboard is granted per account by an administrator. Ask one to
             enable it for you.
           </p>
@@ -171,8 +171,8 @@ export const SpendingPage: React.FC = () => {
         </div>
 
         {error ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-            <p className="text-sm text-slate-600">{error}</p>
+          <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
+            <p className="text-sm text-muted-foreground">{error}</p>
             <Button size="sm" variant="outline" className="mt-3" onClick={() => void load()}>
               Retry
             </Button>
@@ -187,10 +187,10 @@ export const SpendingPage: React.FC = () => {
             <Skeleton className="h-64 rounded-2xl" />
           </div>
         ) : noScope ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-            <Lock className="mx-auto h-9 w-9 text-slate-300" />
+          <div className="rounded-2xl border border-border bg-card p-10 text-center shadow-sm">
+            <Lock className="mx-auto h-9 w-9 text-muted-foreground/60" />
             <h2 className="mt-3 t-subtitle">No groups are in scope yet</h2>
-            <p className="mx-auto mt-1 max-w-sm text-sm text-slate-600">
+            <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
               You have been given the spending dashboard, but an administrator has not
               chosen which groups it should cover. Ask them to set its scope.
             </p>
@@ -211,10 +211,10 @@ export const SpendingPage: React.FC = () => {
               ].map((card) => (
                 <div
                   key={card.label}
-                  className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm"
+                  className="rounded-2xl border border-border bg-card p-3.5 shadow-sm"
                 >
-                  <card.icon className="h-4 w-4 text-slate-400" />
-                  <p className="mt-2 font-mono text-lg font-bold tabular-nums text-slate-900">
+                  <card.icon className="h-4 w-4 text-muted-foreground" />
+                  <p className="mt-2 font-mono text-lg font-bold tabular-nums text-foreground">
                     {card.value}
                   </p>
                   <p className="t-meta">{card.label}</p>
@@ -223,8 +223,8 @@ export const SpendingPage: React.FC = () => {
             </div>
 
             {/* ---- Per person ---- */}
-            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-              <div className="border-b border-slate-100 bg-slate-50/60 px-4 py-3">
+            <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+              <div className="border-b border-border bg-muted/60 px-4 py-3">
                 <h2 className="t-subtitle">Spending per person</h2>
                 <p className="t-meta">
                   Their share of expenses, and what they paid out of pocket.
@@ -232,7 +232,7 @@ export const SpendingPage: React.FC = () => {
               </div>
 
               {report!.people.length === 0 ? (
-                <p className="px-4 py-10 text-center text-sm text-slate-500">
+                <p className="px-4 py-10 text-center text-sm text-muted-foreground">
                   No expenses in this period.
                 </p>
               ) : (
@@ -242,7 +242,7 @@ export const SpendingPage: React.FC = () => {
                       key={person.userId}
                       className={cn(
                         'px-4 py-3',
-                        index > 0 && 'border-t border-slate-100',
+                        index > 0 && 'border-t border-border',
                         person.userId === user?.id && 'bg-primary/[0.03]',
                       )}
                     >
@@ -254,7 +254,7 @@ export const SpendingPage: React.FC = () => {
                         </Avatar>
 
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-slate-900">
+                          <p className="truncate text-sm font-semibold text-foreground">
                             {person.userId === user?.id ? 'You' : person.fullName}
                           </p>
                           <p className="t-meta">
@@ -263,12 +263,12 @@ export const SpendingPage: React.FC = () => {
                           </p>
                         </div>
 
-                        <span className="shrink-0 font-mono text-sm font-bold tabular-nums text-slate-900">
+                        <span className="shrink-0 font-mono text-sm font-bold tabular-nums text-foreground">
                           {formatPaise(person.spentPaise)}
                         </span>
                       </div>
 
-                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
                         <div
                           className="h-full rounded-full bg-primary transition-[width] duration-500"
                           style={{
@@ -284,12 +284,12 @@ export const SpendingPage: React.FC = () => {
 
             <div className="grid gap-4 lg:grid-cols-2">
               {/* ---- By category ---- */}
-              <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div className="border-b border-slate-100 bg-slate-50/60 px-4 py-3">
+              <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+                <div className="border-b border-border bg-muted/60 px-4 py-3">
                   <h2 className="t-subtitle">By category</h2>
                 </div>
                 {report!.categories.length === 0 ? (
-                  <p className="px-4 py-8 text-center text-sm text-slate-500">
+                  <p className="px-4 py-8 text-center text-sm text-muted-foreground">
                     Nothing to show.
                   </p>
                 ) : (
@@ -299,15 +299,15 @@ export const SpendingPage: React.FC = () => {
                         key={row.category ?? 'uncategorised'}
                         className={cn(
                           'flex items-center justify-between gap-3 px-4 py-2.5',
-                          index > 0 && 'border-t border-slate-100',
+                          index > 0 && 'border-t border-border',
                         )}
                       >
-                        <span className="min-w-0 truncate text-sm text-slate-700">
+                        <span className="min-w-0 truncate text-sm text-foreground/80">
                           {row.category
                             ? (CATEGORY_LABELS[row.category] ?? row.category)
                             : 'Uncategorised'}
                         </span>
-                        <span className="shrink-0 font-mono text-sm font-semibold tabular-nums text-slate-900">
+                        <span className="shrink-0 font-mono text-sm font-semibold tabular-nums text-foreground">
                           {formatPaise(row.spentPaise)}
                         </span>
                       </li>
@@ -317,12 +317,12 @@ export const SpendingPage: React.FC = () => {
               </section>
 
               {/* ---- By month ---- */}
-              <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div className="border-b border-slate-100 bg-slate-50/60 px-4 py-3">
+              <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+                <div className="border-b border-border bg-muted/60 px-4 py-3">
                   <h2 className="t-subtitle">Month by month</h2>
                 </div>
                 {report!.months.length === 0 ? (
-                  <p className="px-4 py-8 text-center text-sm text-slate-500">
+                  <p className="px-4 py-8 text-center text-sm text-muted-foreground">
                     Nothing to show.
                   </p>
                 ) : (
@@ -345,7 +345,7 @@ export const SpendingPage: React.FC = () => {
                             minHeight: '4px',
                           }}
                         />
-                        <span className="w-full truncate text-center text-[10px] text-slate-500">
+                        <span className="w-full truncate text-center text-[10px] text-muted-foreground">
                           {monthLabel(month.month)}
                         </span>
                       </div>

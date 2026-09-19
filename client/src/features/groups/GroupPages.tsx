@@ -21,7 +21,7 @@ const PageShell: React.FC<{
   onBack?: () => void;
   children: React.ReactNode;
 }> = ({ title, description, onBack, children }) => (
-  <div className="min-h-[100dvh] bg-slate-50">
+  <div className="min-h-[100dvh] bg-muted">
     <div className="mx-auto max-w-lg px-4 py-6 sm:px-6">
       {onBack && (
         <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2 mb-3">
@@ -29,8 +29,8 @@ const PageShell: React.FC<{
           Back
         </Button>
       )}
-      <h1 className="text-xl font-bold tracking-tight text-slate-900">{title}</h1>
-      {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
+      <h1 className="text-xl font-bold tracking-tight text-foreground">{title}</h1>
+      {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
       <div className="mt-5">{children}</div>
     </div>
   </div>
@@ -197,10 +197,10 @@ export const JoinGroupPage: React.FC = () => {
           <Skeleton className="h-20 w-full rounded-xl" />
         ) : (
           preview && (
-            <div className="rounded-xl border border-slate-200 bg-white p-4 text-center">
-              <Users className="mx-auto h-6 w-6 text-slate-300" />
-              <p className="mt-2 font-semibold text-slate-900">{preview.groupName}</p>
-              <p className="text-sm text-slate-500">
+            <div className="rounded-xl border border-border bg-card p-4 text-center">
+              <Users className="mx-auto h-6 w-6 text-muted-foreground/60" />
+              <p className="mt-2 font-semibold text-foreground">{preview.groupName}</p>
+              <p className="text-sm text-muted-foreground">
                 {preview.memberCount} {preview.memberCount === 1 ? 'member' : 'members'}
               </p>
             </div>
@@ -252,16 +252,16 @@ export const GroupsPage: React.FC = () => {
                 type="button"
                 onClick={() => setActiveGroupId(group.id)}
                 className={cn(
-                  'flex w-full items-center gap-3 rounded-xl border bg-white p-4 text-left transition-colors',
+                  'flex w-full items-center gap-3 rounded-xl border bg-card p-4 text-left transition-colors',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   group.id === activeGroupId
                     ? 'border-primary ring-1 ring-primary/20'
-                    : 'border-slate-200 hover:bg-slate-50',
+                    : 'border-border hover:bg-accent',
                 )}
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold text-slate-900">{group.name}</p>
-                  <p className="text-xs text-slate-500">
+                  <p className="truncate font-semibold text-foreground">{group.name}</p>
+                  <p className="text-xs text-muted-foreground">
                     {group.memberCount ?? 0}{' '}
                     {(group.memberCount ?? 0) === 1 ? 'member' : 'members'}
                     {group.role === 'creator' && ' · you created it'}
