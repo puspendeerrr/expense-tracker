@@ -405,6 +405,11 @@ must be the exact Vercel origin, with no trailing slash.
 Copy `client/.env.production.example`. Every `VITE_` value is inlined into the bundle
 and is therefore public; never put a secret there.
 
+`client/vercel.json` rewrites every unmatched path to `index.html`. Without it, opening
+`/app/expenses` directly returns 404, because Vercel looks for a file at that path and
+the route only exists in the client-side router. Static files still win: Vercel checks
+the filesystem before applying rewrites, so `/assets/*` and `/sw.js` are served normally.
+
 ### After the first deploy
 
 ```bash
