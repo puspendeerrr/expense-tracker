@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth, SessionNotPersistedError } from '@/context/AuthContext';
 import { ApiClientError } from '@/lib/api';
 import { toast } from 'sonner';
 
@@ -44,7 +44,14 @@ export const LoginPage: React.FC = () => {
       navigate(from, { replace: true });
     } catch (err: unknown) {
       let msg = 'Unable to sign in. Please try again.';
-      if (err instanceof ApiClientError) {
+      if (err instanceof SessionNotPersistedError) {
+        // Credentials were fine; the browser refused to keep the cookie. Saying
+        // "network error" here would send people looking in entirely the wrong place.
+        msg =
+          'Your details were correct, but your browser blocked the session cookie. ' +
+          'Turn off "Prevent cross-site tracking" in Safari settings, or disable ' +
+          'blocking of third-party cookies, then try again.';
+      } else if (err instanceof ApiClientError) {
         if (err.code === 'INVALID_CREDENTIALS') {
           msg = 'Invalid email or password.';
         } else if (err.code === 'RATE_LIMITED') {

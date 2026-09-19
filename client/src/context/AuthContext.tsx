@@ -11,6 +11,28 @@ import { apiRequest } from '../lib/api';
  * being dangerous: the worst case is a button that returns a clear 403.
  */
 
+/**
+ * Thrown when the credentials were accepted but the session did not survive.
+ *
+ * Almost always a blocked third-party cookie: the API and the SPA are on different
+ * registrable domains, so the session cookie needs `SameSite=None`, and Safari and
+ * Brave reject those by default. The request succeeds, the cookie is silently dropped,
+ * and the very next call is unauthenticated.
+ *
+ * Without this the app reports a successful sign-in and then bounces straight back to
+ * the login screen, which looks like a bug in the login form rather than a browser
+ * privacy setting.
+ */
+export class SessionNotPersistedError extends Error {
+  constructor() {
+    super(
+      'Signed in, but your browser did not keep the session. This usually means ' +
+        'third-party cookies are blocked.',
+    );
+    this.name = 'SessionNotPersistedError';
+  }
+}
+
 interface AuthContextType {
   user: User | null;
   /** Effective permission keys for the signed-in user; empty when anonymous. */
@@ -22,7 +44,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
   setUser: (user: User | null) => void;
-  refreshUser: () => Promise<void>;
+  /** Re-reads the session. Resolves to the signed-in user, or null when anonymous. */
+  refreshUser: () => Promise<User | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,14 +55,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [permissions, setPermissions] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const refreshUser = useCallback(async () => {
+  const refreshUser = useCallback(async (): Promise<User | null> => {
     try {
       const data = await apiRequest<{ user: User; permissions?: string[] }>('/api/auth/me');
       setUser(data.user);
       setPermissions(new Set(data.permissions ?? []));
+      return data.user;
     } catch {
       setUser(null);
       setPermissions(new Set());
+      return null;
     } finally {
       setIsLoading(false);
     }
@@ -55,10 +80,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       body: JSON.stringify({ email, password }),
     });
     setUser(data.user);
+
     // Login does not carry the permission set, so fetch it before the app renders
-    // anything that depends on it.
-    await refreshUser();
-    return data.user;
+    // anything that depends on it. This doubles as proof that the session cookie was
+    // actually stored -- if it was not, this call comes back anonymous and reporting
+    // success here would strand the user on the login screen with no explanation.
+    const confirmed = await refreshUser();
+    if (!confirmed) throw new SessionNotPersistedError();
+
+    return confirmed;
   };
 
   const logout = async (): Promise<void> => {
