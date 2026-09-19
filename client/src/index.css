@@ -1,0 +1,143 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    /* SplitWise Emerald Brand Color: #059669 -> HSL 160 84% 39% */
+    --primary: 160 84% 36%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222 47% 11%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 88%;
+    --ring: 160 84% 36%;
+
+    --radius: 0.625rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+
+@layer base {
+  /*
+   * Type scale.
+   *
+   * A product surface needs a small number of deliberate steps, not ad-hoc Tailwind
+   * sizes picked per component. These four cover every heading in the app; body text
+   * uses the default `text-sm`/`text-base`.
+   *
+   * Display figures are tighter and heavier than headings because a currency amount is
+   * read as a single glyph-cluster, not as prose.
+   */
+  h1, .t-display {
+    @apply text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl;
+    letter-spacing: -0.022em;
+  }
+
+  h2, .t-title {
+    @apply text-lg font-bold tracking-tight text-slate-900 sm:text-xl;
+    letter-spacing: -0.018em;
+  }
+
+  h3, .t-subtitle {
+    @apply text-sm font-bold tracking-tight text-slate-900;
+    letter-spacing: -0.01em;
+  }
+
+  /* Section eyebrow: the small uppercase label above a group of cards. */
+  .t-eyebrow {
+    @apply text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500;
+  }
+
+  /* Money. Tabular figures stop amounts jittering as they refresh, and the tighter
+     tracking keeps long rupee values compact on narrow screens. */
+  .t-money {
+    @apply font-mono font-bold tabular-nums;
+    letter-spacing: -0.02em;
+    font-feature-settings: 'tnum' 1, 'zero' 1;
+  }
+
+  .t-meta {
+    @apply text-xs text-slate-500;
+  }
+}
+
+@layer utilities {
+  /*
+   * Staggered list entrance.
+   *
+   * Each direct child starts fractionally after the one before it, so a list reads as
+   * arriving in order rather than flashing in at once. Capped at ten because beyond
+   * that the last row would visibly lag, which reads as slowness rather than polish.
+   */
+  .stagger-children > * {
+    animation: fade-in-up 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+  .stagger-children > *:nth-child(2) { animation-delay: 25ms; }
+  .stagger-children > *:nth-child(3) { animation-delay: 50ms; }
+  .stagger-children > *:nth-child(4) { animation-delay: 75ms; }
+  .stagger-children > *:nth-child(5) { animation-delay: 100ms; }
+  .stagger-children > *:nth-child(6) { animation-delay: 125ms; }
+  .stagger-children > *:nth-child(7) { animation-delay: 150ms; }
+  .stagger-children > *:nth-child(8) { animation-delay: 175ms; }
+  .stagger-children > *:nth-child(9) { animation-delay: 200ms; }
+  .stagger-children > *:nth-child(n + 10) { animation-delay: 225ms; }
+
+  /*
+   * Pressable affordance for cards and rows that act as buttons. Scale only, no
+   * shadow change, so it stays legible against the flat surfaces this app uses.
+   */
+  .press {
+    @apply transition-transform duration-150 active:scale-[0.985];
+  }
+
+  /* Standard hover treatment for an interactive row. */
+  .row-interactive {
+    @apply transition-colors duration-150 hover:bg-slate-50;
+  }
+
+  /* Respects users who ask for less motion, across every animation in the app. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      /* Without this the staggered delays would still hold content back. */
+      animation-delay: 0ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

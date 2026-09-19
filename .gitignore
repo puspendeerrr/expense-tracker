@@ -1,0 +1,17 @@
+node_modules/
+dist/
+build/
+coverage/
+.env
+.env.*
+!.env.example
+!.env.production.example
+# Database dumps: real user emails and password hashes. Never commit these.
+# Scoped to backups/ only -- server/drizzle/*.sql are migrations and MUST ship.
+backups/
+
+*.log
+.DS_Store
+.vite/
+.turbo/
+*.tsbuildinfo

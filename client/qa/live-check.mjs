@@ -1,0 +1,14 @@
+import { chromium } from 'playwright';
+const b = await chromium.launch();
+const p = await b.newPage({ viewport: { width: 1280, height: 800 } });
+await p.goto('http://localhost:5173/login', { waitUntil: 'networkidle' });
+await p.fill('input[type="email"]', 'aarti@qa.local');
+await p.fill('input[type="password"]', 'QaPassword1');
+await p.click('button[type="submit"]');
+await p.waitForURL('**/app', { timeout: 20000 });
+await p.waitForSelector('text=Your position');
+await p.waitForTimeout(3000);
+const status = await p.locator('header').innerText();
+console.log('HEADER:', status.replace(/\n/g, ' | '));
+console.log('LIVE?', /Live/.test(status) ? 'YES' : 'NO (offline)');
+await b.close();
