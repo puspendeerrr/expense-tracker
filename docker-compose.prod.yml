@@ -87,6 +87,14 @@ services:
 
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
 
+      # Legacy MongoDB, read by the one-off migration only. The application never
+      # touches it, and the migration opens it read-only -- every collection is
+      # wrapped so a write throws rather than silently corrupting the source.
+      SOURCE_MONGODB_URI: ${SOURCE_MONGODB_URI:-}
+      # The migration refuses to run against a production target unless this is set,
+      # so that pointing it at the live database is always a deliberate act.
+      ALLOW_PRODUCTION_MIGRATION: ${ALLOW_PRODUCTION_MIGRATION:-}
+
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
     # No `ports:` on purpose. Caddy reaches it over the Docker network; the

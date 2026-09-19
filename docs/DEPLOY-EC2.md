@@ -14,9 +14,12 @@ Budget about 45 minutes the first time.
 ## What you need before starting
 
 - An AWS account (card required even on the free tier).
-- A domain name you control. **HTTPS needs one** — a certificate cannot be issued
-  for a bare IP address, and without HTTPS the login cookie, the service worker
-  and push notifications will not work.
+- A hostname. **HTTPS needs one** — a certificate cannot be issued for a bare IP
+  address, and the session cookie is marked `Secure` in production, so over plain
+  HTTP the browser silently discards it and nobody can log in. Either:
+  - a domain you own, or
+  - a free wildcard-DNS hostname such as `YOUR_IP.nip.io`, which needs no signup
+    and works with Let's Encrypt. Good enough for a real deployment; see Step 3.
 - Your project pushed to GitHub.
 
 ---
@@ -91,7 +94,29 @@ Write this address down. Everything below refers to it as `YOUR_IP`.
 
 ---
 
-## Step 3 — Point your domain at it
+## Step 3 — Point a hostname at it
+
+### Option A — no domain, nothing to configure
+
+`nip.io` and `sslip.io` are public DNS services that resolve any hostname of the
+form `<ip>.nip.io` straight back to that IP. Nothing to register and nothing to
+wait for:
+
+```
+DOMAIN=3.7.163.92.nip.io
+```
+
+Substitute your own Elastic IP. Caddy obtains a normal Let's Encrypt certificate
+for it, so the site is properly trusted — not self-signed.
+
+Two caveats worth knowing before you rely on it: the address is tied to the IP, so
+releasing the Elastic IP changes your URL; and because everyone shares the `nip.io`
+domain, it is occasionally rate-limited by Let's Encrypt. Fine for getting running
+and for internal use — buy a domain before handing the link to real users.
+
+Skip to Step 4.
+
+### Option B — a domain you own
 
 In whatever service manages your domain (GoDaddy, Namecheap, Cloudflare,
 Route 53), add one record:
@@ -291,6 +316,76 @@ the password from within the app.
 
 ---
 
+## Importing data from the old MongoDB app
+
+Skip this unless you are migrating an existing group across.
+
+The migration reads the legacy MongoDB database and writes into Postgres. It is
+**read-only on the source** — every collection is wrapped so that an accidental
+write throws instead of altering the original data — and it is safe to run more
+than once, because each migrated row carries its legacy id and a second run
+reports rows as already present rather than duplicating them.
+
+**1. Add the connection string to `.env`:**
+
+```bash
+ubuntu@server:~$ nano .env
+```
+
+```
+SOURCE_MONGODB_URI=mongodb+srv://user:password@cluster.mongodb.net/dbname
+ALLOW_PRODUCTION_MIGRATION=1
+```
+
+`ALLOW_PRODUCTION_MIGRATION` exists so that writing to a live database is never
+accidental. Set it only while migrating.
+
+**2. Recreate the container so it picks the new values up:**
+
+```bash
+ubuntu@server:~$ docker compose -f docker-compose.prod.yml up -d
+```
+
+> This step is not optional. `docker compose exec` runs inside the *existing*
+> container, whose environment was fixed when it was created — editing `.env`
+> alone changes nothing, and the migration will fail saying the URI is missing.
+
+**3. Dry run first.** Nothing is written; it reports exactly what it would do:
+
+```bash
+ubuntu@server:~$ docker compose -f docker-compose.prod.yml exec app \
+    npm run migrate:group -- --code YOUR_GROUP_CODE --dry-run
+```
+
+`--code` is the invite code of the group in the old app. Read the report: it
+lists users, expenses, settlements and activity counts, and verifies that the
+balances it computed match the source.
+
+**4. Run it for real** once the dry run looks right:
+
+```bash
+ubuntu@server:~$ docker compose -f docker-compose.prod.yml exec app \
+    npm run migrate:group -- --code YOUR_GROUP_CODE
+```
+
+**5. Remove the permission flag afterwards:**
+
+```bash
+ubuntu@server:~$ nano .env      # delete ALLOW_PRODUCTION_MIGRATION
+ubuntu@server:~$ docker compose -f docker-compose.prod.yml up -d
+```
+
+Useful flags:
+
+| Flag | Meaning |
+|---|---|
+| `--code XXXXXX` | which group to import, by its old invite code |
+| `--dry-run` | report only, write nothing |
+| `--tz-offset 330` | minutes east of UTC for interpreting legacy dates (330 = IST, the default) |
+| `--skip-verify` | skip the balance cross-check — not recommended |
+
+---
+
 ## Deploying a change later
 
 ```bash
@@ -365,6 +460,7 @@ ubuntu@server:~$ docker compose -f docker-compose.prod.yml logs caddy --tail 50
 | Build killed around "building client" | Out of RAM on a small instance | use `t3.small`, or *Building elsewhere* below |
 | `Upload preset not found` on image upload | The Cloudinary preset does not exist or is not **unsigned** | create it in Cloudinary → Settings → Upload → Upload presets |
 | Everything looks fine, site is blank | Stale cached shell | hard-refresh (`Ctrl+Shift+R`) |
+| Page loads over `http://`, login appears to succeed then bounces back | The session cookie is `Secure`, so it is dropped on plain HTTP | use HTTPS — see Step 3 |
 
 **Free some disk space** (old images accumulate with each deploy):
 

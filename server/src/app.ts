@@ -22,17 +22,77 @@ import { logger } from './utils/logger.js';
 export const createApp = (): Express => {
   const app = express();
 
+  /*
+   * Whether this process also serves the built frontend.
+   *
+   * Decided once, here, because two separate things depend on it: the Content Security
+   * Policy below, and the static-file middleware at the bottom. Deriving it twice is
+   * how they end up disagreeing -- serving the SPA under a policy written for JSON.
+   */
+  const servesClient = Boolean(env.CLIENT_DIST_PATH && existsSync(env.CLIENT_DIST_PATH));
+
   // Needed for correct `req.ip` (and therefore correct rate limiting) behind a proxy.
   app.set('trust proxy', 1);
   app.disable('x-powered-by');
 
   app.use(
     helmet({
-      // This process serves JSON only; the SPA is hosted separately.
-      contentSecurityPolicy: { directives: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] } },
-      // The SPA is served from a different site in production, so `same-site` would
-      // block it from reading responses.
-      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      /*
+       * The policy has to describe what this process actually serves, and that now
+       * depends on how it is deployed.
+       *
+       * Serving the SPA from here (CLIENT_DIST_PATH set) means the policy governs the
+       * app's own pages, not just JSON. `default-src 'none'` with no `connect-src`
+       * then blocks every fetch the app makes to its own API -- and it does so before
+       * the request is sent, so it never appears in the network tab and surfaces only
+       * as a generic "network error". Each directive below exists for something the
+       * frontend genuinely loads.
+       *
+       * When the SPA is hosted elsewhere, this process really does serve JSON only and
+       * the strictest possible policy is correct.
+       */
+      contentSecurityPolicy: servesClient
+        ? {
+            directives: {
+              defaultSrc: ["'none'"],
+              // Vite emits hashed bundles served from this origin.
+              scriptSrc: ["'self'"],
+              // Google Fonts injects a stylesheet; Radix and Tailwind set inline styles.
+              styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+              fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com'],
+              // Receipts, payment proofs, group avatars and QR codes live on Cloudinary.
+              imgSrc: ["'self'", 'data:', 'blob:', 'https://res.cloudinary.com'],
+              /*
+               * XHR, fetch and WebSocket destinations.
+               *
+               * 'self' covers the API and Socket.IO on this origin. Cloudinary is listed
+               * because the browser uploads images straight to it, and `ws:`/`wss:` because
+               * a WebSocket URL is not covered by 'self' in every browser.
+               */
+              connectSrc: [
+                "'self'",
+                'https://api.cloudinary.com',
+                'https://res.cloudinary.com',
+                'ws:',
+                'wss:',
+              ],
+              // Service worker (push notifications) and the PWA manifest.
+              workerSrc: ["'self'", 'blob:'],
+              manifestSrc: ["'self'"],
+              baseUri: ["'self'"],
+              formAction: ["'self'"],
+              frameAncestors: ["'none'"],
+              objectSrc: ["'none'"],
+            },
+          }
+        : { directives: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] } },
+
+      /*
+       * Same-origin when this process serves the SPA, because there is no other site
+       * that needs to read these responses. Cross-origin only for a split deployment,
+       * where the SPA lives elsewhere and `same-site` would block it.
+       */
+      crossOriginResourcePolicy: { policy: servesClient ? 'same-origin' : 'cross-origin' },
       referrerPolicy: { policy: 'no-referrer' },
     }),
   );
@@ -118,7 +178,7 @@ export const createApp = (): Express => {
    */
   const clientDist = env.CLIENT_DIST_PATH;
 
-  if (clientDist && existsSync(clientDist)) {
+  if (servesClient && clientDist) {
     /*
      * Vite emits content-hashed filenames, so an asset's URL changes whenever its
      * content does and it can be cached indefinitely.
