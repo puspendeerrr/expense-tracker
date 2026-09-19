@@ -1,0 +1,64 @@
+services:
+  - type: web
+    name: splitwise-api
+    runtime: node
+    plan: free
+    region: singapore
+    branch: v1
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: COOKIE_SAMESITE
+        value: none
+      - key: OTP_EXPIRES_SECONDS
+        value: 600
+      - key: OTP_RESEND_COOLDOWN_SECONDS
+        value: 120
+      - key: OTP_MAX_ATTEMPTS
+        value: 5
+      - key: SESSION_TTL_SECONDS
+        value: 2592000
+      - key: RESET_TOKEN_TTL_SECONDS
+        value: 600
+      - key: RESEND_FROM_EMAIL
+        value: SplitWise <onboarding@resend.dev>
+      - key: CLOUDINARY_UPLOAD_PRESET
+        value: splitwise_unsigned
+      - key: CLOUDINARY_FOLDER
+        value: splitwise
+      - key: ADMIN_EMAIL
+        value: admin@gmail.com
+      - key: ADMIN_NAME
+        value: SplitWise Administrator
+      # Set these in the Render dashboard, never here: this file is in a public repo.
+      - key: DATABASE_URL
+        sync: false
+      - key: CLIENT_ORIGINS
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: OTP_HASH_SECRET
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: SOURCE_MONGODB_URI
+        sync: false

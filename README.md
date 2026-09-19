@@ -366,3 +366,52 @@ SplitWise is engineered to deliver a secure, high-performance experience across 
 * **Optimized Production Packaging**: Client bundles build with tree-shaking and gzip asset compression (`npm run build`).
 * **Cross-Browser Verification**: Fully verified across Chromium, WebKit (iOS Safari), and Firefox desktop and mobile viewports.
 
+## Deploying
+
+### API (Render)
+
+| Setting | Value |
+| --- | --- |
+| Root directory | `server` |
+| Build command | `npm install` |
+| Start command | `npm start` |
+| Health check | `/api/health` |
+| Branch | `v1` |
+
+`npm start` applies database migrations and then boots the server through `tsx`.
+
+The server runs from TypeScript source rather than a compiled `dist/`. Render installs
+with `NODE_ENV=production`, which prunes devDependencies — so `typescript` and the
+`@types/*` packages a `tsc` build needs are not present at build time. `tsx` is a
+runtime dependency and transpiles without them. Types are still enforced, by
+`npm run typecheck` and by the test suite, just not on the deploy path.
+
+To compile ahead of time instead, set the build command to
+`npm install --include=dev && npm run build` and the start command to
+`npm run db:migrate && npm run start:compiled`.
+
+Copy `server/.env.production.example` into the Render environment. `CLIENT_ORIGINS`
+must be the exact Vercel origin, with no trailing slash.
+
+### Frontend (Vercel)
+
+| Setting | Value |
+| --- | --- |
+| Root directory | `client` |
+| Build command | `npm run build` |
+| Output directory | `dist` |
+| Branch | `v1` |
+
+Copy `client/.env.production.example`. Every `VITE_` value is inlined into the bundle
+and is therefore public; never put a secret there.
+
+### After the first deploy
+
+```bash
+ADMIN_PASSWORD='your-strong-password' npm run db:seed:admin
+npm run migrate:group -- --code IOWUVL --dry-run
+npm run migrate:group -- --code IOWUVL
+```
+
+Both are idempotent: re-running the seed updates the existing administrator, and
+re-running the migration creates nothing.
