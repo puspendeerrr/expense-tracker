@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
+import { socketTarget } from '@/lib/env';
 import type { RealtimePayload } from '@/types/domain';
 
 /**
@@ -38,7 +39,9 @@ export const useRealtime = (
       return;
     }
 
-    const socket: Socket = io({
+    // Explicit target: with no URL, Socket.IO connects to the page's own origin,
+    // which on a split deployment is the static host and has no WebSocket server.
+    const socket: Socket = io(socketTarget(), {
       path: '/socket.io',
       withCredentials: true,
       transports: ['websocket', 'polling'],
