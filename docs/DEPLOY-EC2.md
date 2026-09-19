@@ -353,8 +353,7 @@ ubuntu@server:~$ docker compose -f docker-compose.prod.yml up -d
 **3. Dry run first.** Nothing is written; it reports exactly what it would do:
 
 ```bash
-ubuntu@server:~$ docker compose -f docker-compose.prod.yml exec app \
-    npm run migrate:group -- --code YOUR_GROUP_CODE --dry-run
+ubuntu@server:~$ docker compose -f docker-compose.prod.yml exec app npm run migrate:group -- --code YOUR_GROUP_CODE --dry-run
 ```
 
 `--code` is the invite code of the group in the old app. Read the report: it
@@ -364,8 +363,7 @@ balances it computed match the source.
 **4. Run it for real** once the dry run looks right:
 
 ```bash
-ubuntu@server:~$ docker compose -f docker-compose.prod.yml exec app \
-    npm run migrate:group -- --code YOUR_GROUP_CODE
+ubuntu@server:~$ docker compose -f docker-compose.prod.yml exec app npm run migrate:group -- --code YOUR_GROUP_CODE
 ```
 
 **5. Remove the permission flag afterwards:**
@@ -405,8 +403,7 @@ The database lives in a Docker volume. **A snapshot of the volume is not enough
 on its own** — take real dumps:
 
 ```bash
-ubuntu@server:~$ docker compose -f docker-compose.prod.yml exec -T postgres \
-    pg_dump -U splitwise splitwise | gzip > backups/$(date +%F).sql.gz
+ubuntu@server:~$ docker compose -f docker-compose.prod.yml exec -T postgres pg_dump -U splitwise splitwise | gzip > backups/$(date +%F).sql.gz
 ```
 
 To run that nightly at 3am:
@@ -431,8 +428,7 @@ $ scp -i ~/Downloads/splitwise-key.pem ubuntu@YOUR_IP:~/splitwise/backups/*.gz .
 To restore:
 
 ```bash
-ubuntu@server:~$ gunzip -c backups/2026-01-15.sql.gz | \
-    docker compose -f docker-compose.prod.yml exec -T postgres psql -U splitwise splitwise
+ubuntu@server:~$ gunzip -c backups/2026-01-15.sql.gz | docker compose -f docker-compose.prod.yml exec -T postgres psql -U splitwise splitwise
 ```
 
 ---
@@ -453,6 +449,7 @@ ubuntu@server:~$ docker compose -f docker-compose.prod.yml logs caddy --tail 50
 | SSH times out on the *correct* address | Your home IP changed, so the "My IP" rule no longer matches | EC2 → Security Groups → edit the SSH rule → **My IP** again |
 | `bad permissions` then `Permission denied (publickey)` | Windows key file readable by other accounts | run the `icacls` commands in Step 4 |
 | `Permission denied (publickey)` | Wrong username | it is `ubuntu` for Ubuntu images, not `ec2-user` or `root` |
+| `exec: " npm": executable file not found` | A `\` line-continuation was pasted onto one line, turning it into an escaped space | drop the `\` and run the command on a single line |
 | Browser cannot connect at all | Security group missing 80/443 | EC2 → Security Groups → add the rules |
 | Certificate error | DNS not pointing at the server yet | `nslookup yourdomain.com`; wait, then `docker compose -f docker-compose.prod.yml restart caddy` |
 | `CLIENT_ORIGINS is not set for production` | `DOMAIN` missing from `.env` | set it, then `up -d` again |
@@ -477,8 +474,7 @@ than building on the server:
 
 ```bash
 $ docker build -t splitwise:latest .
-$ docker save splitwise:latest | gzip | \
-    ssh -i ~/Downloads/splitwise-key.pem ubuntu@YOUR_IP "gunzip | docker load"
+$ docker save splitwise:latest | gzip | ssh -i ~/Downloads/splitwise-key.pem ubuntu@YOUR_IP "gunzip | docker load"
 ```
 
 Then on the server, edit `docker-compose.prod.yml` to replace the `build:` block
