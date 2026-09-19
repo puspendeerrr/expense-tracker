@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 import express, { type Express } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -97,6 +99,63 @@ export const createApp = (): Express => {
       });
     }),
   );
+
+  /*
+   * Serve the built frontend from this same server, when it is present.
+   *
+   * Set CLIENT_DIST_PATH to the client's `dist` directory (the container image does
+   * this) and the SPA is served from the same origin as the API. That is not merely
+   * convenient -- it removes a whole class of deployment problem:
+   *
+   *   - no CORS, because there is no cross-origin request left to allow
+   *   - the session cookie is same-site, so SameSite=Lax works and Safari's
+   *     third-party cookie blocking never comes into it
+   *   - the service worker and web push, which require a secure same-origin scope,
+   *     both just work
+   *
+   * Left unset, nothing changes and the API serves only /api -- which is what the local
+   * dev setup wants, where Vite serves the frontend and proxies across.
+   */
+  const clientDist = env.CLIENT_DIST_PATH;
+
+  if (clientDist && existsSync(clientDist)) {
+    /*
+     * Vite emits content-hashed filenames, so an asset's URL changes whenever its
+     * content does and it can be cached indefinitely.
+     *
+     * `index: false` means this middleware never serves index.html -- the fallback
+     * below does, and that is where its caching is set. Handling it here too would be
+     * dead code that looks like it is doing something.
+     */
+    app.use(express.static(clientDist, { index: false, maxAge: '1y' }));
+
+    /*
+     * SPA fallback.
+     *
+     * Registered after every API route and scoped to GET requests that are not /api,
+     * so an unknown endpoint still returns the JSON 404 the client expects rather than
+     * an HTML page it cannot parse. Without that scoping, a typo in an API path
+     * surfaces as a confusing parse error instead of a clear 404.
+     */
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api/') || req.path.startsWith('/socket.io')) {
+        next();
+        return;
+      }
+      /*
+       * Never cached.
+       *
+       * index.html names the hashed bundles, so a cached copy outlives the deploy that
+       * replaced them and points browsers at files that no longer exist -- a blank page
+       * that a refresh does not fix. Express's default here is `max-age=0`, which
+       * merely revalidates; no-store is what actually guarantees a fresh shell.
+       */
+      res.setHeader('Cache-Control', 'no-store, must-revalidate');
+      res.sendFile(path.join(clientDist, 'index.html'));
+    });
+
+    logger.info('static.serving', { path: clientDist });
+  }
 
   app.use(notFoundHandler);
   app.use(errorHandler);

@@ -1,0 +1,34 @@
+# Caddy reverse proxy.
+#
+# Caddy obtains and renews a Let's Encrypt certificate automatically, so there is
+# no certbot step and nothing to remember to renew. It needs two things to do it:
+# a domain that already points at this server, and ports 80 and 443 reachable
+# from the internet.
+
+{$DOMAIN} {
+	# WebSockets need no special handling here: Caddy upgrades them by default,
+	# so /socket.io works through the same directive as everything else.
+	reverse_proxy app:5000
+
+	encode zstd gzip
+
+	header {
+		# HSTS. Only meaningful once the certificate is working, which by this
+		# point it is -- Caddy would not be serving the site otherwise.
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+		# The app is not meant to be embedded in anyone else's page.
+		X-Frame-Options "DENY"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+
+		-Server
+	}
+
+	log {
+		output file /data/access.log {
+			roll_size 10MiB
+			roll_keep 5
+		}
+	}
+}

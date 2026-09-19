@@ -1,0 +1,40 @@
+# Anything listed here is invisible to `docker build`.
+#
+# Two reasons it matters beyond build speed:
+#   - node_modules built on Windows or macOS contain native binaries that do not
+#     run on Alpine Linux, and copying them in silently breaks the image.
+#   - .env files hold real secrets. They must reach the server as runtime
+#     environment variables, never baked into a layer anyone who pulls the image
+#     can read back.
+
+**/node_modules
+**/dist
+**/.vite
+**/build
+
+# Secrets — supplied at run time instead.
+**/.env
+**/.env.*
+!**/.env.example
+
+# Local state and developer noise.
+.git
+.gitignore
+**/.DS_Store
+**/*.log
+**/npm-debug.log*
+
+# Test output, QA artefacts and local database dumps.
+**/coverage
+client/qa/screenshots
+client/qa/downloads
+client/qa/.auth.json
+client/qa/tmp
+backups
+temp
+
+# Docs and editor config: never needed to run the app.
+docs
+README.md
+**/.vscode
+**/.idea

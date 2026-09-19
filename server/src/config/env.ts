@@ -60,6 +60,14 @@ const envSchema = z.object({
 
   SESSION_TTL_SECONDS: intFromEnv(60 * 60 * 24 * 30, 60, 60 * 60 * 24 * 365),
   RESET_TOKEN_TTL_SECONDS: intFromEnv(600, 60, 3600),
+  /**
+   * Absolute path to the built frontend, when this server should also serve it.
+   *
+   * Set in the container image so the SPA and the API share one origin. Unset locally,
+   * where Vite serves the frontend itself.
+   */
+  CLIENT_DIST_PATH: z.string().trim().optional(),
+
   COOKIE_DOMAIN: z.string().trim().optional(),
   /**
    * SameSite policy for the session cookie.
