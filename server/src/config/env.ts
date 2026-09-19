@@ -140,3 +140,31 @@ export const activeDatabaseUrl = ((): string => {
 /** Last-resort guard for destructive test helpers. */
 export const isTestDatabase = (): boolean =>
   isTest && Boolean(env.TEST_DATABASE_URL) && activeDatabaseUrl === env.TEST_DATABASE_URL;
+
+/**
+ * Guards against the commonest production misconfiguration: a deployed API still using
+ * the localhost default for CLIENT_ORIGINS because the variable was never set.
+ *
+ * Left alone this fails silently and confusingly. The server runs, `/api/health`
+ * returns 200, and every browser request from the real frontend is rejected with no
+ * `Access-Control-Allow-Origin` header -- which surfaces as an opaque CORS error in the
+ * browser and nothing at all in the server logs. An API in production that trusts only
+ * localhost is misconfigured by definition, so it refuses to start and says why.
+ */
+if (isProduction) {
+  const onlyLocalhost = env.CLIENT_ORIGINS.every((origin) =>
+    /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin),
+  );
+
+  if (onlyLocalhost) {
+    console.error(
+      '\n[config] CLIENT_ORIGINS is not set for production.\n' +
+        `         Resolved to: ${env.CLIENT_ORIGINS.join(', ') || '(empty)'}\n` +
+        '         Every browser request from the real frontend will fail CORS.\n' +
+        '         Set CLIENT_ORIGINS to your frontend origin(s), comma-separated,\n' +
+        '         with no trailing slash. Example:\n' +
+        '           CLIENT_ORIGINS=https://app.example.com,https://www.example.com\n',
+    );
+    process.exit(1);
+  }
+}

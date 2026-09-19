@@ -40,7 +40,9 @@ export const createApp = (): Express => {
         if (!origin) return callback(null, true);
         const normalized = origin.trim().replace(/\/+$/, '');
         if (allowed.has(normalized)) return callback(null, true);
-        logger.warn('cors.blocked', { origin });
+        // Includes the allow-list: a blocked origin is almost always a typo or a
+        // missing env var, and the log is useless without both halves of the comparison.
+        logger.warn('cors.blocked', { origin, allowed: [...allowed] });
         return callback(null, false);
       },
       // Required for the session cookie to travel at all.
