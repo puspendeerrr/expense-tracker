@@ -1,9 +1,9 @@
 {
-  "name": "splitwise-server",
+  "name": "splitmoney-server",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "SplitWise authentication API",
+  "description": "SplitMoney authentication API",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",

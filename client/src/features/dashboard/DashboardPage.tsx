@@ -452,9 +452,17 @@ export const DashboardPage: React.FC = () => {
                         ))}
                       </div>
                     ) : (analytics.data?.recentExpenses.length ?? 0) === 0 ? (
-                      <p className="px-4 py-10 text-center text-sm font-medium text-muted-foreground">
-                        No expenses in this period.
-                      </p>
+                      <div className="px-4 py-12 text-center">
+                        <div className="mx-auto mb-2.5 flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                          <Receipt className="h-5 w-5" />
+                        </div>
+                        <p className="text-sm font-semibold text-white">
+                          No expenses in this period
+                        </p>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          Log a shared expense to see it here.
+                        </p>
+                      </div>
                     ) : (
                       <ul className="divide-y divide-border">
                         {analytics.data?.recentExpenses.map((expense) => (
@@ -626,9 +634,14 @@ export const DashboardPage: React.FC = () => {
 
               if (entries.length === 0) {
                 return (
-                  <p className="rounded-xl bg-muted px-3 py-6 text-center text-sm text-muted-foreground">
-                    Nothing outstanding.
-                  </p>
+                  <div className="rounded-xl border border-white/[0.08] bg-[#111827]/60 px-4 py-8 text-center">
+                    <p className="text-sm font-semibold text-white">
+                      All settled up
+                    </p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Nothing outstanding in this category.
+                    </p>
+                  </div>
                 );
               }
 

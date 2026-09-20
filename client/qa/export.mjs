@@ -116,8 +116,7 @@ await single.saveAs(singleSaved);
 
 // Sheet names live in a compressed entry inside the xlsx zip, so they have to be read
 // with a real reader rather than grepped out of the bytes.
-const ExcelJS = (await import('file:///D:/Web Dev/SplitWise/server/node_modules/exceljs/excel.js'))
-  .default;
+const ExcelJS = (await import('exceljs')).default;
 
 const readSheets = async (file) => {
   const workbook = new ExcelJS.Workbook();

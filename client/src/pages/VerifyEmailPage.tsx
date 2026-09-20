@@ -11,6 +11,7 @@ import { useAuth } from '@/context/AuthContext';
 import { apiRequest, ApiClientError } from '@/lib/api';
 import type { ChallengePayload, User } from '@/types/auth';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 export const VerifyEmailPage: React.FC = () => {
   const navigate = useNavigate();
@@ -80,7 +81,7 @@ export const VerifyEmailPage: React.FC = () => {
       setUser(result.user);
       setSuccessMessage('Account verified successfully! Redirecting…');
       toast.success('Account verified successfully!', {
-        description: 'Welcome to SplitWise.',
+        description: 'Welcome to SplitMoney.',
       });
 
       setTimeout(() => {
@@ -168,18 +169,18 @@ export const VerifyEmailPage: React.FC = () => {
 
   return (
     <AuthLayout>
-      <Card className="border-border shadow-xl shadow-slate-900/5">
+      <Card className="border border-white/[0.08] bg-[#18181B]/95 backdrop-blur-xl shadow-2xl shadow-black/60">
         <CardHeader className="text-center space-y-1 pb-4">
-          <div className="mx-auto mb-3 h-12 w-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-700 dark:text-emerald-400">
+          <div className="mx-auto mb-3 h-12 w-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-sm">
             <Mail className="h-6 w-6" />
           </div>
-          <CardTitle className="text-2xl font-bold tracking-tight text-foreground">
+          <CardTitle className="text-2xl font-bold tracking-tight text-white">
             Check your email
           </CardTitle>
-          <CardDescription className="text-sm">
+          <CardDescription className="text-sm text-slate-400">
             We sent a 6-digit verification code to
             <br />
-            <span className="font-semibold text-foreground font-mono text-sm">
+            <span className="font-semibold text-white font-mono text-sm">
               {challenge.maskedEmail}
             </span>
           </CardDescription>
@@ -187,13 +188,13 @@ export const VerifyEmailPage: React.FC = () => {
 
         <CardContent className="space-y-5">
           {errorMessage && (
-            <Alert variant="destructive">
+            <Alert variant="destructive" className="bg-red-950/30 border border-red-500/20 text-red-300">
               <AlertDescription>{errorMessage}</AlertDescription>
             </Alert>
           )}
 
           {successMessage && (
-            <Alert variant="success">
+            <Alert variant="success" className="bg-emerald-950/30 border border-emerald-500/25 text-emerald-300">
               <AlertDescription>{successMessage}</AlertDescription>
             </Alert>
           )}
@@ -208,7 +209,7 @@ export const VerifyEmailPage: React.FC = () => {
                 hasError={Boolean(errorMessage)}
               />
 
-              <div className="text-xs text-muted-foreground pt-2 flex flex-col items-center gap-1">
+              <div className="text-xs text-slate-400 pt-2 flex flex-col items-center gap-1">
                 <div className="flex items-center gap-1.5">
                   <span>Code expires in</span>
                   <CountdownTimer
@@ -216,12 +217,12 @@ export const VerifyEmailPage: React.FC = () => {
                     serverTimeIso={challenge.serverTime}
                     prefix=""
                     suffix="s"
-                    className="font-mono font-semibold text-foreground/80"
+                    className="font-mono font-semibold text-slate-200"
                     onExpire={() => setErrorMessage('Code expired. Please click resend below.')}
                   />
                 </div>
                 {attemptsRemaining !== null && (
-                  <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                  <span className="text-xs font-semibold text-amber-400">
                     {attemptsRemaining} {attemptsRemaining === 1 ? 'attempt' : 'attempts'} remaining before lockout
                   </span>
                 )}
@@ -230,7 +231,7 @@ export const VerifyEmailPage: React.FC = () => {
 
             <Button
               type="button"
-              className="w-full font-semibold"
+              className="w-full font-semibold shadow-lg shadow-emerald-950/40"
               size="lg"
               disabled={otp.length !== 6 || isVerifying}
               isLoading={isVerifying}
@@ -241,11 +242,11 @@ export const VerifyEmailPage: React.FC = () => {
             </Button>
           </div>
 
-          <div className="pt-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
+          <div className="pt-4 border-t border-white/[0.08] flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
             <button
               type="button"
               onClick={handleChangeEmail}
-              className="inline-flex items-center text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+              className="inline-flex items-center text-xs font-medium text-slate-400 hover:text-white transition-colors"
             >
               <ArrowLeft className="mr-1 h-3.5 w-3.5" />
               Change email
@@ -253,25 +254,23 @@ export const VerifyEmailPage: React.FC = () => {
 
             <div className="text-right">
               {canResend ? (
-                <Button
+                <button
                   type="button"
-                  variant="ghost"
-                  size="sm"
                   onClick={handleResend}
-                  isLoading={isResending}
-                  className="text-xs text-primary font-semibold hover:text-emerald-800 dark:text-emerald-300 p-0 h-auto"
+                  disabled={isResending}
+                  className="inline-flex items-center text-xs text-emerald-400 font-semibold hover:text-emerald-300 disabled:opacity-40 transition-colors"
                 >
-                  <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-                  Resend code
-                </Button>
+                  <RefreshCw className={cn('mr-1.5 h-3.5 w-3.5', isResending && 'animate-spin')} />
+                  {isResending ? 'Sending…' : 'Resend code'}
+                </button>
               ) : (
-                <span className="text-xs text-muted-foreground font-medium">
+                <span className="text-xs text-slate-400 font-medium">
                   Resend code in{' '}
                   <CountdownTimer
                     targetIso={challenge.resendAvailableAt}
                     serverTimeIso={challenge.serverTime}
                     onExpire={() => setCanResend(true)}
-                    className="font-mono font-bold text-muted-foreground"
+                    className="font-mono font-bold text-slate-200"
                   />
                 </span>
               )}

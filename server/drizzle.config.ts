@@ -6,7 +6,7 @@ export default defineConfig({
   out: './drizzle',
   dialect: 'postgresql',
   dbCredentials: {
-    url: process.env.DATABASE_URL ?? 'postgres://splitwise:splitwise@localhost:5434/splitwise',
+    url: process.env.DATABASE_URL ?? 'postgres://splitmoney:splitmoney@localhost:5434/splitmoney',
   },
   strict: true,
   verbose: true,

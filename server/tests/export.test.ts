@@ -98,7 +98,7 @@ describe('excel export', () => {
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     );
     expect(res.headers['content-disposition']).toMatch(
-      /attachment; filename="splitwise-flat-402-\d{4}-\d{2}-\d{2}\.xlsx"/,
+      /attachment; filename="splitmoney-flat-402-\d{4}-\d{2}-\d{2}\.xlsx"/,
     );
     expect(res.headers['access-control-expose-headers']).toContain('Content-Disposition');
 

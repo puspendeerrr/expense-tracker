@@ -139,7 +139,7 @@ export const AiChatPanel: React.FC = () => {
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <h2 className="text-sm font-bold text-foreground">SplitWise AI</h2>
+                <h2 className="text-sm font-bold text-foreground">SplitMoney AI</h2>
                 <span className="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-primary">
                   Gemini 2.5
                 </span>
@@ -198,7 +198,7 @@ export const AiChatPanel: React.FC = () => {
                     <span>Authoritative & Grounded</span>
                   </div>
                   <p className="leading-relaxed">
-                    All balances are calculated directly by SplitWise's PostgreSQL ledger. Ask questions in
+                    All balances are calculated directly by SplitMoney's PostgreSQL ledger. Ask questions in
                     English or Hinglish!
                   </p>
                 </div>

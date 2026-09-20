@@ -349,14 +349,14 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent variant="sheet" className="sm:max-w-xl">
+      <DialogContent variant="sheet" className="sm:max-w-xl bg-[#18181B] border border-white/[0.08] shadow-2xl shadow-black/90 backdrop-blur-xl">
         <DialogHeader className="sr-only">
           <DialogTitle>Search and commands</DialogTitle>
         </DialogHeader>
 
-        <div className="border-b border-border p-3">
+        <div className="border-b border-white/[0.08] p-3.5 bg-[#111827]/80">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
               autoFocus
               value={term}
@@ -368,10 +368,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
               aria-controls="command-results"
               aria-activedescendant={rows[active] ? `row-${rows[active]!.key}` : undefined}
               role="combobox"
-              className="pl-9 pr-9"
+              className="pl-9 pr-9 bg-[#18181B] border-white/[0.08] text-white placeholder:text-slate-500"
             />
             {isSearching && (
-              <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+              <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-emerald-400" />
             )}
           </div>
         </div>
@@ -384,15 +384,23 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           className="max-h-[60vh] overflow-y-auto p-2"
         >
           {error && (
-            <p role="alert" className="px-2 py-6 text-center text-sm text-destructive">
+            <p role="alert" className="px-2 py-6 text-center text-sm text-red-400">
               {error}
             </p>
           )}
 
           {showEmpty && (
-            <p className="px-2 py-8 text-center text-sm text-muted-foreground">
-              Nothing matched &ldquo;{term.trim()}&rdquo;.
-            </p>
+            <div className="px-4 py-12 text-center">
+              <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-[#111827] border border-white/[0.08] text-slate-400">
+                <Search className="h-5 w-5" />
+              </div>
+              <p className="text-sm font-semibold text-white">
+                No matching results
+              </p>
+              <p className="text-xs text-slate-400 mt-1">
+                Nothing matched &ldquo;{term.trim()}&rdquo;.
+              </p>
+            </div>
           )}
 
           {rows.map((row, index) => {
@@ -405,7 +413,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             return (
               <React.Fragment key={row.key}>
                 {heading && (
-                  <p className="px-2 pb-1 pt-3 text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground first:pt-1">
+                  <p className="px-2 pb-1 pt-3 text-[11px] font-bold uppercase tracking-[0.06em] text-slate-500 first:pt-1">
                     {heading}
                   </p>
                 )}
@@ -418,9 +426,11 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                   onMouseMove={() => setActive(index)}
                   onClick={() => (row.kind === 'command' ? row.command.run() : row.run())}
                   className={cn(
-                    'flex min-h-[44px] w-full items-center gap-3 rounded-lg px-2 text-left transition-colors',
+                    'flex min-h-[44px] w-full items-center gap-3 rounded-xl px-2.5 text-left transition-all duration-150',
                     'focus-visible:outline-none',
-                    isActive ? 'bg-accent' : 'hover:bg-accent/60',
+                    isActive
+                      ? 'bg-emerald-500/15 text-white border border-emerald-500/25 shadow-sm'
+                      : 'hover:bg-white/[0.04] text-slate-300',
                   )}
                 >
                   {row.kind === 'result' && row.avatar ? (
@@ -432,27 +442,30 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                   ) : row.kind === 'result' && row.group === 'People' ? (
                     <span
                       aria-hidden
-                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground"
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400 text-[10px] font-bold"
                     >
                       {initialsOf(label)}
                     </span>
                   ) : (
                     <span
                       aria-hidden
-                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"
+                      className={cn(
+                        'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg',
+                        isActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/[0.06] text-slate-400',
+                      )}
                     >
                       <Icon className="h-3.5 w-3.5" />
                     </span>
                   )}
 
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">{label}</span>
-                    {hint && <span className="block truncate t-meta">{hint}</span>}
+                    <span className="block truncate text-sm font-medium text-white">{label}</span>
+                    {hint && <span className="block truncate text-xs text-slate-400">{hint}</span>}
                   </span>
 
                   {isActive && (
                     <CornerDownLeft
-                      className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                      className="h-3.5 w-3.5 shrink-0 text-emerald-400"
                       aria-hidden
                     />
                   )}
@@ -462,22 +475,22 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           })}
 
           {term.trim().length > 0 && term.trim().length < MIN_SEARCH_LENGTH && (
-            <p className="px-2 pt-3 t-meta">
+            <p className="px-2 pt-3 text-xs text-slate-400">
               Type {MIN_SEARCH_LENGTH} characters to search your groups.
             </p>
           )}
         </div>
 
-        <div className="hidden items-center gap-3 border-t border-border px-3 py-2 t-meta sm:flex">
+        <div className="hidden items-center gap-3 border-t border-white/[0.08] px-3.5 py-2.5 text-xs text-slate-400 bg-[#111827]/80 sm:flex">
           <span>
-            <kbd className="rounded border border-border px-1 font-mono">↑</kbd>{' '}
-            <kbd className="rounded border border-border px-1 font-mono">↓</kbd> to move
+            <kbd className="rounded border border-white/[0.08] bg-[#1F2937] px-1 font-mono text-slate-300">↑</kbd>{' '}
+            <kbd className="rounded border border-white/[0.08] bg-[#1F2937] px-1 font-mono text-slate-300">↓</kbd> to move
           </span>
           <span>
-            <kbd className="rounded border border-border px-1 font-mono">↵</kbd> to open
+            <kbd className="rounded border border-white/[0.08] bg-[#1F2937] px-1 font-mono text-slate-300">↵</kbd> to open
           </span>
           <span>
-            <kbd className="rounded border border-border px-1 font-mono">esc</kbd> to close
+            <kbd className="rounded border border-white/[0.08] bg-[#1F2937] px-1 font-mono text-slate-300">esc</kbd> to close
           </span>
         </div>
       </DialogContent>

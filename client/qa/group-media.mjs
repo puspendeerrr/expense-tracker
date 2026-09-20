@@ -117,7 +117,7 @@ await page.screenshot({ path: 'qa/screenshots/group-media-set.png' });
 /* ---- 5. Mobile and dark ---- */
 
 await page.setViewportSize({ width: 390, height: 844 });
-await page.evaluate(() => localStorage.setItem('splitwise-theme', 'dark'));
+await page.evaluate(() => localStorage.setItem('splitmoney-theme', 'dark'));
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(1500);
 
@@ -128,7 +128,7 @@ console.log('mobile/dark overflow:', overflow);
 if (overflow > 0) failures.push(`mobile overflow ${overflow}px`);
 await page.screenshot({ path: 'qa/screenshots/group-media-390-dark.png' });
 
-await page.evaluate(() => localStorage.setItem('splitwise-theme', 'light'));
+await page.evaluate(() => localStorage.setItem('splitmoney-theme', 'light'));
 
 /* ---- 6. Remove them again ---- */
 

@@ -483,7 +483,7 @@ const buildDomainContext = async (
  * Builds the comprehensive system instruction for Gemini.
  */
 const buildSystemInstruction = (domainContext: string, language: 'en' | 'hinglish'): string => {
-  return `You are the SplitWise AI Assistant, a helpful and precise financial companion for shared living expenses and group finances.
+  return `You are the SplitMoney AI Assistant, a helpful and precise financial companion for shared living expenses and group finances.
 
 MISSION:
 Help the authenticated user clearly understand their group expenses, live debts, who owes whom, settlements, pending approvals, and activity.
@@ -493,7 +493,7 @@ CRITICAL FINANCIAL RULES:
 2. The provided APPLICATION CONTEXT below is the authoritative, ground-truth data from our database ledger.
 3. Every balance and paisa calculation in the context is mathematically verified by PostgreSQL. Present these figures with complete confidence.
 4. All monetary values are in Indian Rupees (₹). Always format currency with two decimal places (e.g. ₹1,850.00, ₹500.00).
-5. Debts in SplitWise are directional and pairwise: if A owes B ₹500, state that clearly without confusing who pays whom.
+5. Debts in SplitMoney are directional and pairwise: if A owes B ₹500, state that clearly without confusing who pays whom.
 6. If the user has zero debts or no expenses matching their question, state that directly and reassuringly.
 7. You are strictly a READ-ONLY assistant. You cannot create, modify, delete, or approve expenses or settlements.
 
@@ -533,7 +533,7 @@ const generateDeterministicFallback = (
     if (intent === 'expense') {
       return `Aapke groups ke haliya expenses:\n\n${domainContext.split('\nRECENT EXPENSES:')[1]?.split('\nSETTLEMENTS')[0]?.trim() || 'Koi haliya expense nahi mila.'}`;
     }
-    return `Namaste ${user.fullName}! Main aapka SplitWise Assistant hoon. Aap apne live balances, recent expenses, pending settlements ya kisi member ke hisab ke baare mein mujhse pooch sakte hain.`;
+    return `Namaste ${user.fullName}! Main aapka SplitMoney Assistant hoon. Aap apne live balances, recent expenses, pending settlements ya kisi member ke hisab ke baare mein mujhse pooch sakte hain.`;
   }
 
   // English fallback
@@ -551,7 +551,7 @@ const generateDeterministicFallback = (
     return `Here are your recent group expenses:\n\n${expSection || 'No recent expenses recorded.'}`;
   }
 
-  return `Hello ${user.fullName}! I am your SplitWise AI Assistant. You can ask me about how much you owe, who owes you, recent group expenses, or pending settlements across your groups.`;
+  return `Hello ${user.fullName}! I am your SplitMoney AI Assistant. You can ask me about how much you owe, who owes you, recent group expenses, or pending settlements across your groups.`;
 };
 
 /**

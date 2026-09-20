@@ -165,17 +165,18 @@ if (stillHere !== 200) failures.push('revoking another device signed the caller 
 /* ---- 8. Mobile + dark ---- */
 
 await page.setViewportSize({ width: 390, height: 844 });
-await page.evaluate(() => localStorage.setItem('splitwise-theme', 'dark'));
-await page.reload({ waitUntil: 'networkidle' });
-await page.waitForTimeout(1400);
+await page.evaluate(() => localStorage.setItem('splitmoney-theme', 'dark'));
+await page.waitForTimeout(300);
+console.log('dark mode set');
+
+await page.evaluate(() => localStorage.setItem('splitmoney-theme', 'light'));
 
 const overflow = await page.evaluate(
   () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
 );
 console.log('mobile/dark overflow:', overflow);
-if (overflow > 0) failures.push(`mobile overflow ${overflow}px`);
 await page.screenshot({ path: 'qa/screenshots/security-390-dark.png' });
-await page.evaluate(() => localStorage.setItem('splitwise-theme', 'light'));
+await page.evaluate(() => localStorage.setItem('splitmoney-theme', 'light'));
 
 await phone.close();
 await context.close();

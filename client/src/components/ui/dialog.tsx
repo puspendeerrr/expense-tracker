@@ -33,11 +33,9 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      'fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-[2px]',
+      'fixed inset-0 z-50 bg-[#09090B]/80 backdrop-blur-md',
       'data-[state=open]:animate-in data-[state=closed]:animate-out',
       'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
-      // Slightly quicker than the panel it sits behind, so the scrim is already there
-      // when the panel arrives rather than racing it.
       'duration-200',
       className,
     )}
@@ -48,15 +46,10 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 const dialogContentVariants = cva(
   cn(
-    'fixed z-50 flex flex-col bg-card shadow-2xl',
+    'fixed z-50 flex flex-col bg-[#18181B] border border-white/[0.08] shadow-2xl shadow-black/90 text-foreground',
     'focus-visible:outline-none',
     'data-[state=open]:animate-in data-[state=closed]:animate-out',
     'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
-    // Without an explicit duration these run at the library's 150ms default with a
-    // linear-ish curve, which is what makes a bottom sheet feel like it snaps into
-    // place instead of settling. `ease-sheet` decelerates hard at the end.
-    // Qualified with the same data variant as `animate-in`: unqualified, the library's
-    // own 150ms wins the cascade and the sheet snaps rather than settles.
     'data-[state=open]:duration-280 data-[state=closed]:duration-200 ease-sheet',
   ),
   {

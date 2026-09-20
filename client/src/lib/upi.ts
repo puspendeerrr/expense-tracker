@@ -46,7 +46,7 @@ export const buildUpiIntent = (input: UpiIntentInput): string | null => {
 
   const params = new URLSearchParams();
   params.set('pa', upiId);
-  params.set('pn', input.payeeName.trim() || 'SplitWise');
+  params.set('pn', input.payeeName.trim() || 'SplitMoney');
   params.set('cu', 'INR');
 
   if (input.amountPaise && input.amountPaise > 0) {

@@ -200,7 +200,7 @@ describe('joining a group', () => {
     await api()
       .post('/api/groups/join')
       .set('Cookie', bob.cookie)
-      .send({ invite: `https://splitwise.example.com/join/${share.inviteToken}?src=qr` })
+      .send({ invite: `https://splitmoney.example.com/join/${share.inviteToken}?src=qr` })
       .expect(201);
   });
 

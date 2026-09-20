@@ -48,7 +48,7 @@ export const UpiPayPanel: React.FC<UpiPayPanelProps> = ({
     upiId: counterpart.upiId ?? '',
     payeeName,
     amountPaise,
-    note: groupName ? `SplitWise ${groupName}` : 'SplitWise',
+    note: groupName ? `SplitMoney ${groupName}` : 'SplitMoney',
   });
 
   const hasUpiId = isValidUpiId(counterpart.upiId);
@@ -119,7 +119,7 @@ export const UpiPayPanel: React.FC<UpiPayPanelProps> = ({
             onClick={() => setShowBankQr((current) => !current)}
             className="text-xs font-semibold text-primary hover:underline"
           >
-            {showBankQr ? 'Show SplitWise QR' : 'Show their own QR'}
+            {showBankQr ? 'Show SplitMoney QR' : 'Show their own QR'}
           </button>
         )}
       </div>
@@ -128,22 +128,22 @@ export const UpiPayPanel: React.FC<UpiPayPanelProps> = ({
       <div className="mt-3 flex flex-col items-center">
         {showBankQr && counterpart.qrCodeUrl ? (
           <>
-            <div className="rounded-xl border border-border bg-card p-2">
+            <div className="rounded-2xl border border-white/20 bg-white p-2.5 shadow-lg">
               <img
                 src={counterpart.qrCodeUrl}
                 alt={`${counterpart.fullName}'s payment QR code`}
                 className="h-40 w-40 object-contain"
               />
             </div>
-            <p className="mt-2 max-w-[30ch] text-center t-meta">
+            <p className="mt-2.5 max-w-[30ch] text-center t-meta">
               Their own QR — you will need to type the amount in.
             </p>
           </>
         ) : isRendering ? (
-          <Skeleton className="h-40 w-40 rounded-xl" />
+          <Skeleton className="h-40 w-40 rounded-2xl" />
         ) : qrDataUrl ? (
           <>
-            <div className="rounded-xl border border-border bg-card p-2">
+            <div className="rounded-2xl border border-white/20 bg-white p-2.5 shadow-lg">
               <img
                 src={qrDataUrl}
                 alt={`UPI QR code to pay ${payeeName}`}

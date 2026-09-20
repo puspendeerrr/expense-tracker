@@ -14,10 +14,10 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           // 16px on mobile: anything smaller makes iOS Safari zoom the viewport on
           // focus, which shifts the whole layout. Drops to 14px from `sm` up, where
           // there is no zoom behaviour to avoid.
-          'flex h-11 w-full rounded-lg border bg-card px-3.5 py-2 text-base sm:text-sm text-foreground transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground outline-none focus:outline-none focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
+          'flex h-11 w-full rounded-xl border bg-[#111827]/80 px-3.5 py-2 text-base sm:text-sm text-slate-100 transition-all duration-200 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-500 outline-none focus:outline-none focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
           hasError
-            ? 'border-destructive focus:border-destructive focus:ring-1 focus:ring-destructive'
-            : 'border-input hover:border-muted-foreground/50 focus:border-primary focus:ring-1 focus:ring-primary',
+            ? 'border-red-500/80 focus:border-red-500 focus:ring-2 focus:ring-red-500/20'
+            : 'border-white/[0.08] hover:border-white/[0.16] focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20',
           className,
         )}
         ref={ref}

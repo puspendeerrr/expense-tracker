@@ -37,7 +37,7 @@ export const RequireAdmin: React.FC<{ children: React.ReactNode }> = ({ children
           Console access is granted per account by an administrator.
         </p>
         <a href="/app" className="mt-4 text-sm font-semibold text-primary hover:underline">
-          Back to SplitWise
+          Back to SplitMoney
         </a>
       </div>
     );

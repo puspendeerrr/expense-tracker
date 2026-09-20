@@ -49,6 +49,16 @@ export default {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
+        // Luxury FinTech dark palette
+        fintech: {
+          bg: '#09090B',
+          surface: '#111827',
+          card: '#18181B',
+          floating: '#1F2937',
+          border: 'rgba(255, 255, 255, 0.08)',
+          'border-subtle': 'rgba(255, 255, 255, 0.05)',
+          'border-highlight': 'rgba(255, 255, 255, 0.15)',
+        },
         // Admin console chrome. Scoped to that surface so nothing in the consumer app
         // can accidentally pick up the operations palette.
         admin: {

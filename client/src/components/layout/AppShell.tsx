@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   ChevronDown,
@@ -33,7 +33,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
-import { env } from '@/lib/env';
 import { useAuth } from '@/context/AuthContext';
 import { useGroups } from '@/context/GroupContext';
 import { NotificationBell } from './NotificationBell';
@@ -42,6 +41,7 @@ import { CommandPalette } from '@/components/CommandPalette';
 import { initialsOf } from '@/lib/names';
 import { InviteShare } from '@/features/groups/InviteShare';
 import { GroupAvatar } from '@/features/groups/GroupAvatar';
+import { BrandLogo } from '@/components/brand/BrandLogo';
 
 /**
  * Application shell.
@@ -438,13 +438,13 @@ export const AppShell: React.FC<AppShellProps> = ({ toolbar, title, children }) 
     requestAnimationFrame(() => setDrawerOpen(true));
   };
   return (
-    <div className="min-h-[100dvh] bg-muted">
+    <div className="min-h-[100dvh] bg-[#09090B] text-slate-100 selection:bg-emerald-500/30 selection:text-emerald-300">
       {/* ---- Desktop sidebar ---- */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-border bg-card lg:block">
-        <div className="flex h-14 items-center px-4">
-          <span className="text-lg font-extrabold tracking-tight text-primary">
-            {env.appName}
-          </span>
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-white/[0.08] bg-[#111827] lg:block">
+        <div className="flex h-16 items-center px-4 border-b border-white/[0.06]">
+          <Link to="/app" className="flex items-center gap-2">
+            <BrandLogo variant="full" size="md" className="h-10 sm:h-11 w-auto" />
+          </Link>
         </div>
         <SidebarContent />
       </aside>
@@ -460,7 +460,7 @@ export const AppShell: React.FC<AppShellProps> = ({ toolbar, title, children }) 
             type="button"
             aria-label="Close menu"
             className={cn(
-              'absolute inset-0 bg-slate-950/50 backdrop-blur-[2px]',
+              'absolute inset-0 bg-[#09090B]/80 backdrop-blur-md',
               'transition-opacity duration-280 ease-sheet',
               'motion-reduce:transition-none',
               drawerOpen ? 'opacity-100' : 'opacity-0',
@@ -469,11 +469,7 @@ export const AppShell: React.FC<AppShellProps> = ({ toolbar, title, children }) 
           />
           <div
             className={cn(
-              'absolute inset-y-0 left-0 flex w-[min(19rem,85vw)] flex-col bg-card shadow-2xl',
-              // `duration-250` is not a Tailwind step, so the class was never generated
-              // and the panel fell back to the 150ms that `transition-transform` sets --
-              // fast enough to read as a snap. The curve below decelerates hard at the
-              // end, which is what makes a panel feel like it settles rather than stops.
+              'absolute inset-y-0 left-0 flex w-[min(19rem,85vw)] flex-col bg-[#111827] border-r border-white/[0.08] shadow-2xl',
               'transition-transform duration-280 ease-sheet',
               'will-change-transform motion-reduce:transition-none',
               drawerOpen ? 'translate-x-0' : '-translate-x-full',
@@ -482,14 +478,14 @@ export const AppShell: React.FC<AppShellProps> = ({ toolbar, title, children }) 
               if (!drawerOpen) setIsDrawerMounted(false);
             }}
           >
-            <div className="flex h-14 shrink-0 items-center justify-between px-4">
-              <span className="text-lg font-extrabold tracking-tight text-primary">
-                {env.appName}
-              </span>
+            <div className="flex h-16 shrink-0 items-center justify-between px-4 border-b border-white/[0.06]">
+              <Link to="/app" onClick={() => setDrawerOpen(false)} className="flex items-center gap-2">
+                <BrandLogo variant="full" size="md" className="h-10 sm:h-11 w-auto" />
+              </Link>
               <button
                 type="button"
                 onClick={() => setDrawerOpen(false)}
-                className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent"
+                className="flex h-11 w-11 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white"
                 aria-label="Close menu"
               >
                 <X className="h-5 w-5" />
@@ -502,25 +498,19 @@ export const AppShell: React.FC<AppShellProps> = ({ toolbar, title, children }) 
 
       <div className="lg:pl-64">
         {/* ---- Topbar ---- */}
-        {/*
-         * Topbar carries identity only: where you are, your notifications, your
-         * account. Page actions (filters, export, add, refresh) belong to the page
-         * that owns them and are rendered in its own toolbar, so the bar stays the
-         * same everywhere and never runs out of room on a phone.
-         */}
-        <header className="sticky top-0 z-30 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+        <header className="sticky top-0 z-30 border-b border-white/[0.08] bg-[#09090B]/85 backdrop-blur-xl supports-[backdrop-filter]:bg-[#09090B]/80">
           <div className="flex h-14 items-center gap-2 px-3 sm:px-6">
             <button
               type="button"
               onClick={openDrawer}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent lg:hidden"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white lg:hidden"
               aria-label="Open menu"
             >
               <Menu className="h-5 w-5" />
             </button>
 
             {title && (
-              <h1 className="min-w-0 truncate text-base font-bold tracking-tight text-foreground sm:text-lg">
+              <h1 className="min-w-0 truncate text-base font-bold tracking-tight text-white sm:text-lg">
                 {title}
               </h1>
             )}
@@ -529,11 +519,11 @@ export const AppShell: React.FC<AppShellProps> = ({ toolbar, title, children }) 
             <button
               type="button"
               onClick={() => setPaletteOpen(true)}
-              className="ml-4 hidden h-9 min-w-0 max-w-xs flex-1 items-center gap-2 rounded-lg border border-border bg-muted/60 px-3 text-left text-sm text-muted-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:flex"
+              className="ml-4 hidden h-9 min-w-0 max-w-xs flex-1 items-center gap-2 rounded-xl border border-white/[0.08] bg-[#18181B] px-3 text-left text-sm text-slate-400 transition-colors hover:border-white/[0.16] hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:flex"
             >
               <Search className="h-4 w-4 shrink-0" />
               <span className="min-w-0 flex-1 truncate">Search</span>
-              <kbd className="shrink-0 rounded border border-border bg-card px-1.5 font-mono text-[10px] font-semibold">
+              <kbd className="shrink-0 rounded border border-white/[0.08] bg-[#1F2937] px-1.5 font-mono text-[10px] font-semibold text-slate-300">
                 ⌘K
               </kbd>
             </button>

@@ -28,7 +28,7 @@ export type ChatHistoryPayload = {
 };
 
 /**
- * Sends a conversational message to the SplitWise AI Assistant.
+ * Sends a conversational message to the SplitMoney AI Assistant.
  * Passes previous in-memory conversation history and optional AbortSignal for cancellation.
  */
 export const sendAiMessage = async (

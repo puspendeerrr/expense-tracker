@@ -1,4 +1,4 @@
-# SplitWise — the whole stack on one EC2 instance.
+# SplitMoney — the whole stack on one EC2 instance.
 #
 #   caddy     TLS termination and reverse proxy. Obtains and renews a real
 #             certificate from Let's Encrypt on its own, given a domain name.
@@ -15,19 +15,19 @@
 services:
   postgres:
     image: postgres:17-alpine
-    container_name: splitwise-postgres
+    container_name: splitmoney-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-splitwise}
+      POSTGRES_USER: ${POSTGRES_USER:-splitmoney}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-      POSTGRES_DB: ${POSTGRES_DB:-splitwise}
+      POSTGRES_DB: ${POSTGRES_DB:-splitmoney}
     volumes:
-      - splitwise-pgdata:/var/lib/postgresql/data
+      - splitmoney-pgdata:/var/lib/postgresql/data
       # Backups written here are visible on the host, so they can be copied off
       # the instance. A backup that only exists inside the container is not one.
       - ./backups:/backups
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-splitwise} -d ${POSTGRES_DB:-splitwise}']
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-splitmoney} -d ${POSTGRES_DB:-splitmoney}']
       interval: 10s
       timeout: 5s
       retries: 10
@@ -40,16 +40,16 @@ services:
       # Vite inlines these at build time, so they belong here rather than in
       # `environment`. Setting them there would have no effect on the bundle.
       args:
-        VITE_APP_NAME: ${VITE_APP_NAME:-SplitWise}
+        VITE_APP_NAME: ${VITE_APP_NAME:-SplitMoney}
         # Empty means "same origin", which is correct here: the API and the SPA
         # are served by this same container behind the same domain.
         VITE_API_BASE_URL: ''
         VITE_SOCKET_URL: ''
         VITE_CLOUDINARY_CLOUD_NAME: ${VITE_CLOUDINARY_CLOUD_NAME:-}
         VITE_CLOUDINARY_UPLOAD_PRESET: ${VITE_CLOUDINARY_UPLOAD_PRESET:-}
-        VITE_CLOUDINARY_FOLDER: ${VITE_CLOUDINARY_FOLDER:-splitwise}
+        VITE_CLOUDINARY_FOLDER: ${VITE_CLOUDINARY_FOLDER:-splitmoney}
         VITE_VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
-    container_name: splitwise-app
+    container_name: splitmoney-app
     restart: unless-stopped
     depends_on:
       postgres:
@@ -59,7 +59,7 @@ services:
       PORT: 5000
 
       # `postgres` is the service name above; Docker's internal DNS resolves it.
-      DATABASE_URL: postgres://${POSTGRES_USER:-splitwise}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-splitwise}
+      DATABASE_URL: postgres://${POSTGRES_USER:-splitmoney}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-splitmoney}
 
       # The public address of the app. Same origin for the SPA and the API, so
       # this is one value and the server refuses to boot without it.
@@ -73,13 +73,13 @@ services:
       OTP_HASH_SECRET: ${OTP_HASH_SECRET:?OTP_HASH_SECRET is required}
 
       RESEND_API_KEY: ${RESEND_API_KEY:-}
-      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-SplitWise <onboarding@resend.dev>}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-SplitMoney <onboarding@resend.dev>}
 
       CLOUDINARY_CLOUD_NAME: ${VITE_CLOUDINARY_CLOUD_NAME:-}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
       CLOUDINARY_UPLOAD_PRESET: ${VITE_CLOUDINARY_UPLOAD_PRESET:-}
-      CLOUDINARY_FOLDER: ${VITE_CLOUDINARY_FOLDER:-splitwise}
+      CLOUDINARY_FOLDER: ${VITE_CLOUDINARY_FOLDER:-splitmoney}
 
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
@@ -104,7 +104,7 @@ services:
 
   caddy:
     image: caddy:2-alpine
-    container_name: splitwise-caddy
+    container_name: splitmoney-caddy
     restart: unless-stopped
     depends_on:
       - app
@@ -121,6 +121,6 @@ services:
       - caddy-config:/config
 
 volumes:
-  splitwise-pgdata:
+  splitmoney-pgdata:
   caddy-data:
   caddy-config:

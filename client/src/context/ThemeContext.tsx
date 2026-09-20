@@ -14,7 +14,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 
 export type ThemePreference = 'light' | 'dark' | 'system';
 
-const STORAGE_KEY = 'splitwise-theme';
+const STORAGE_KEY = 'splitmoney-theme';
 
 interface ThemeContextValue {
   /** What the user chose. */
@@ -37,10 +37,8 @@ const readStored = (): ThemePreference => {
   } catch {
     // Private mode, blocked storage, or a thumbnail capture: fall through to the default.
   }
-  // Light, not 'system'. SplitWise is a light product everywhere outside this console,
-  // so following the OS would drop an operator into an all-dark console they never
-  // asked for, next to a light user app. Dark is opt-in.
-  return 'light';
+  // Dark mode is default across the entire application.
+  return 'dark';
 };
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {

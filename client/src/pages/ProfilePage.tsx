@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Wallet,
   ChevronRight,
   User as UserIcon,
   Shield,
@@ -21,6 +20,7 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { UserNav } from '@/components/navigation/UserNav';
 import { Button } from '@/components/ui/button';
+import { BrandLogo } from '@/components/brand/BrandLogo';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -199,15 +199,7 @@ export const ProfilePage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link to="/app" className="flex items-center gap-3 group">
-              <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center text-white shadow-sm shadow-emerald-700/20 group-hover:scale-105 transition-transform">
-                <Wallet className="h-5 w-5" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-lg font-extrabold tracking-tight text-foreground">SplitWise</span>
-                <span className="text-[9px] uppercase font-bold tracking-widest text-emerald-700 dark:text-emerald-400 -mt-1">
-                  Workspace
-                </span>
-              </div>
+              <BrandLogo variant="full" size="md" className="h-10 sm:h-11 w-auto" />
             </Link>
           </div>
 
@@ -255,7 +247,7 @@ export const ProfilePage: React.FC = () => {
                 <UserIcon className="h-5 w-5 text-emerald-700 dark:text-emerald-400" />
                 Personal Details
               </CardTitle>
-              <CardDescription>Your public identity across your SplitWise groups</CardDescription>
+              <CardDescription>Your public identity across your SplitMoney groups</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSavePersonalInfo} className="space-y-4">

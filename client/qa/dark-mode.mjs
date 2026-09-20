@@ -44,7 +44,7 @@ page.on('pageerror', (e) => failures.push(`pageerror: ${e.message}`));
 const setTheme = async (value) => {
   await page.evaluate((v) => {
     try {
-      localStorage.setItem('splitwise-theme', v);
+      localStorage.setItem('splitmoney-theme', v);
     } catch {
       /* ignore */
     }

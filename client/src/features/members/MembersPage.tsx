@@ -209,6 +209,18 @@ export const MembersPage: React.FC = () => {
                 <MemberRowSkeleton key={index} />
               ))}
             </ul>
+          ) : sorted.length === 0 ? (
+            <div className="px-4 py-14 text-center">
+              <div className="mx-auto mb-3.5 flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/10 shadow-lg shadow-emerald-950/30">
+                <Users2 className="h-7 w-7 text-emerald-400" />
+              </div>
+              <p className="mt-2 text-base font-semibold text-slate-100">
+                No other members yet
+              </p>
+              <p className="mx-auto mt-1 max-w-xs text-sm text-slate-400">
+                Share your group invite link or QR code to bring people in and start splitting expenses.
+              </p>
+            </div>
           ) : (
             <ul>
               {sorted.map((member) => {
@@ -225,7 +237,7 @@ export const MembersPage: React.FC = () => {
                       className="flex min-w-0 flex-1 items-center gap-3 text-left"
                     >
                       <Avatar className="h-11 w-11 shrink-0">
-                        <AvatarFallback className="bg-muted text-muted-foreground">
+                        <AvatarFallback className="bg-[#1F2937] text-slate-200 border border-white/[0.08] font-semibold text-xs">
                           {initials(member.fullName)}
                         </AvatarFallback>
                       </Avatar>

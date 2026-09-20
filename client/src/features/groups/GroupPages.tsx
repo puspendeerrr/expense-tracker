@@ -21,17 +21,17 @@ const PageShell: React.FC<{
   onBack?: () => void;
   children: React.ReactNode;
 }> = ({ title, description, onBack, children }) => (
-  <div className="min-h-[100dvh] bg-muted">
-    <div className="mx-auto max-w-lg px-4 py-6 sm:px-6">
+  <div className="min-h-[100dvh] bg-[#09090B] text-slate-100 selection:bg-emerald-500/30 selection:text-emerald-300">
+    <div className="mx-auto max-w-lg px-4 py-8 sm:px-6">
       {onBack && (
-        <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2 mb-3">
+        <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2 mb-4 text-slate-400 hover:text-slate-100 hover:bg-white/[0.05]">
           <ArrowLeft className="mr-1.5 h-4 w-4" />
           Back
         </Button>
       )}
-      <h1 className="text-xl font-bold tracking-tight text-foreground">{title}</h1>
-      {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
-      <div className="mt-5">{children}</div>
+      <h1 className="text-2xl font-bold tracking-tight text-slate-100">{title}</h1>
+      {description && <p className="mt-1.5 text-sm text-slate-400">{description}</p>}
+      <div className="mt-6">{children}</div>
     </div>
   </div>
 );
@@ -252,23 +252,23 @@ export const GroupsPage: React.FC = () => {
                 type="button"
                 onClick={() => setActiveGroupId(group.id)}
                 className={cn(
-                  'flex w-full items-center gap-3 rounded-xl border bg-card p-4 text-left transition-colors',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  'flex w-full items-center gap-3 rounded-2xl border p-4 text-left transition-all duration-200',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500',
                   group.id === activeGroupId
-                    ? 'border-primary ring-1 ring-primary/20'
-                    : 'border-border hover:bg-accent',
+                    ? 'border-emerald-500/40 bg-emerald-500/10 shadow-lg shadow-emerald-950/20'
+                    : 'border-white/[0.08] bg-[#18181B] hover:border-white/[0.16] hover:bg-[#1F2937]/50',
                 )}
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold text-foreground">{group.name}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="truncate font-semibold text-slate-100">{group.name}</p>
+                  <p className="text-xs text-slate-400">
                     {group.memberCount ?? 0}{' '}
                     {(group.memberCount ?? 0) === 1 ? 'member' : 'members'}
                     {group.role === 'creator' && ' · you created it'}
                   </p>
                 </div>
                 {group.id === activeGroupId && (
-                  <Check className="h-5 w-5 shrink-0 text-primary" />
+                  <Check className="h-5 w-5 shrink-0 text-emerald-400" />
                 )}
               </button>
             ))

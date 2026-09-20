@@ -240,7 +240,7 @@ export const GroupMediaEditor: React.FC<GroupMediaEditorProps> = ({
             <p className="truncate text-sm font-bold">{groupName}</p>
             <p className="flex items-center gap-1 t-meta">
               <Users2 className="h-3 w-3" />
-              How this group appears across SplitWise
+              How this group appears across SplitMoney
             </p>
           </div>
 

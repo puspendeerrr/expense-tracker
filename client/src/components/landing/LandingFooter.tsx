@@ -1,15 +1,17 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Wallet, ArrowRight, ShieldCheck } from 'lucide-react';
+import { ArrowRight, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { BrandLogo } from '@/components/brand/BrandLogo';
 
 export const LandingFooter: React.FC = () => {
   return (
-    <footer className="bg-slate-900 text-slate-300">
+    <footer className="bg-[#09090B] text-slate-400 border-t border-white/[0.08] relative overflow-hidden">
       {/* Pre-Footer Call to Action Banner */}
-      <div className="border-b border-slate-800 py-16 sm:py-20 px-4 sm:px-6 lg:px-8">
+      <div className="border-b border-white/[0.08] py-16 sm:py-24 px-4 sm:px-6 lg:px-8 relative">
+        <div className="absolute top-12 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-emerald-500/[0.08] blur-[120px] pointer-events-none -z-10" />
         <div className="max-w-4xl mx-auto text-center space-y-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold uppercase tracking-wider">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-bold uppercase tracking-wider">
             <span>Get Started in 60 Seconds</span>
           </div>
 
@@ -25,7 +27,7 @@ export const LandingFooter: React.FC = () => {
             <Button
               asChild
               size="lg"
-              className="w-full sm:w-auto bg-primary hover:bg-emerald-600 text-white font-semibold text-base px-8 h-12 shadow-lg shadow-emerald-900/40"
+              className="w-full sm:w-auto font-semibold text-base px-8 h-12 shadow-lg shadow-emerald-950/40"
             >
               <Link to="/signup">
                 Create Free Account
@@ -36,7 +38,7 @@ export const LandingFooter: React.FC = () => {
               asChild
               variant="outline"
               size="lg"
-              className="w-full sm:w-auto border-slate-700 bg-slate-800/60 text-white hover:bg-slate-800 font-semibold text-base px-8 h-12"
+              className="w-full sm:w-auto font-semibold text-base px-8 h-12"
             >
               <Link to="/login">Sign In</Link>
             </Button>
@@ -46,14 +48,13 @@ export const LandingFooter: React.FC = () => {
 
       {/* Main Footer Links & Information */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6 pb-8 border-b border-slate-800 text-center md:text-left">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6 pb-8 border-b border-white/[0.08] text-center md:text-left">
           <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center text-white shadow-sm shadow-emerald-700/30">
-              <Wallet className="h-5 w-5" />
-            </div>
-            <span className="text-xl font-extrabold tracking-tight text-white font-sans">
-              SplitWise
-            </span>
+            <BrandLogo
+              variant="full"
+              size="lg"
+              className="h-12 sm:h-14 w-auto opacity-95 hover:opacity-100 transition-opacity"
+            />
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-slate-400 font-medium">
@@ -69,12 +70,12 @@ export const LandingFooter: React.FC = () => {
 
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 text-center sm:text-left">
           <div className="flex items-center gap-1.5 justify-center">
-            <ShieldCheck className="h-4 w-4 text-emerald-500 flex-shrink-0" />
-            <span>Safe, secure & encrypted</span>
+            <ShieldCheck className="h-4 w-4 text-emerald-400 flex-shrink-0" />
+            <span className="text-slate-400">Safe, secure &amp; 256-bit encrypted</span>
           </div>
 
           <p>
-            © {new Date().getFullYear()} SplitWise. All rights reserved.
+            © {new Date().getFullYear()} SplitMoney. All rights reserved.
           </p>
         </div>
       </div>

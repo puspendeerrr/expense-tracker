@@ -122,30 +122,30 @@ export const SignupPage: React.FC = () => {
 
   return (
     <AuthLayout>
-      <Card className="border-border shadow-xl shadow-slate-900/5">
+      <Card className="border border-white/[0.08] bg-[#18181B]/95 backdrop-blur-xl shadow-2xl shadow-black/60">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold tracking-tight text-foreground">
+          <CardTitle className="text-2xl font-bold tracking-tight text-white">
             Create an account
           </CardTitle>
-          <CardDescription>
-            Join SplitWise to split bills and track balances with flatmates
+          <CardDescription className="text-slate-400">
+            Join SplitMoney to split bills and track balances with flatmates
           </CardDescription>
         </CardHeader>
 
         <CardContent>
           {generalError && (
-            <Alert variant="destructive" className="mb-5">
+            <Alert variant="destructive" className="mb-5 bg-red-950/30 border border-red-500/20 text-red-300">
               <AlertDescription>{generalError}</AlertDescription>
             </Alert>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             <div className="space-y-1.5">
-              <Label htmlFor="fullName" required>
+              <Label htmlFor="fullName" required className="text-slate-200">
                 Full name
               </Label>
               <div className="relative">
-                <UserIcon className="absolute left-3.5 top-3.5 h-4 w-4 text-muted-foreground" />
+                <UserIcon className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
                 <Input
                   id="fullName"
                   type="text"
@@ -160,16 +160,16 @@ export const SignupPage: React.FC = () => {
                 />
               </div>
               {fieldErrors.fullName && (
-                <p className="text-xs text-destructive mt-1 font-medium">{fieldErrors.fullName}</p>
+                <p className="text-xs text-red-400 mt-1 font-medium">{fieldErrors.fullName}</p>
               )}
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="email" required>
+              <Label htmlFor="email" required className="text-slate-200">
                 Email address
               </Label>
               <div className="relative">
-                <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-muted-foreground" />
+                <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
                 <Input
                   id="email"
                   type="email"
@@ -184,16 +184,16 @@ export const SignupPage: React.FC = () => {
                 />
               </div>
               {fieldErrors.email && (
-                <p className="text-xs text-destructive mt-1 font-medium">{fieldErrors.email}</p>
+                <p className="text-xs text-red-400 mt-1 font-medium">{fieldErrors.email}</p>
               )}
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="password" required>
+              <Label htmlFor="password" required className="text-slate-200">
                 Password
               </Label>
               <div className="relative">
-                <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-muted-foreground" />
+                <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
@@ -209,24 +209,24 @@ export const SignupPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 text-muted-foreground hover:text-foreground focus:outline-none transition-colors"
+                  className="absolute right-3 top-3 text-slate-400 hover:text-white focus:outline-none transition-colors"
                   tabIndex={-1}
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4 text-slate-400" />}
                 </button>
               </div>
               {fieldErrors.password && (
-                <p className="text-xs text-destructive mt-1 font-medium">{fieldErrors.password}</p>
+                <p className="text-xs text-red-400 mt-1 font-medium">{fieldErrors.password}</p>
               )}
               <PasswordStrengthIndicator password={password} />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="confirmPassword" required>
+              <Label htmlFor="confirmPassword" required className="text-slate-200">
                 Confirm password
               </Label>
               <div className="relative">
-                <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-muted-foreground" />
+                <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
                 <Input
                   id="confirmPassword"
                   type={showConfirmPassword ? 'text' : 'password'}
@@ -242,14 +242,14 @@ export const SignupPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-3 text-muted-foreground hover:text-foreground focus:outline-none transition-colors"
+                  className="absolute right-3 top-3 text-slate-400 hover:text-white focus:outline-none transition-colors"
                   tabIndex={-1}
                 >
-                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4 text-slate-400" />}
                 </button>
               </div>
               {fieldErrors.confirmPassword && (
-                <p className="text-xs text-destructive mt-1 font-medium">
+                <p className="text-xs text-red-400 mt-1 font-medium">
                   {fieldErrors.confirmPassword}
                 </p>
               )}
@@ -257,7 +257,7 @@ export const SignupPage: React.FC = () => {
 
             <Button
               type="submit"
-              className="w-full mt-2 font-semibold"
+              className="w-full mt-2 font-semibold shadow-lg shadow-emerald-950/40"
               size="lg"
               isLoading={isLoading}
             >
@@ -266,11 +266,11 @@ export const SignupPage: React.FC = () => {
             </Button>
           </form>
 
-          <div className="mt-6 pt-5 border-t border-border text-center text-sm text-muted-foreground">
+          <div className="mt-6 pt-5 border-t border-white/[0.08] text-center text-sm text-slate-400">
             Already have an account?{' '}
             <Link
               to="/login"
-              className="font-semibold text-primary hover:text-emerald-700 dark:text-emerald-400 hover:underline transition-colors"
+              className="font-semibold text-emerald-400 hover:text-emerald-300 hover:underline transition-colors"
             >
               Sign in instead
             </Link>

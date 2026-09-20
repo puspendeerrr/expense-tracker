@@ -37,7 +37,7 @@ export const AiChatButton: React.FC = () => {
           </button>
         </TooltipTrigger>
         <TooltipContent side="left" sideOffset={12} className="text-xs font-semibold">
-          Ask SplitWise AI
+          Ask SplitMoney AI
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

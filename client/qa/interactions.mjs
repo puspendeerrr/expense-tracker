@@ -136,7 +136,7 @@ if ((await recent.count()) > 0) {
 /* ---- 7. Mobile + dark across the touched screens ---- */
 
 await page.setViewportSize({ width: 390, height: 844 });
-await page.evaluate(() => localStorage.setItem('splitwise-theme', 'dark'));
+await page.evaluate(() => localStorage.setItem('splitmoney-theme', 'dark'));
 for (const path of ['/app', '/app/notifications', '/app/settlements', '/app/activity']) {
   await page.goto(BASE + path, { waitUntil: 'networkidle' });
   await page.waitForTimeout(1200);
@@ -146,7 +146,7 @@ for (const path of ['/app', '/app/notifications', '/app/settlements', '/app/acti
   if (over > 0) fails.push(path + ': mobile/dark overflow ' + over + 'px');
 }
 console.log('mobile + dark overflow across 4 screens: 0');
-await page.evaluate(() => localStorage.setItem('splitwise-theme', 'light'));
+await page.evaluate(() => localStorage.setItem('splitmoney-theme', 'light'));
 
 await context.close();
 await browser.close();

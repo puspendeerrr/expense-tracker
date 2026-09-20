@@ -145,17 +145,17 @@ export const NotificationBell: React.FC = () => {
 
       <DropdownMenuContent
         align="end"
-        className="w-[min(22rem,calc(100vw-1.5rem))] p-0"
+        className="w-[min(22rem,calc(100vw-1.5rem))] p-0 bg-[#18181B] border border-white/[0.08] shadow-2xl shadow-black/80 rounded-2xl overflow-hidden backdrop-blur-xl"
       >
-        <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
-          <span className="text-sm font-bold text-foreground">Notifications</span>
+        <div className="flex items-center justify-between border-b border-white/[0.08] px-3.5 py-2.5 bg-[#111827]/80">
+          <span className="text-sm font-bold text-white">Notifications</span>
           {unreadCount > 0 && (
             <Button
               variant="ghost"
               size="sm"
               onClick={markAllRead}
               disabled={isMarking}
-              className="h-8 text-xs"
+              className="h-8 text-xs text-emerald-400 hover:text-emerald-300 hover:bg-white/[0.06]"
             >
               {isMarking ? (
                 <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
@@ -179,9 +179,14 @@ export const NotificationBell: React.FC = () => {
             </div>
           ) : (items?.length ?? 0) === 0 ? (
             <div className="px-4 py-10 text-center">
-              <Bell className="mx-auto h-7 w-7 text-muted-foreground/60" />
-              <p className="mt-2 text-sm font-medium text-muted-foreground">
-                You are all caught up.
+              <div className="mx-auto mb-2.5 flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                <Bell className="h-5 w-5" />
+              </div>
+              <p className="text-sm font-semibold text-white">
+                All caught up
+              </p>
+              <p className="text-xs text-slate-400 mt-0.5">
+                No new notifications right now.
               </p>
             </div>
           ) : (
@@ -194,8 +199,8 @@ export const NotificationBell: React.FC = () => {
                       type="button"
                       onClick={() => void openNotification(item)}
                       className={cn(
-                        'flex w-full gap-2.5 border-b border-border px-3 py-3 text-left transition-colors last:border-b-0 hover:bg-accent',
-                        !item.isRead && 'bg-primary/5',
+                        'flex w-full gap-2.5 border-b border-white/[0.06] px-3 py-3 text-left transition-colors last:border-b-0 hover:bg-white/[0.04]',
+                        !item.isRead && 'bg-emerald-500/[0.06]',
                       )}
                     >
                       {/* The icon carries the priority, so security and money-related
@@ -210,18 +215,13 @@ export const NotificationBell: React.FC = () => {
                         <meta.icon className="h-3.5 w-3.5" />
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span
-                          className={cn(
-                            'block truncate text-sm text-foreground',
-                            item.isRead ? 'font-semibold' : 'font-bold',
-                          )}
-                        >
+                        <span className="block truncate text-sm font-semibold text-white">
                           {item.title}
                         </span>
-                        <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
+                        <span className="mt-0.5 block text-xs leading-relaxed text-slate-400">
                           {item.message}
                         </span>
-                        <span className="mt-1 block text-[11px] text-muted-foreground">
+                        <span className="mt-1 block text-[11px] text-slate-500">
                           {meta.category} · {relativeTime(item.createdAt)}
                         </span>
                       </span>
@@ -241,14 +241,14 @@ export const NotificationBell: React.FC = () => {
 
         {/* The panel is a preview of the newest few; everything else lives on its own
             screen, where it can be filtered and worked through. */}
-        <div className="border-t border-border p-1">
+        <div className="border-t border-white/[0.08] p-1.5 bg-[#111827]/80">
           <button
             type="button"
             onClick={() => {
               setOpen(false);
               navigate('/app/notifications');
             }}
-            className="flex min-h-[44px] w-full items-center justify-center rounded-lg text-sm font-semibold text-primary transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex min-h-[40px] w-full items-center justify-center rounded-xl text-xs font-semibold text-emerald-400 transition-colors hover:bg-white/[0.06] hover:text-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             View all notifications
           </button>

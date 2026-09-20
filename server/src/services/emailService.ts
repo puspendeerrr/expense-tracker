@@ -81,7 +81,7 @@ const dispatch = async (message: OutboundEmail, kind: string): Promise<void> => 
 /* Templates                                                                  */
 /* -------------------------------------------------------------------------- */
 
-const BRAND = 'SplitWise';
+const BRAND = 'SplitMoney';
 
 type TemplateInput = {
   heading: string;

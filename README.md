@@ -1,4 +1,4 @@
-# SplitWise — Complete Technical & Functional Documentation
+# SplitMoney — Complete Technical & Functional Documentation
 
 A comprehensive, production-grade expense sharing, group debt settlement, and real-time financial tracking platform designed for flatmates, travel groups, households, and shared living communities.
 
@@ -6,9 +6,9 @@ A comprehensive, production-grade expense sharing, group debt settlement, and re
 
 ## 1. Executive System Overview & Design Philosophy
 
-SplitWise solves the everyday friction of shared expenses, bill tracking, and peer-to-peer debt settlements. In traditional shared living environments, roommates and group members struggle with messy notes, delayed settlements, awkward payment reminders, floating-point rounding errors, and lack of transparency.
+SplitMoney solves the everyday friction of shared expenses, bill tracking, and peer-to-peer debt settlements. In traditional shared living environments, roommates and group members struggle with messy notes, delayed settlements, awkward payment reminders, floating-point rounding errors, and lack of transparency.
 
-SplitWise provides a unified, real-time financial ledger that gives every group member total clarity over who paid, who benefited, how much is owed, and how to settle debts instantly with integrated UPI deep links, QR codes, push notifications, and AI-driven spending analytics.
+SplitMoney provides a unified, real-time financial ledger that gives every group member total clarity over who paid, who benefited, how much is owed, and how to settle debts instantly with integrated UPI deep links, QR codes, push notifications, and AI-driven spending analytics.
 
 ### Core Architectural Principles
 * **Integer-Paise Precision**: All monetary values are accumulated and calculated internally in integer paise (\(\text{rupees} \times 100\)). Rounding to rupees happens only at presentation boundaries, guaranteeing zero floating-point penny drift.
@@ -74,7 +74,7 @@ A persistent filter bar that lets members slice and dice group finances without 
 The expense management engine handles the recording, computation, modification, and auditing of group spending.
 
 ### 3.1 Integer-Paise Mathematical Splitting
-When an expense is split among members, division can produce fractional cents/paise. SplitWise uses a remainder distribution algorithm to ensure the sum of shares equals the total amount down to the single paisa:
+When an expense is split among members, division can produce fractional cents/paise. SplitMoney uses a remainder distribution algorithm to ensure the sum of shares equals the total amount down to the single paisa:
 1. Convert total amount to integer paise: \(\text{paise} = \text{round}(\text{amount} \times 100)\).
 2. Calculate the base share per participant: \(\text{base} = \lfloor \text{paise} / N \rfloor\).
 3. Compute the remainder: \(\text{remainder} = \text{paise} \pmod N\).
@@ -107,10 +107,10 @@ When an expense is split among members, division can produce fractional cents/pa
 
 ## 4. Settlement & Peer-to-Peer Payment Workflow
 
-Settlements in SplitWise reflect real-world payments between members, providing complete proof and mutual verification.
+Settlements in SplitMoney reflect real-world payments between members, providing complete proof and mutual verification.
 
 ### 4.1 Debt Simplification & Pairwise Balance Engine
-Unlike naive netting algorithms that reroute debts through unrelated third parties (creating confusion over who owes whom), SplitWise maintains direct pairwise integrity:
+Unlike naive netting algorithms that reroute debts through unrelated third parties (creating confusion over who owes whom), SplitMoney maintains direct pairwise integrity:
 * Calculates the exact net debt vector between User A and User B.
 * If A owes B ₹500 and B owes A ₹200, the system displays a direct net requirement of A paying ₹300 to B.
 * Allows partial settlements, exact balance settlements, or custom amounts.
@@ -144,7 +144,7 @@ To prevent fraudulent or mistaken balance deductions, settlements follow a verif
 
 ## 5. Group Lifecycle & Multi-Tenancy Architecture
 
-SplitWise supports multiple groups with workspace isolation, member onboarding, and administrative governance.
+SplitMoney supports multiple groups with workspace isolation, member onboarding, and administrative governance.
 
 ### 5.1 Multi-Group Management
 * Users can belong to multiple groups simultaneously (e.g., "Apartment 402", "Goa Trip 2026", "Office Lunch Club").
@@ -248,7 +248,7 @@ The generated workbook includes 6 specialized worksheets:
 
 ## 8. AI Financial Assistant & Semantic Vector Search (RAG Engine)
 
-SplitWise includes an integrated AI Assistant powered by Google Gemini and vector embeddings.
+SplitMoney includes an integrated AI Assistant powered by Google Gemini and vector embeddings.
 
 ### 8.1 Conversational Drawer UI
 * Floating action button with an expandable, touch-friendly slide-out chat interface.
@@ -282,7 +282,7 @@ The date resolver and prompt engineering layer understand colloquial Indian phra
 
 ## 9. Administrative, Super-Admin & Inspector Consoles
 
-For platform managers and group auditors, SplitWise provides dedicated management consoles.
+For platform managers and group auditors, SplitMoney provides dedicated management consoles.
 
 ### 9.1 Super-Admin Dashboard (`/admin`)
 * **Global Platform Telemetry**: Total registered users, total active groups, aggregate monetary transactions processed, system uptime.
@@ -298,7 +298,7 @@ For platform managers and group auditors, SplitWise provides dedicated managemen
 
 ## 10. Security, Privacy & Mobile-First UX Architecture
 
-SplitWise is engineered to deliver a secure, high-performance experience across mobile, tablet, and desktop devices.
+SplitMoney is engineered to deliver a secure, high-performance experience across mobile, tablet, and desktop devices.
 
 ### 10.1 Authentication & Data Security
 * **Stateless JWT Authentication**: Secure bearer tokens with configurable expiration.

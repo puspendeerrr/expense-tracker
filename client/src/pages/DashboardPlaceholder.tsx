@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Shield, User as UserIcon, CheckCircle2, Wallet, Activity, Calendar } from 'lucide-react';
+import { Shield, User as UserIcon, CheckCircle2, Activity, Calendar } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { apiRequest } from '@/lib/api';
 
 import { UserNav } from '@/components/navigation/UserNav';
+import { BrandLogo } from '@/components/brand/BrandLogo';
 
 export const DashboardPlaceholder: React.FC = () => {
   const { user } = useAuth();
@@ -35,15 +36,7 @@ export const DashboardPlaceholder: React.FC = () => {
       <header className="bg-card border-b border-border sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center text-white shadow-sm shadow-emerald-700/20">
-              <Wallet className="h-5 w-5" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-lg font-extrabold tracking-tight text-foreground">SplitWise</span>
-              <span className="text-[9px] uppercase font-bold tracking-widest text-emerald-700 dark:text-emerald-400 -mt-1">
-                Workspace
-              </span>
-            </div>
+            <BrandLogo variant="full" size="md" className="h-10 sm:h-11 w-auto" />
           </div>
 
           <div className="flex items-center gap-3">

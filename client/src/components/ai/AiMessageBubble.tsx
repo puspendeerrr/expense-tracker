@@ -131,7 +131,7 @@ export const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
         <div className="flex h-4 w-4 items-center justify-center rounded-full bg-primary/10 text-primary">
           <Sparkles className="h-2.5 w-2.5" />
         </div>
-        <span className="font-semibold text-foreground">SplitWise AI</span>
+        <span className="font-semibold text-foreground">SplitMoney AI</span>
         <span className="text-[10px]">• {formattedTime}</span>
       </div>
 

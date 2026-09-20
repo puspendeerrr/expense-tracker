@@ -12,8 +12,8 @@ export const verifyPassword = (plain: string, hash: string): Promise<boolean> =>
  * Constant-ish-cost dummy comparison used on the login path when no user exists,
  * so response timing does not reveal whether an account is present.
  */
-const DUMMY_HASH = bcrypt.hashSync('splitwise-timing-equalizer', SALT_ROUNDS);
+const DUMMY_HASH = bcrypt.hashSync('splitmoney-timing-equalizer', SALT_ROUNDS);
 
 export const burnPasswordComparison = async (): Promise<void> => {
-  await bcrypt.compare('splitwise-timing-equalizer', DUMMY_HASH);
+  await bcrypt.compare('splitmoney-timing-equalizer', DUMMY_HASH);
 };

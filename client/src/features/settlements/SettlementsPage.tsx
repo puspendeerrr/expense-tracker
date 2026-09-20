@@ -369,7 +369,7 @@ export const SettlementsPage: React.FC = () => {
           * authoritative outstanding amounts, which only the balance engine produces.
           */}
         {!isLoading && (settlements?.length ?? 0) > 0 && (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
             {[
               { label: 'You paid', value: formatPaise(insights.paid) },
               { label: 'You received', value: formatPaise(insights.received) },
@@ -381,12 +381,12 @@ export const SettlementsPage: React.FC = () => {
             ].map((item) => (
               <div
                 key={item.label}
-                className="rounded-xl border border-border bg-card p-2.5"
+                className="rounded-xl border border-white/[0.08] bg-[#18181B] p-3 shadow-md"
               >
-                <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <p className="truncate text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                   {item.label}
                 </p>
-                <p className="t-money mt-0.5 truncate text-sm">{item.value}</p>
+                <p className="t-money mt-1 truncate text-base font-bold text-slate-100">{item.value}</p>
               </div>
             ))}
           </div>
@@ -407,8 +407,8 @@ export const SettlementsPage: React.FC = () => {
                 'min-h-[40px] shrink-0 rounded-full border px-3.5 text-xs font-semibold transition-colors',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 status === option.value
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-border bg-card text-muted-foreground hover:bg-accent',
+                  ? 'border-emerald-500/50 bg-emerald-500/15 text-emerald-400 font-bold shadow-sm shadow-emerald-950/30'
+                  : 'border-white/[0.08] bg-[#111827] text-slate-400 hover:bg-[#18181B] hover:text-slate-200',
               )}
             >
               {option.label}
@@ -447,12 +447,14 @@ export const SettlementsPage: React.FC = () => {
             </ul>
           ) : (settlements?.length ?? 0) === 0 ? (
             <div className="px-4 py-14 text-center">
-              <History className="mx-auto h-9 w-9 text-muted-foreground/60" />
-              <p className="mt-3 text-sm font-semibold text-foreground/80">
+              <div className="mx-auto mb-3.5 flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/10 shadow-lg shadow-emerald-950/30">
+                <History className="h-7 w-7 text-emerald-400" />
+              </div>
+              <p className="mt-2 text-base font-semibold text-slate-100">
                 No settlements {status !== 'all' && 'with this status'}
               </p>
-              <p className="mx-auto mt-1 max-w-xs t-meta">
-                Settlements appear here once someone records a payment.
+              <p className="mx-auto mt-1 max-w-xs text-sm text-slate-400">
+                Settlements appear here once someone records a payment or settles a balance.
               </p>
             </div>
           ) : (

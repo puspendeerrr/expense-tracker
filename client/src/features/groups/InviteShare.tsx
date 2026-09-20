@@ -109,8 +109,8 @@ export const InviteShare: React.FC<InviteShareProps> = ({
   const share = async () => {
     if (!info) return;
     const payload = {
-      title: `Join ${info.groupName} on SplitWise`,
-      text: `Join my group "${info.groupName}" on SplitWise. Invite code: ${info.inviteCode}`,
+      title: `Join ${info.groupName} on SplitMoney`,
+      text: `Join my group "${info.groupName}" on SplitMoney. Invite code: ${info.inviteCode}`,
       url: inviteUrl,
     };
 
@@ -129,7 +129,7 @@ export const InviteShare: React.FC<InviteShareProps> = ({
     if (!qrDataUrl || !info) return;
     const link = document.createElement('a');
     link.href = qrDataUrl;
-    link.download = `splitwise-${info.inviteCode}.png`;
+    link.download = `splitmoney-${info.inviteCode}.png`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -187,7 +187,7 @@ export const InviteShare: React.FC<InviteShareProps> = ({
                 {isLoading ? (
                   <Skeleton className="h-52 w-52 rounded-2xl" />
                 ) : qrDataUrl ? (
-                  <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+                  <div className="rounded-2xl border border-white/20 bg-white p-3.5 shadow-lg">
                     <img
                       src={qrDataUrl}
                       alt={`QR code to join ${info?.groupName}`}

@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: splitwise-api
+    name: splitmoney-api
     runtime: node
     plan: free
     region: singapore
@@ -26,15 +26,15 @@ services:
       - key: RESET_TOKEN_TTL_SECONDS
         value: 600
       - key: RESEND_FROM_EMAIL
-        value: SplitWise <onboarding@resend.dev>
+        value: SplitMoney <onboarding@resend.dev>
       - key: CLOUDINARY_UPLOAD_PRESET
-        value: splitwise_unsigned
+        value: splitmoney_unsigned
       - key: CLOUDINARY_FOLDER
-        value: splitwise
+        value: splitmoney
       - key: ADMIN_EMAIL
         value: admin@gmail.com
       - key: ADMIN_NAME
-        value: SplitWise Administrator
+        value: SplitMoney Administrator
       # Set these in the Render dashboard, never here: this file is in a public repo.
       - key: DATABASE_URL
         sync: false

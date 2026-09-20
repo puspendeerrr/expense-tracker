@@ -1,14 +1,14 @@
 # syntax=docker/dockerfile:1
 
 ###############################################################################
-# SplitWise — single image containing the API and the built frontend.
+# SplitMoney — single image containing the API and the built frontend.
 #
 # The frontend is built here and served by the Express server at runtime, so the
 # whole app answers on one origin. That is what removes CORS, cross-site cookie
 # and service-worker problems from the deployment entirely.
 #
 # Build from the repository root:
-#   docker build -t splitwise .
+#   docker build -t splitmoney .
 ###############################################################################
 
 
@@ -33,10 +33,10 @@ COPY client/ ./
 
 ARG VITE_API_BASE_URL=""
 ARG VITE_SOCKET_URL=""
-ARG VITE_APP_NAME="SplitWise"
+ARG VITE_APP_NAME="SplitMoney"
 ARG VITE_CLOUDINARY_CLOUD_NAME=""
 ARG VITE_CLOUDINARY_UPLOAD_PRESET=""
-ARG VITE_CLOUDINARY_FOLDER="splitwise"
+ARG VITE_CLOUDINARY_FOLDER="splitmoney"
 ARG VITE_VAPID_PUBLIC_KEY=""
 ARG VITE_MAX_UPLOAD_BYTES="5242880"
 

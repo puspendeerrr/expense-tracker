@@ -35,12 +35,12 @@ import type { ChartGrouping } from '@/hooks/useDashboardData';
  * belong on one axis; a second axis would silently rescale one series against the other.
  */
 
-const SERIES_TOTAL = '#2a78d6';
-const SERIES_MINE = '#eb6834';
-const BAR_HUE = '#2a78d6';
+const SERIES_TOTAL = '#10b981';
+const SERIES_MINE = '#38bdf8';
+const BAR_HUE = '#10b981';
 
-const AXIS_TICK = { fill: '#64748b', fontSize: 11 };
-const GRID_STROKE = '#e2e8f0';
+const AXIS_TICK = { fill: '#94a3b8', fontSize: 11 };
+const GRID_STROKE = 'rgba(255, 255, 255, 0.06)';
 
 interface ChartTooltipPayloadItem {
   name?: string;
@@ -57,18 +57,17 @@ const MoneyTooltip: React.FC<{
   if (!active || !payload?.length) return null;
 
   return (
-    <div className="rounded-xl border border-border bg-card px-3 py-2 shadow-lg">
-      <p className="mb-1 text-xs font-semibold text-foreground">{label}</p>
+    <div className="rounded-xl border border-white/[0.12] bg-[#1F2937]/95 px-3.5 py-2.5 shadow-2xl backdrop-blur-md">
+      <p className="mb-1 text-xs font-bold text-white">{label}</p>
       {payload.map((item) => (
-        <div key={String(item.dataKey)} className="flex items-center gap-2 text-xs">
+        <div key={String(item.dataKey)} className="flex items-center gap-2.5 text-xs py-0.5">
           <span
             aria-hidden
-            className="h-2 w-2 shrink-0 rounded-full"
+            className="h-2 w-2 shrink-0 rounded-full shadow-sm"
             style={{ backgroundColor: item.color }}
           />
-          {/* Text stays in ink; the swatch carries the identity. */}
-          <span className="text-muted-foreground">{item.name}</span>
-          <span className="ml-auto font-mono font-semibold tabular-nums text-foreground">
+          <span className="text-slate-300">{item.name}</span>
+          <span className="ml-auto font-mono font-bold tabular-nums text-white">
             {formatPaise(Number(item.value ?? 0) * 100)}
           </span>
         </div>
@@ -226,25 +225,25 @@ export const SpendingAnalytics: React.FC<SpendingAnalyticsProps> = ({
                     height={28}
                     iconType="circle"
                     iconSize={8}
-                    wrapperStyle={{ fontSize: 12, color: '#475569' }}
+                    wrapperStyle={{ fontSize: 12, color: '#94a3b8' }}
                   />
                   <Line
                     type="monotone"
                     dataKey="total"
                     name="Group spending"
                     stroke={SERIES_TOTAL}
-                    strokeWidth={2}
+                    strokeWidth={2.5}
                     dot={false}
-                    activeDot={{ r: 5, strokeWidth: 2, stroke: '#ffffff' }}
+                    activeDot={{ r: 6, strokeWidth: 3, stroke: '#10b981', fill: '#09090B' }}
                   />
                   <Line
                     type="monotone"
                     dataKey="mine"
                     name="My share"
                     stroke={SERIES_MINE}
-                    strokeWidth={2}
+                    strokeWidth={2.5}
                     dot={false}
-                    activeDot={{ r: 5, strokeWidth: 2, stroke: '#ffffff' }}
+                    activeDot={{ r: 6, strokeWidth: 3, stroke: '#38bdf8', fill: '#09090B' }}
                   />
                 </LineChart>
               </ResponsiveContainer>

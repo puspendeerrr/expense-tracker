@@ -256,7 +256,7 @@ export const SettingsPage: React.FC = () => {
         {/* ---- Push notifications ---- */}
         <SettingsCard
           title="Push notifications"
-          description="Get alerted about new expenses and payments even when SplitWise is closed."
+          description="Get alerted about new expenses and payments even when SplitMoney is closed."
         >
           {!push.isSupported ? (
             <p className="rounded-xl bg-muted p-3 text-sm text-muted-foreground">

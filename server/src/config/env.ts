@@ -45,7 +45,7 @@ const envSchema = z.object({
   SOURCE_MONGODB_URI: z.string().trim().optional(),
 
   RESEND_API_KEY: z.string().trim().optional(),
-  RESEND_FROM_EMAIL: z.string().trim().default('SplitWise <onboarding@resend.dev>'),
+  RESEND_FROM_EMAIL: z.string().trim().default('SplitMoney <onboarding@resend.dev>'),
 
   // No fallback values here on purpose: a silently-defaulted secret is a silent vulnerability.
   JWT_SECRET: nonEmpty('JWT_SECRET').min(16, 'JWT_SECRET must be at least 16 characters'),
@@ -93,7 +93,7 @@ const envSchema = z.object({
   CLOUDINARY_API_KEY: z.string().trim().optional(),
   CLOUDINARY_API_SECRET: z.string().trim().optional(),
   CLOUDINARY_UPLOAD_PRESET: z.string().trim().optional(),
-  CLOUDINARY_FOLDER: z.string().trim().default('splitwise'),
+  CLOUDINARY_FOLDER: z.string().trim().default('splitmoney'),
 
   /* ---- Gemini AI Assistant ----
    * Optional: AI features will notify if key is missing rather than crash the server. */

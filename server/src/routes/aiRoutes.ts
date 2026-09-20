@@ -9,7 +9,7 @@ import { chat } from '../controllers/aiController.js';
 /**
  * Mounted at /api/ai.
  *
- * Exposes the conversational SplitWise AI assistant. Strictly gated behind
+ * Exposes the conversational SplitMoney AI assistant. Strictly gated behind
  * authentication and per-user rate limiting (20 requests / 15 minutes).
  */
 const router = Router();

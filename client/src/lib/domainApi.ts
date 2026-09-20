@@ -343,7 +343,7 @@ export const downloadExport = async (
 
   return {
     blob: await response.blob(),
-    filename: match?.[1] ?? `splitwise-report-${new Date().toISOString().slice(0, 10)}.xlsx`,
+    filename: match?.[1] ?? `splitmoney-report-${new Date().toISOString().slice(0, 10)}.xlsx`,
   };
 };
 

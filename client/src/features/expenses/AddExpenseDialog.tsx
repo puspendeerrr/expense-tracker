@@ -587,7 +587,7 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({
               value={receipt?.url ?? null}
               onChange={setReceipt}
               label="Receipt (optional)"
-              folder="splitwise/receipts"
+              folder="splitmoney/receipts"
               disabled={isSubmitting}
             />
 

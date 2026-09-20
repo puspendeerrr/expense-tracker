@@ -544,11 +544,13 @@ export const ActivityPage: React.FC = () => {
             </div>
           ) : entries.length === 0 ? (
             <div className="px-4 py-14 text-center">
-              <ActivityIcon className="mx-auto h-9 w-9 text-muted-foreground/60" />
-              <p className="mt-3 text-sm font-semibold text-foreground/80">
+              <div className="mx-auto mb-3.5 flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/10 shadow-lg shadow-emerald-950/30">
+                <ActivityIcon className="h-7 w-7 text-emerald-400" />
+              </div>
+              <p className="mt-2 text-base font-semibold text-slate-100">
                 {hasFilters ? 'Nothing matches those filters' : 'No activity yet'}
               </p>
-              <p className="mx-auto mt-1 max-w-xs t-meta">
+              <p className="mx-auto mt-1 max-w-xs text-sm text-slate-400">
                 {hasFilters
                   ? 'Try a wider date range, or clear the filters to see everything.'
                   : 'Adding expenses and settling up will show up here.'}
@@ -568,16 +570,8 @@ export const ActivityPage: React.FC = () => {
             <ul className="divide-y divide-border">
               {days.map((day) => (
                 <React.Fragment key={day.label}>
-                  {/*
-                    * Not sticky. The card sets `overflow-hidden` so rows can run
-                    * full-bleed inside its rounded corners, and that makes the card
-                    * itself the sticky scroll container. A sticky heading is then
-                    * pinned at its offset permanently, leaving a dead band above every
-                    * group. The heading is short and repeats per day, so losing the
-                    * pinning costs nothing.
-                    */}
-                  <li className="border-y border-border bg-muted px-4 py-2 first:border-t-0">
-                    <span className="t-eyebrow">{day.label}</span>
+                  <li className="border-y border-white/[0.08] bg-[#111827] px-4 py-2 first:border-t-0">
+                    <span className="t-eyebrow text-slate-400">{day.label}</span>
                   </li>
 
                   {day.rows.map((entry) => {

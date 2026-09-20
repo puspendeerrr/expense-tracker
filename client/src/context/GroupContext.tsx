@@ -23,7 +23,7 @@ import type { Group } from '@/types/domain';
  * it too would tell someone their groups had vanished when the request merely failed.
  */
 
-const STORAGE_KEY = 'splitwise:activeGroupId';
+const STORAGE_KEY = 'splitmoney:activeGroupId';
 
 export type GroupStatus = 'loading' | 'ready' | 'error';
 

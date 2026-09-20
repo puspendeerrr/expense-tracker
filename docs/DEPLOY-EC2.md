@@ -1,4 +1,4 @@
-# Deploying SplitWise to AWS EC2
+# Deploying SplitMoney to AWS EC2
 
 Written for someone who has not used AWS before. Every command starting with `$`
 runs on your own laptop; every command starting with `ubuntu@server:~$` runs on
@@ -36,10 +36,10 @@ Fill the form in:
 
 | Field | Value |
 |---|---|
-| Name | `splitwise` |
+| Name | `splitmoney` |
 | AMI (operating system) | **Ubuntu Server 24.04 LTS** |
 | Instance type | **t3.small** |
-| Key pair | **Create new key pair** → name `splitwise-key`, type RSA, format `.pem` → **Download** |
+| Key pair | **Create new key pair** → name `splitmoney-key`, type RSA, format `.pem` → **Download** |
 | Storage | change 8 GiB to **20 GiB** |
 
 > **On instance size:** `t2.micro` is the free-tier option, but it has 1 GB of
@@ -71,7 +71,7 @@ A stopped instance gets a *new* address when it restarts, which would break your
 domain. Pin one:
 
 1. EC2 sidebar → **Elastic IPs** → **Allocate Elastic IP address** → **Allocate**.
-2. Select it → **Actions** → **Associate** → choose your `splitwise` instance →
+2. Select it → **Actions** → **Associate** → choose your `splitmoney` instance →
    **Associate**.
 
 Write this address down. Everything below refers to it as `YOUR_IP`.
@@ -149,8 +149,8 @@ operating system.
 ### macOS or Linux
 
 ```bash
-$ chmod 400 ~/Downloads/splitwise-key.pem
-$ ssh -i ~/Downloads/splitwise-key.pem ubuntu@YOUR_IP
+$ chmod 400 ~/Downloads/splitmoney-key.pem
+$ ssh -i ~/Downloads/splitmoney-key.pem ubuntu@YOUR_IP
 ```
 
 ### Windows
@@ -161,8 +161,8 @@ Ignoring this produces:
 
 ```
 WARNING: UNPROTECTED PRIVATE KEY FILE!
-Permissions for '.\splitwise-key.pem' are too open.
-Load key ".\splitwise-key.pem": bad permissions
+Permissions for '.\splitmoney-key.pem' are too open.
+Load key ".\splitmoney-key.pem": bad permissions
 ubuntu@YOUR_IP: Permission denied (publickey).
 ```
 
@@ -174,20 +174,20 @@ In PowerShell, from the folder holding the file:
 ```powershell
 # Stop inheriting permissions from the parent folder, drop every existing
 # entry, then grant read access to yourself and nobody else.
-> icacls .\splitwise-key.pem /inheritance:r
-> icacls .\splitwise-key.pem /grant:r "$($env:USERNAME):(R)"
+> icacls .\splitmoney-key.pem /inheritance:r
+> icacls .\splitmoney-key.pem /grant:r "$($env:USERNAME):(R)"
 
 # Confirm: the only line listed should be your own account with (R).
-> icacls .\splitwise-key.pem
+> icacls .\splitmoney-key.pem
 
-> ssh -i .\splitwise-key.pem ubuntu@YOUR_IP
+> ssh -i .\splitmoney-key.pem ubuntu@YOUR_IP
 ```
 
 If `icacls` reports *"No mapping between account names and security IDs"*, pass
 the fully qualified name instead:
 
 ```powershell
-> icacls .\splitwise-key.pem /grant:r "$(whoami):(R)"
+> icacls .\splitmoney-key.pem /grant:r "$(whoami):(R)"
 ```
 
 > **Move the key somewhere permanent.** `Downloads` gets cleared, and this file
@@ -217,7 +217,7 @@ new session**. Log out and back in:
 
 ```bash
 ubuntu@server:~$ exit
-$ ssh -i ~/Downloads/splitwise-key.pem ubuntu@YOUR_IP
+$ ssh -i ~/Downloads/splitmoney-key.pem ubuntu@YOUR_IP
 ubuntu@server:~$ docker --version
 ```
 
@@ -226,8 +226,8 @@ ubuntu@server:~$ docker --version
 ## Step 6 — Get the code onto the server
 
 ```bash
-ubuntu@server:~$ git clone https://github.com/YOUR_USERNAME/YOUR_REPO.git splitwise
-ubuntu@server:~$ cd splitwise
+ubuntu@server:~$ git clone https://github.com/YOUR_USERNAME/YOUR_REPO.git splitmoney
+ubuntu@server:~$ cd splitmoney
 ```
 
 For a private repository, generate a deploy key:
@@ -387,7 +387,7 @@ Useful flags:
 ## Deploying a change later
 
 ```bash
-ubuntu@server:~$ cd splitwise
+ubuntu@server:~$ cd splitmoney
 ubuntu@server:~$ git pull
 ubuntu@server:~$ docker compose -f docker-compose.prod.yml up -d --build
 ```
@@ -403,7 +403,7 @@ The database lives in a Docker volume. **A snapshot of the volume is not enough
 on its own** — take real dumps:
 
 ```bash
-ubuntu@server:~$ docker compose -f docker-compose.prod.yml exec -T postgres pg_dump -U splitwise splitwise | gzip > backups/$(date +%F).sql.gz
+ubuntu@server:~$ docker compose -f docker-compose.prod.yml exec -T postgres pg_dump -U splitmoney splitmoney | gzip > backups/$(date +%F).sql.gz
 ```
 
 To run that nightly at 3am:
@@ -415,20 +415,20 @@ ubuntu@server:~$ crontab -e
 Add:
 
 ```
-0 3 * * * cd /home/ubuntu/splitwise && docker compose -f docker-compose.prod.yml exec -T postgres pg_dump -U splitwise splitwise | gzip > backups/$(date +\%F).sql.gz
+0 3 * * * cd /home/ubuntu/splitmoney && docker compose -f docker-compose.prod.yml exec -T postgres pg_dump -U splitmoney splitmoney | gzip > backups/$(date +\%F).sql.gz
 ```
 
 Copy a backup to your laptop periodically — a backup that only exists on the
 server is lost along with the server:
 
 ```bash
-$ scp -i ~/Downloads/splitwise-key.pem ubuntu@YOUR_IP:~/splitwise/backups/*.gz ./
+$ scp -i ~/Downloads/splitmoney-key.pem ubuntu@YOUR_IP:~/splitmoney/backups/*.gz ./
 ```
 
 To restore:
 
 ```bash
-ubuntu@server:~$ gunzip -c backups/2026-01-15.sql.gz | docker compose -f docker-compose.prod.yml exec -T postgres psql -U splitwise splitwise
+ubuntu@server:~$ gunzip -c backups/2026-01-15.sql.gz | docker compose -f docker-compose.prod.yml exec -T postgres psql -U splitmoney splitmoney
 ```
 
 ---
@@ -473,12 +473,12 @@ If you are set on `t2.micro`, build the image on your laptop and ship it rather
 than building on the server:
 
 ```bash
-$ docker build -t splitwise:latest .
-$ docker save splitwise:latest | gzip | ssh -i ~/Downloads/splitwise-key.pem ubuntu@YOUR_IP "gunzip | docker load"
+$ docker build -t splitmoney:latest .
+$ docker save splitmoney:latest | gzip | ssh -i ~/Downloads/splitmoney-key.pem ubuntu@YOUR_IP "gunzip | docker load"
 ```
 
 Then on the server, edit `docker-compose.prod.yml` to replace the `build:` block
-with `image: splitwise:latest`, and run `up -d` without `--build`.
+with `image: splitmoney:latest`, and run `up -d` without `--build`.
 
 ---
 

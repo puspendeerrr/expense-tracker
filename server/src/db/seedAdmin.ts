@@ -14,7 +14,7 @@ import { hashPassword } from '../services/passwordService.js';
  * default on a public deployment would be the same mistake with extra steps.
  */
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL?.trim() || 'admin@gmail.com';
-const ADMIN_NAME = process.env.ADMIN_NAME?.trim() || 'SplitWise Administrator';
+const ADMIN_NAME = process.env.ADMIN_NAME?.trim() || 'SplitMoney Administrator';
 
 const DEV_FALLBACK_PASSWORD = 'Master@123';
 

@@ -28,16 +28,16 @@ export const LandingSecurity: React.FC = () => {
   ];
 
   return (
-    <section id="security" className="py-20 bg-white">
+    <section id="security" className="py-24 bg-[#09090B] relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="max-w-3xl mx-auto text-center space-y-3 mb-14">
-          <Badge variant="verified" className="text-xs font-bold uppercase tracking-wider">
-            Security & Privacy
+        <div className="max-w-3xl mx-auto text-center space-y-3 mb-16">
+          <Badge variant="verified" className="text-xs font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            Security &amp; Privacy
           </Badge>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-950 tracking-tight font-sans">
-            Built with Security & Privacy First
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight font-sans">
+            Built with Security &amp; Privacy First
           </h2>
-          <p className="text-slate-600 text-sm sm:text-base font-medium">
+          <p className="text-slate-400 text-sm sm:text-base font-medium">
             Your personal data and group finances are protected with modern, reliable security standards.
           </p>
         </div>
@@ -46,13 +46,18 @@ export const LandingSecurity: React.FC = () => {
           {securityItems.map((item, idx) => {
             const Icon = item.icon;
             return (
-              <Card key={idx} className="rounded-2xl border-slate-200/90 hover:border-emerald-300 transition-colors shadow-sm">
+              <Card
+                key={idx}
+                className="group rounded-2xl border border-white/[0.08] bg-[#18181B]/90 hover:border-emerald-500/30 hover:-translate-y-1 transition-all duration-300 shadow-xl shadow-black/30"
+              >
                 <CardContent className="p-6 sm:p-7 space-y-3">
-                  <div className="h-11 w-11 rounded-xl bg-emerald-50 border border-emerald-200/80 text-emerald-700 flex items-center justify-center">
+                  <div className="h-11 w-11 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center group-hover:bg-gradient-to-tr group-hover:from-emerald-500 group-hover:to-teal-500 group-hover:text-white transition-all duration-300 shadow-sm">
                     <Icon className="h-5 w-5" />
                   </div>
-                  <h3 className="text-base font-bold text-slate-900">{item.title}</h3>
-                  <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
+                  <h3 className="text-base font-bold text-white group-hover:text-emerald-300 transition-colors">
+                    {item.title}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-400 leading-relaxed font-normal">
                     {item.desc}
                   </p>
                 </CardContent>

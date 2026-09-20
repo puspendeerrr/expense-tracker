@@ -116,7 +116,7 @@ const buildSummarySheet = (
     { key: 'value', width: 44 },
   ];
 
-  const title = sheet.addRow(['SplitWise — Financial Report', '']);
+  const title = sheet.addRow(['SplitMoney — Financial Report', '']);
   title.font = { bold: true, size: 16, color: { argb: BRAND } };
   title.height = 26;
   sheet.mergeCells(`A${title.number}:B${title.number}`);
@@ -420,7 +420,7 @@ export const generateFinancialReport = async (
   sections?: readonly string[],
 ): Promise<GeneratedReport> => {
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'SplitWise';
+  workbook.creator = 'SplitMoney';
   workbook.created = new Date();
 
   const wanted = (name: string) => !sections || sections.includes(name);
@@ -437,6 +437,6 @@ export const generateFinancialReport = async (
 
   return {
     buffer: Buffer.from(arrayBuffer),
-    filename: `splitwise-${slugify(dataset.report.group.name)}-${stamp}.xlsx`,
+    filename: `splitmoney-${slugify(dataset.report.group.name)}-${stamp}.xlsx`,
   };
 };

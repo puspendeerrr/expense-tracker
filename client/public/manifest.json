@@ -1,0 +1,17 @@
+{
+  "name": "SplitMoney",
+  "short_name": "SplitMoney",
+  "description": "Smart Expense Sharing & Group Settlement",
+  "start_url": "/app",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#059669",
+  "icons": [
+    {
+      "src": "/SplitMoney only logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -319,18 +319,20 @@ export const ExpensesPage: React.FC = () => {
               ))}
             </ul>
           ) : (expenses?.length ?? 0) === 0 ? (
-            <div className="px-4 py-14 text-center">
-              <Receipt className="mx-auto h-9 w-9 text-muted-foreground/60" />
-              <p className="mt-3 text-sm font-semibold text-foreground/80">
+            <div className="px-4 py-16 text-center">
+              <div className="mx-auto mb-3.5 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shadow-lg shadow-emerald-950/20">
+                <Receipt className="h-7 w-7" />
+              </div>
+              <p className="text-base font-bold text-white">
                 {activeCount > 0 ? 'No expenses match these filters' : 'No expenses yet'}
               </p>
-              <p className="mx-auto mt-1 max-w-xs t-meta">
+              <p className="mx-auto mt-1 max-w-sm text-xs sm:text-sm text-slate-400">
                 {activeCount > 0
                   ? 'Try widening the date range or clearing a filter.'
                   : 'Add your first expense to start tracking who owes what.'}
               </p>
               {activeCount === 0 && (
-                <Button className="mt-4" onClick={() => setCreating(true)}>
+                <Button className="mt-5 font-semibold shadow-lg shadow-emerald-950/40" onClick={() => setCreating(true)}>
                   <Plus className="mr-1.5 h-4 w-4" />
                   Add Expense
                 </Button>

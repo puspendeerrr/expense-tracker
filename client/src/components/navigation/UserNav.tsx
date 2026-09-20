@@ -145,7 +145,7 @@ export const UserNav: React.FC<UserNavProps> = ({ className }) => {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-emerald-900 dark:text-emerald-300 flex items-center gap-1.5">
                     <Sparkles className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                    Welcome to SplitWise!
+                    Welcome to SplitMoney!
                   </span>
                   <span className="text-[10px] text-muted-foreground">Just now</span>
                 </div>

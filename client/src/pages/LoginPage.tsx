@@ -39,7 +39,7 @@ export const LoginPage: React.FC = () => {
     try {
       await login(trimmedEmail, password);
       toast.success('Signed in successfully!', {
-        description: 'Welcome back to SplitWise.',
+        description: 'Welcome back to SplitMoney.',
       });
       navigate(from, { replace: true });
     } catch (err: unknown) {
@@ -71,30 +71,30 @@ export const LoginPage: React.FC = () => {
 
   return (
     <AuthLayout>
-      <Card className="border-border shadow-xl shadow-slate-900/5">
+      <Card className="border border-white/[0.08] bg-[#18181B]/95 backdrop-blur-xl shadow-2xl shadow-black/60">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold tracking-tight text-foreground">
+          <CardTitle className="text-2xl font-bold tracking-tight text-white">
             Sign in to your account
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-slate-400">
             Enter your credentials to manage your shared expenses
           </CardDescription>
         </CardHeader>
 
         <CardContent>
           {errorMessage && (
-            <Alert variant="destructive" className="mb-5">
+            <Alert variant="destructive" className="mb-5 bg-red-950/30 border border-red-500/20 text-red-300">
               <AlertDescription>{errorMessage}</AlertDescription>
             </Alert>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             <div className="space-y-1.5">
-              <Label htmlFor="email" required>
+              <Label htmlFor="email" required className="text-slate-200">
                 Email address
               </Label>
               <div className="relative">
-                <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-muted-foreground" />
+                <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
                 <Input
                   id="email"
                   type="email"
@@ -112,19 +112,19 @@ export const LoginPage: React.FC = () => {
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password" required>
+                <Label htmlFor="password" required className="text-slate-200">
                   Password
                 </Label>
                 <Link
                   to="/forgot-password"
-                  className="text-xs font-medium text-primary hover:underline hover:text-emerald-700 dark:text-emerald-400 transition-colors"
+                  className="text-xs font-semibold text-emerald-400 hover:underline hover:text-emerald-300 transition-colors"
                 >
                   Forgot password?
                 </Link>
               </div>
 
               <div className="relative">
-                <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-muted-foreground" />
+                <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
@@ -139,18 +139,18 @@ export const LoginPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 text-muted-foreground hover:text-foreground focus:outline-none focus:text-foreground transition-colors"
+                  className="absolute right-3 top-3 text-slate-400 hover:text-white focus:outline-none transition-colors"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                   tabIndex={-1}
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4 text-slate-400" />}
                 </button>
               </div>
             </div>
 
             <Button
               type="submit"
-              className="w-full mt-2 font-semibold"
+              className="w-full mt-2 font-semibold shadow-lg shadow-emerald-950/40"
               size="lg"
               isLoading={isLoading}
             >
@@ -159,11 +159,11 @@ export const LoginPage: React.FC = () => {
             </Button>
           </form>
 
-          <div className="mt-6 pt-5 border-t border-border text-center text-sm text-muted-foreground">
+          <div className="mt-6 pt-5 border-t border-white/[0.08] text-center text-sm text-slate-400">
             Don't have an account?{' '}
             <Link
               to="/signup"
-              className="font-semibold text-primary hover:text-emerald-700 dark:text-emerald-400 hover:underline transition-colors"
+              className="font-semibold text-emerald-400 hover:text-emerald-300 hover:underline transition-colors"
             >
               Create an account
             </Link>

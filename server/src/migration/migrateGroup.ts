@@ -42,7 +42,7 @@ import {
  *    what already exists rather than duplicating it.
  *  - Money is converted to integer paise and every expense is made to reconcile exactly,
  *    with each repair reported.
- *  - Existing SplitWise accounts are matched by email and never overwritten.
+ *  - Existing SplitMoney accounts are matched by email and never overwritten.
  */
 
 export type MigrationReport = {
@@ -164,7 +164,7 @@ export const migrateGroup = async (options: MigrateOptions): Promise<MigrationRe
   /* 2. Users                                                          */
   /* ---------------------------------------------------------------- */
 
-  /** legacy user id -> SplitWise user id */
+  /** legacy user id -> SplitMoney user id */
   const userIdMap = new Map<string, string>();
 
   for (const legacyUser of legacyUsers) {
@@ -328,7 +328,7 @@ export const migrateGroup = async (options: MigrateOptions): Promise<MigrationRe
   /* 5. Expenses and their frozen participant shares                   */
   /* ---------------------------------------------------------------- */
 
-  /** legacy expense id -> SplitWise expense id */
+  /** legacy expense id -> SplitMoney expense id */
   const expenseIdMap = new Map<string, string>();
 
   for (const legacyExpense of legacyExpenses) {
@@ -456,7 +456,7 @@ export const migrateGroup = async (options: MigrateOptions): Promise<MigrationRe
   /* 6. Settlements                                                    */
   /* ---------------------------------------------------------------- */
 
-  /** legacy settlement id -> SplitWise settlement id */
+  /** legacy settlement id -> SplitMoney settlement id */
   const settlementIdMap = new Map<string, string>();
 
   for (const legacySettlement of legacySettlements) {

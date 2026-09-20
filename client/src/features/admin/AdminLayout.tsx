@@ -106,7 +106,7 @@ const AdminBrand: React.FC = () => (
       <Shield className="h-4 w-4 text-primary" />
     </span>
     <span className="min-w-0">
-      <span className="block truncate text-sm font-bold leading-tight">SplitWise</span>
+      <span className="block truncate text-sm font-bold leading-tight">SplitMoney</span>
       <span className="block truncate text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
         Platform control
       </span>
@@ -216,7 +216,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
               onClick={() => navigate('/app')}
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to SplitWise
+              Back to SplitMoney
             </Button>
           </div>
         </aside>
@@ -262,7 +262,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                   onClick={() => navigate('/app')}
                 >
                   <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back to SplitWise
+                  Back to SplitMoney
                 </Button>
               </div>
             </div>

@@ -4,129 +4,108 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222 47% 11%;
+    /* Default Dark FinTech Surfaces */
+    --background: 240 10% 3.9%; /* #09090B */
+    --foreground: 210 40% 98%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card: 240 5.3% 10%; /* #18181B */
+    --card-foreground: 210 40% 98%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover: 215 28% 17%; /* #1F2937 */
+    --popover-foreground: 210 40% 98%;
 
-    /* SplitWise Emerald Brand Color: #059669 -> HSL 160 84% 39% */
-    --primary: 160 84% 36%;
+    /* SplitMoney Emerald Brand Color: #10b981 */
+    --primary: 160 84% 39%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 215 28% 17%;
+    --secondary-foreground: 210 40% 98%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 217 33% 14%;
+    --muted-foreground: 215 20% 65%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222 47% 11%;
+    --accent: 215 28% 18%;
+    --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 210 40% 98%;
 
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 160 84% 39%;
+
+    --radius: 0.75rem;
+
+    /* Admin console surfaces */
+    --admin-canvas: 240 10% 3.9%;
+    --admin-nav: 220 26% 11.2%;
+    --admin-nav-foreground: 215 20% 65%;
+    --admin-chrome: 240 5.3% 10%;
+    --admin-border: 240 3.7% 15.9%;
+    --admin-radius: 0.625rem;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%; /* #09090B */
+    --foreground: 210 40% 98%;
+
+    --card: 240 5.3% 10%; /* #18181B */
+    --card-foreground: 210 40% 98%;
+
+    --popover: 215 28% 17%; /* #1F2937 */
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 160 84% 39%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 215 28% 17%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217 33% 14%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 215 28% 18%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 160 84% 39%;
+
+    --admin-canvas: 240 10% 3.9%;
+    --admin-nav: 220 26% 11.2%;
+    --admin-nav-foreground: 215 20% 65%;
+    --admin-chrome: 240 5.3% 10%;
+    --admin-border: 240 3.7% 15.9%;
+  }
+
+  .light {
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 160 84% 36%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 88%;
     --ring: 160 84% 36%;
-
-    --radius: 0.625rem;
-
-    /*
-     * Admin console surfaces.
-     *
-     * The console is a different product from the consumer app and should read that
-     * way, but SplitWise is a light green product and inverting it would just look
-     * broken. So the separation is done with a cooler, slightly recessed chrome --
-     * tinted navigation, a marginally deeper canvas, sharper corners -- while the
-     * brand green stays the only accent. No new hues.
-     */
     --admin-canvas: 214 30% 96%;
     --admin-nav: 215 28% 97%;
     --admin-nav-foreground: 215 20% 40%;
     --admin-chrome: 0 0% 100%;
     --admin-border: 214 25% 88%;
-    --admin-radius: 0.5rem;
-  }
-
-  /*
-   * Dark theme.
-   *
-   * Applied by adding `.dark` to <html>, which ThemeProvider manages. Only components
-   * written against these semantic tokens follow it -- anything using a literal
-   * `bg-white` or `text-slate-900` stays light. The admin console is built entirely on
-   * tokens; the rest of the product predates them and is noted as a migration.
-   */
-  .dark {
-    --background: 222 47% 8%;
-    --foreground: 210 40% 96%;
-
-    --card: 222 45% 11%;
-    --card-foreground: 210 40% 96%;
-
-    --popover: 222 45% 11%;
-    --popover-foreground: 210 40% 96%;
-
-    --primary: 160 72% 45%;
-    --primary-foreground: 222 47% 8%;
-
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 96%;
-
-    --muted: 217 33% 15%;
-    --muted-foreground: 215 20% 65%;
-
-    --accent: 217 33% 17%;
-    --accent-foreground: 210 40% 96%;
-
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217 33% 20%;
-    --input: 217 33% 24%;
-    --ring: 160 72% 45%;
-
-    --admin-canvas: 222 47% 7%;
-    --admin-nav: 222 45% 9%;
-    --admin-nav-foreground: 215 20% 62%;
-    --admin-chrome: 222 45% 11%;
-    --admin-border: 217 33% 18%;
-  }
-}
-
-@layer base {
-  /*
-   * Landing page opt-out.
-   *
-   * The marketing page has its own art direction and is authored in literal colours, so
-   * it stays light whatever the app preference is. Re-declaring the light values on a
-   * wrapper means the shared primitives inside it -- buttons, inputs -- resolve their
-   * tokens to light too, instead of turning dark on a white page.
-   */
-  .force-light {
-    --background: 210 40% 98%;
-    --foreground: 222 47% 11%;
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-    --primary: 160 84% 36%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222 47% 11%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215 16% 47%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222 47% 11%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 88%;
-    --ring: 160 84% 36%;
-    color-scheme: light;
   }
 }
 
@@ -135,10 +114,10 @@
     @apply border-border;
   }
   html {
-    color-scheme: light;
-  }
-  html.dark {
     color-scheme: dark;
+  }
+  html.light {
+    color-scheme: light;
   }
   body {
     @apply bg-background text-foreground;
@@ -224,6 +203,45 @@
   /* Standard hover treatment for an interactive row. */
   .row-interactive {
     @apply transition-colors duration-150 hover:bg-accent;
+  }
+
+  /*
+   * Luxury FinTech Dark Utilities
+   */
+  .glass-nav {
+    background: rgba(9, 9, 11, 0.82);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .glass-card {
+    background: rgba(24, 24, 27, 0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .glass-floating {
+    background: rgba(31, 41, 55, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+  }
+
+  .ambient-glow-emerald {
+    background: radial-gradient(circle at center, rgba(16, 185, 129, 0.09) 0%, rgba(16, 185, 129, 0) 70%);
+  }
+
+  .ambient-glow-blue {
+    background: radial-gradient(circle at center, rgba(2, 105, 252, 0.08) 0%, rgba(2, 105, 252, 0) 70%);
+  }
+
+  .hero-gradient-mesh {
+    background-image: 
+      radial-gradient(at 20% 20%, rgba(16, 185, 129, 0.08) 0px, transparent 50%),
+      radial-gradient(at 80% 20%, rgba(2, 105, 252, 0.07) 0px, transparent 50%),
+      radial-gradient(at 50% 60%, rgba(16, 185, 129, 0.04) 0px, transparent 60%);
   }
 
   /* Respects users who ask for less motion, across every animation in the app. */

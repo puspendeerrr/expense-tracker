@@ -1,21 +1,21 @@
 services:
   postgres:
     image: postgres:17-alpine
-    container_name: splitwise-postgres
+    container_name: splitmoney-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: splitwise
-      POSTGRES_PASSWORD: splitwise
-      POSTGRES_DB: splitwise
+      POSTGRES_USER: splitmoney
+      POSTGRES_PASSWORD: splitmoney
+      POSTGRES_DB: splitmoney
     ports:
       - "5434:5432"
     volumes:
-      - splitwise-pgdata:/var/lib/postgresql/data
+      - splitmoney-pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U splitwise -d splitwise"]
+      test: ["CMD-SHELL", "pg_isready -U splitmoney -d splitmoney"]
       interval: 5s
       timeout: 5s
       retries: 10
 
 volumes:
-  splitwise-pgdata:
+  splitmoney-pgdata:

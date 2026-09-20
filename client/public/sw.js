@@ -1,7 +1,7 @@
 /* eslint-env serviceworker */
 
 /**
- * SplitWise service worker.
+ * SplitMoney service worker.
  *
  * Deliberately minimal: it exists to receive push messages and to focus the right page
  * when one is clicked. It does NOT cache application assets -- a stale cached bundle
@@ -25,16 +25,16 @@ self.addEventListener('push', (event) => {
   try {
     payload = event.data.json();
   } catch {
-    payload = { title: 'SplitWise', body: event.data.text() };
+    payload = { title: 'SplitMoney', body: event.data.text() };
   }
 
-  const title = payload.title || 'SplitWise';
+  const title = payload.title || 'SplitMoney';
   const options = {
     body: payload.body || '',
-    icon: '/icon-192.png',
-    badge: '/badge-72.png',
+    icon: '/SplitMoney only logo.svg',
+    badge: '/SplitMoney only logo.svg',
     // Replaces an earlier notification about the same thing instead of stacking.
-    tag: payload.tag || 'splitwise',
+    tag: payload.tag || 'splitmoney',
     renotify: Boolean(payload.tag),
     data: { url: payload.url || '/app' },
   };

@@ -20,7 +20,7 @@ const int = (value: unknown, fallback: number): number => {
 };
 
 export const env = {
-  appName: str(raw.VITE_APP_NAME, 'SplitWise'),
+  appName: str(raw.VITE_APP_NAME, 'SplitMoney'),
 
   /** Blank means same-origin, which is what the dev proxy provides. */
   apiBaseUrl: str(raw.VITE_API_BASE_URL).replace(/\/+$/, ''),
@@ -30,7 +30,7 @@ export const env = {
   cloudinary: {
     cloudName: str(raw.VITE_CLOUDINARY_CLOUD_NAME),
     uploadPreset: str(raw.VITE_CLOUDINARY_UPLOAD_PRESET),
-    folder: str(raw.VITE_CLOUDINARY_FOLDER, 'splitwise'),
+    folder: str(raw.VITE_CLOUDINARY_FOLDER, 'splitmoney'),
     /** Uploads are only offered when both values are present. */
     get isConfigured(): boolean {
       return Boolean(this.cloudName && this.uploadPreset);

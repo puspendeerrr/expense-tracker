@@ -1,7 +1,7 @@
 import type { ObjectId } from 'mongodb';
 
 /**
- * Pure transforms from the legacy MongoDB shapes to the SplitWise domain.
+ * Pure transforms from the legacy MongoDB shapes to the SplitMoney domain.
  *
  * Kept free of I/O so each rule is directly testable, because these are the decisions
  * that determine whether migrated money is correct.

@@ -15,9 +15,9 @@ import { joinGroupByInvite } from '../src/services/groupService.js';
 beforeEach(resetAll);
 afterAll(closeDatabase);
 
-const CDN = 'https://res.cloudinary.com/demo/image/upload/v1/splitwise';
-const AVATAR = { url: `${CDN}/avatar.jpg`, publicId: 'splitwise/avatar' };
-const COVER = { url: `${CDN}/cover.jpg`, publicId: 'splitwise/cover' };
+const CDN = 'https://res.cloudinary.com/demo/image/upload/v1/splitmoney';
+const AVATAR = { url: `${CDN}/avatar.jpg`, publicId: 'splitmoney/avatar' };
+const COVER = { url: `${CDN}/cover.jpg`, publicId: 'splitmoney/cover' };
 
 const member = async (name: string) => {
   const { cookie, userId } = await signupUser(`${name}@example.com`, undefined, name);
@@ -73,7 +73,7 @@ describe('group media', () => {
 
     await setMedia(creator.cookie, groupId, { avatar: AVATAR, cover: COVER }).expect(200);
 
-    const nextCover = { url: `${CDN}/cover-2.jpg`, publicId: 'splitwise/cover-2' };
+    const nextCover = { url: `${CDN}/cover-2.jpg`, publicId: 'splitmoney/cover-2' };
     await setMedia(creator.cookie, groupId, { cover: nextCover }).expect(200);
 
     const group = await readGroup(creator.cookie, groupId);

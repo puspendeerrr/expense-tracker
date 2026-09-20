@@ -5,7 +5,7 @@ import { groups, groupMembers } from "../src/db/schema.js";
 import { createExpense } from "../src/services/expenseService.js";
 import * as geminiClient from "../src/services/geminiClient.js";
 
-describe("SplitWise AI Assistant API (/api/ai/chat)", () => {
+describe("SplitMoney AI Assistant API (/api/ai/chat)", () => {
   beforeEach(async () => {
     await resetAll();
     vi.restoreAllMocks();
