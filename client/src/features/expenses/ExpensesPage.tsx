@@ -209,13 +209,23 @@ export const ExpensesPage: React.FC = () => {
     to: filters.to,
   }).label;
 
-  const memberRefs = members.map((member) => ({
-    id: member.id,
-    fullName: member.fullName,
-    email: member.email,
-    upiId: member.upiId,
-    qrCodeUrl: member.qrCodeUrl,
-  }));
+  /*
+   * Memoised because it is passed to dialogs that key effects off its identity.
+   * Rebuilt inline it was a new array on every render of this page, which made those
+   * effects rerun for no reason -- and in the Add Expense dialog that meant reseeding
+   * a form somebody was still typing into.
+   */
+  const memberRefs = useMemo(
+    () =>
+      members.map((member) => ({
+        id: member.id,
+        fullName: member.fullName,
+        email: member.email,
+        upiId: member.upiId,
+        qrCodeUrl: member.qrCodeUrl,
+      })),
+    [members],
+  );
 
   return (
     <AppShell

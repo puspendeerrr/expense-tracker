@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Loader2, Users } from 'lucide-react';
 import {
   Dialog,
@@ -102,9 +102,46 @@ export const AddExpenseDialog: React.FC<AddExpenseDialogProps> = ({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Reset to a clean form (or the expense being edited) each time the dialog opens.
+  /**
+   * What this open session was seeded from, or null while the dialog is closed.
+   *
+   * A ref rather than state because nothing renders from it. It exists purely to stop
+   * the effect below running a second time for the same opening.
+   */
+  const seededFor = useRef<string | null>(null);
+
+  /*
+   * Seed the form once per opening.
+   *
+   * `members` has to stay in the dependency list because the effect reads it, but it
+   * is a new array on every dashboard refetch -- and the dashboard refetches on every
+   * realtime event. Without this guard the effect reran while someone was still
+   * typing and wiped the form: fill in the amount, another member adds an expense,
+   * and everything entered so far disappears.
+   *
+   * The guard keys on what is being edited, so switching between adding and editing a
+   * particular expense still reseeds, while an incidental prop change does not.
+   */
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      // Closed: forget, so the next opening starts fresh. Deliberately not clearing
+      // the fields here -- that would empty them visibly during the closing
+      // animation. Reopening reseeds instead.
+      seededFor.current = null;
+      return;
+    }
+
+    const session = expense?.id ?? 'new';
+    if (seededFor.current === session) return;
+
+    /*
+     * A new expense preselects every member as a participant, so it needs the member
+     * list. If that has not arrived yet, leave the session unseeded so this runs
+     * again when it does, rather than committing to an empty participant list.
+     */
+    if (!expense && members.length === 0) return;
+
+    seededFor.current = session;
 
     setErrors({});
     setSubmitError(null);

@@ -22,7 +22,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       POSTGRES_DB: ${POSTGRES_DB:-splitmoney}
     volumes:
-      - splitmoney-pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
       # Backups written here are visible on the host, so they can be copied off
       # the instance. A backup that only exists inside the container is not one.
       - ./backups:/backups
@@ -121,6 +121,15 @@ services:
       - caddy-config:/config
 
 volumes:
-  splitmoney-pgdata:
+  # Pinned to an explicit name.
+  #
+  # Compose otherwise derives the volume name from the project directory and this
+  # key, so renaming either one silently mounts a NEW, EMPTY volume -- Postgres
+  # initialises a fresh database and every existing row appears to have vanished.
+  # The old volume is still on disk, but nothing is reading it.
+  #
+  # This name must not change. It is what the live data is already stored under.
+  pgdata:
+    name: splitwise_splitwise-pgdata
   caddy-data:
   caddy-config:
