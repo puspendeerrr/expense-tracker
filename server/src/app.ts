@@ -11,6 +11,7 @@ import notificationRoutes from './routes/notificationRoutes.js';
 import searchRoutes from './routes/searchRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import pushRoutes from './routes/pushRoutes.js';
+import deviceRoutes from './routes/deviceRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import insightRoutes from './routes/insightRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
@@ -138,6 +139,7 @@ export const createApp = (): Express => {
   app.use('/api/groups', groupRoutes);
   app.use('/api/notifications', notificationRoutes);
   app.use('/api/push', pushRoutes);
+  app.use('/api/devices', deviceRoutes);
   app.use('/api/admin', adminRoutes);
   app.use('/api/insights', insightRoutes);
   app.use('/api/search', searchRoutes);

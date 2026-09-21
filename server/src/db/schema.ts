@@ -4,6 +4,7 @@ import {
   text,
   timestamp,
   integer,
+  boolean,
   bigint,
   jsonb,
   date,
@@ -736,3 +737,91 @@ export const adminAudits = pgTable(
     index('admin_audits_action_idx').on(table.action),
   ],
 );
+
+
+/* -------------------------------------------------------------------------- */
+/* Native push (Phase 4)                                                      */
+/* -------------------------------------------------------------------------- */
+
+export const devicePlatform = pgEnum('device_platform', ['android', 'ios']);
+
+/**
+ * A native app install that can receive push notifications.
+ *
+ * Kept separate from `push_subscriptions` because the two are different transports, not
+ * two rows of the same thing: a browser subscription is a VAPID endpoint delivered with
+ * the web-push protocol, and this is an Expo push token delivered through Expo's service.
+ * Merging them would mean one table whose columns are half-null depending on a type
+ * discriminator, and one send path with a branch in the middle.
+ *
+ * `installationId` is unique on its own, which is the property that matters: one physical
+ * app install is one row. That is what makes re-registration idempotent, and it is what
+ * makes a hand-over safe -- when somebody else signs in on the same phone the row's
+ * `user_id` moves to them, so the previous account's notifications stop arriving on a
+ * device they no longer control.
+ *
+ * Deliberately NOT stored: any auth token, any cookie, the IMEI, the MAC address, the
+ * advertising id, or anything else that identifies the hardware beyond a name the user
+ * already sees.
+ */
+export const pushDevices = pgTable(
+  'push_devices',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** Random id generated once per install and kept in the device's secure store. */
+    installationId: text('installation_id').notNull(),
+    /** An Expo push token. Opaque to us, and never logged. */
+    token: text('token').notNull(),
+    platform: devicePlatform('platform').notNull(),
+    /** What the user calls this phone, e.g. "Galaxy M34". Shown back to them. */
+    deviceName: text('device_name'),
+    appVersion: text('app_version'),
+    /**
+     * The user's own switch for this device. Distinct from the OS permission, which the
+     * server cannot see: this is "I do not want pushes on this phone" rather than
+     * "Android is not letting you".
+     */
+    notificationsEnabled: boolean('notifications_enabled').notNull().default(true),
+    lastActiveAt: timestamp('last_active_at', { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('push_devices_installation_unique').on(table.installationId),
+    index('push_devices_user_idx').on(table.userId),
+  ],
+);
+
+export type PushDevice = typeof pushDevices.$inferSelect;
+
+/**
+ * Per-user notification categories.
+ *
+ * A row is created on first write; its absence means "all defaults", which is why every
+ * column defaults to true and the read path tolerates no row at all. Adding a category
+ * later therefore switches it on for everybody rather than being silently off for every
+ * account that saved preferences before it existed -- the same reasoning as the dashboard
+ * widget registry above.
+ *
+ * `security` governs the PUSH only. A security notification is always written to the
+ * in-app inbox regardless, because "somebody signed into your account" is a record the
+ * account holder is entitled to find later even if they muted the alert.
+ */
+export const userNotificationPreferences = pgTable('user_notification_preferences', {
+  userId: uuid('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  /** The master switch. Off means no push of any category, on any device. */
+  pushEnabled: boolean('push_enabled').notNull().default(true),
+  financial: boolean('financial').notNull().default(true),
+  settlements: boolean('settlements').notNull().default(true),
+  activity: boolean('activity').notNull().default(true),
+  security: boolean('security').notNull().default(true),
+  general: boolean('general').notNull().default(true),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type UserNotificationPreferences = typeof userNotificationPreferences.$inferSelect;

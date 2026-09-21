@@ -526,6 +526,15 @@ export type ListExpensesOptions = {
   from?: string;
   to?: string;
   memberId?: string;
+  /**
+   * Expenses this person PAID FOR, as opposed to `memberId`, which matches anyone who
+   * was either the payer or a beneficiary.
+   *
+   * The distinction is the whole point. "What do I owe Rahul?" is answered by the
+   * expenses Rahul paid and I have a share in -- an expense Neha paid that Rahul and I
+   * both joined contributes nothing to that debt, and `memberId` would include it.
+   */
+  paidBy?: string;
   paymentMode?: 'cash' | 'upi';
   category?: string;
   involvement?: 'all' | 'involving_me' | 'paid_by_me' | 'paid_by_others_for_me';
@@ -563,6 +572,9 @@ export const listExpenses = async (options: ListExpensesOptions) => {
          where ep.expense_id = e.id and ep.user_id = ${options.memberId}
       )
     )`);
+  }
+  if (options.paidBy) {
+    conditions.push(sql`e.paid_by = ${options.paidBy}`);
   }
 
   const iBenefit = sql`exists (

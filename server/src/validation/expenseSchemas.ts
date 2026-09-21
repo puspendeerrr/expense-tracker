@@ -292,6 +292,8 @@ export const listExpensesQuerySchema = z
     from: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     to: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     memberId: z.union([z.literal('all'), z.string().uuid()]).default('all'),
+    /** Narrower than `memberId`: matches the payer only. See ListExpensesOptions. */
+    paidBy: z.union([z.literal('all'), z.string().uuid()]).default('all'),
     paymentMode: z.enum(['all', 'cash', 'upi']).default('all'),
     category: z
       .enum([

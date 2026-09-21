@@ -161,6 +161,7 @@ export const listExpenses = async (req: Request, res: Response): Promise<void> =
     ...(filters.from ? { from: filters.from } : {}),
     ...(filters.to ? { to: filters.to } : {}),
     ...(filters.memberId !== 'all' ? { memberId: filters.memberId } : {}),
+    ...(filters.paidBy !== 'all' ? { paidBy: filters.paidBy } : {}),
     ...(filters.paymentMode !== 'all' ? { paymentMode: filters.paymentMode } : {}),
     ...(filters.category !== 'all' ? { category: filters.category } : {}),
     ...(filters.involvement !== 'all' ? { involvement: filters.involvement } : {}),

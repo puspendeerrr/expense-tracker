@@ -33,6 +33,31 @@ export const deviceSignature = (userAgent: string | null | undefined): string =>
   if (!userAgent) return 'Unknown device';
   const ua = userAgent;
 
+  /*
+   * The native app, which identifies itself as
+   *   SplitMoney/0.1.0 (Android 16; SM-M346B)
+   *
+   * Handled before the browser chain because it is not a browser: without this it matched
+   * nothing and every phone collapsed to "Unknown device", so a SECOND device signing in
+   * shared the first one's signature and raised no new-device alert. That is a missing
+   * security notification, not a cosmetic label.
+   *
+   * The model, not the version, is what distinguishes two phones — and being stable
+   * across app updates, it does not re-alert every time the user updates.
+   */
+  /*
+   * `SplitWise` is still accepted alongside `SplitMoney` because a phone running an older
+   * build sends the old string. Dropping it would change that device's signature and fire
+   * a spurious "new device" security alert at everyone who has not updated yet.
+   */
+  const app = /^Split(?:Money|Wise)\/[\d.]+ \(([^)]*)\)/.exec(ua);
+  if (app) {
+    const [platform, model] = (app[1] ?? '').split(';').map((part) => part.trim());
+    if (model && model !== 'unknown') return `SplitMoney app on ${model}`;
+    if (platform) return `SplitMoney app on ${platform}`;
+    return 'SplitMoney app';
+  }
+
   const browser =
     /\bEdgA?\//.test(ua) ? 'Edge'
     : /\bOPR\/|\bOpera\//.test(ua) ? 'Opera'
