@@ -45,3 +45,6 @@ example
 .env
 artifacts/
 
+# Firebase credentials
+*firebase-adminsdk*.json
+google-services.json

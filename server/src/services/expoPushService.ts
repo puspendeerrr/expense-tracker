@@ -63,9 +63,9 @@ const CATEGORY_CHANNEL: Record<NotificationCategory, string> = {
  * teaches people to turn its notifications off.
  */
 const CATEGORY_PRIORITY: Record<NotificationCategory, 'default' | 'high'> = {
-  financial: 'default',
-  settlements: 'default',
-  activity: 'default',
+  financial: 'high',
+  settlements: 'high',
+  activity: 'high',
   security: 'high',
 };
 
@@ -76,6 +76,7 @@ export type ExpoPushMessage = {
   data?: Record<string, unknown>;
   channelId?: string;
   priority?: 'default' | 'normal' | 'high';
+  sound?: 'default' | null;
   badge?: number;
 };
 
@@ -173,9 +174,10 @@ export const sendToUser = async (
         to: device.token,
         title: notification.title,
         body: notification.body,
+        sound: 'default',
+        priority: 'high',
         ...(notification.data ? { data: notification.data } : {}),
         channelId: CATEGORY_CHANNEL[notification.category],
-        priority: CATEGORY_PRIORITY[notification.category],
       })),
     );
   } catch (error: unknown) {

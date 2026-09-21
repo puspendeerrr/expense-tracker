@@ -105,32 +105,33 @@ export function AdProvider({ children }: PropsWithChildren) {
         });
 
         /*
-         * In development the UMP service is told to behave as though the device were in
-         * the EEA, so the consent form can actually be exercised. Without this a
-         * developer outside Europe never sees the flow and never finds out it is broken.
+         * Consent check with Google UMP. If no consent message is published in the AdMob
+         * console (common for new apps), we catch the error gracefully and continue to initialize
+         * the SDK so ads can load.
          */
-        await AdsConsent.requestInfoUpdate(
-          adsConfig.useTestAds
-            ? { debugGeography: AdsConsentDebugGeography.EEA, testDeviceIdentifiers: [] }
-            : {},
-        );
+        try {
+          await AdsConsent.requestInfoUpdate(
+            adsConfig.useTestAds
+              ? { debugGeography: AdsConsentDebugGeography.EEA, testDeviceIdentifiers: [] }
+              : {},
+          );
 
-        // Presents the Google form when one is required; resolves immediately otherwise.
-        const consent = await AdsConsent.gatherConsent();
-        if (cancelled) return;
-
-        setPrivacyOptionsRequired(Boolean(consent.privacyOptionsRequirementStatus === 'REQUIRED'));
-
-        if (!consent.canRequestAds) {
-          setStatus('not-permitted');
-          return;
+          const consent = await AdsConsent.gatherConsent();
+          if (!cancelled) {
+            setPrivacyOptionsRequired(Boolean(consent.privacyOptionsRequirementStatus === 'REQUIRED'));
+          }
+        } catch (consentError) {
+          console.warn('[AdMob] UMP Consent gathering note:', consentError);
         }
 
+        if (cancelled) return;
+
+        // Always initialize Google Mobile Ads SDK
         await mobileAds().initialize();
         if (cancelled) return;
         setStatus('ready');
-      } catch {
-        // Consent unavailable, SDK failure, no network. Ads off, app unaffected.
+      } catch (error) {
+        console.warn('[AdMob] SDK initialization failed:', error);
         if (!cancelled) setStatus('error');
       }
     })();

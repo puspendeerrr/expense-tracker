@@ -43,9 +43,10 @@ if (isProduction) {
         (api || '(unset)'),
     );
   }
-  if (ADMOB_ANDROID_APP_ID.includes('3940256099942544')) {
+  const adsEnabled = process.env.EXPO_PUBLIC_ADS_ENABLED === 'true';
+  if (adsEnabled && ADMOB_ANDROID_APP_ID.includes('3940256099942544')) {
     throw new Error(
-      'Production builds must not use Google’s sample AdMob app id. Set EXPO_PUBLIC_ANDROID_ADMOB_APP_ID.',
+      'Production builds with ads enabled must not use Google’s sample AdMob app id. Set EXPO_PUBLIC_ANDROID_ADMOB_APP_ID or disable ads with EXPO_PUBLIC_ADS_ENABLED=false.',
     );
   }
 }
@@ -157,6 +158,7 @@ const config: ExpoConfig = {
      * Must increase with every upload and never repeat -- Play rejects a duplicate
      * outright. Read from the environment so CI can drive it; 1 for local builds.
      */
+    googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? './google-services.json',
     versionCode: Number(process.env.ANDROID_VERSION_CODE ?? '1'),
     adaptiveIcon: { foregroundImage: './assets/adaptive-icon.png', backgroundColor: '#087F5B' },
     predictiveBackGestureEnabled: true,
@@ -174,7 +176,12 @@ const config: ExpoConfig = {
   experiments: { typedRoutes: true },
 
   /** Readable at runtime, so a build can say which environment it came from. */
-  extra: { environment },
+  extra: {
+    environment,
+    eas: {
+      projectId: 'da93a159-6ca2-4aa0-af94-02f58b190f11',
+    },
+  },
 };
 
 export default config;

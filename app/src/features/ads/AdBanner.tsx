@@ -87,10 +87,12 @@ export function AdBanner({ placement }: { placement: AdPlacement }) {
             requestNonPersonalizedAdsOnly: false,
           }}
           onAdLoaded={() => {
+            console.log('[AdMob] Banner ad loaded successfully for placement:', placement);
             setLoaded(true);
             setFailed(false);
           }}
-          onAdFailedToLoad={() => {
+          onAdFailedToLoad={(error) => {
+            console.warn('[AdMob] Banner failed to load (' + placement + '):', error);
             // Covers no-fill as well as errors. Either way the slot disappears and the
             // screen carries on; nothing retries in a loop.
             setLoaded(false);

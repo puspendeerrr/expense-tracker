@@ -139,13 +139,13 @@ describe("SplitMoney AI Assistant API (/api/ai/chat)", () => {
       .returning();
 
     await db.insert(groupMembers).values([
-      { groupId: group.id, userId: userA.userId, role: "creator" },
-      { groupId: group.id, userId: userB.userId, role: "member" },
+      { groupId: group!.id, userId: userA.userId, role: "creator" },
+      { groupId: group!.id, userId: userB.userId, role: "member" },
     ]);
 
     // Add an expense via domain service: User B paid ₹1000, split equally across everyone (₹500 each)
     await createExpense({
-      groupId: group.id,
+      groupId: group!.id,
       actorUserId: userB.userId,
       title: "Electricity Bill",
       amountPaise: 100000,

@@ -45,49 +45,41 @@ const SPECS: ChannelSpec[] = [
     id: CHANNELS.security,
     name: 'Security',
     description: 'New sign-ins, password changes and session activity on your account.',
-    importance: Notifications.AndroidImportance.HIGH,
-    // Shown in full when locked: a security alert you cannot read until you unlock is
-    // an alert that arrives too late to be worth sending.
+    importance: Notifications.AndroidImportance.MAX,
     privacy: Notifications.AndroidNotificationVisibility.PUBLIC,
   },
   {
     id: CHANNELS.settlements,
     name: 'Settlements',
     description: 'Payment requests, confirmations, rejections and reminders.',
-    importance: Notifications.AndroidImportance.DEFAULT,
-    /*
-     * PRIVATE hides the content on a locked screen and shows only that SplitWise has
-     * something for you. Money is the one thing on this app worth keeping off a screen
-     * that anybody nearby can read.
-     */
-    privacy: Notifications.AndroidNotificationVisibility.PRIVATE,
+    importance: Notifications.AndroidImportance.MAX,
+    privacy: Notifications.AndroidNotificationVisibility.PUBLIC,
   },
   {
     id: CHANNELS.financial,
     name: 'Expenses',
     description: 'Expenses added, edited or deleted in your groups.',
-    importance: Notifications.AndroidImportance.DEFAULT,
-    privacy: Notifications.AndroidNotificationVisibility.PRIVATE,
+    importance: Notifications.AndroidImportance.MAX,
+    privacy: Notifications.AndroidNotificationVisibility.PUBLIC,
   },
   {
     id: CHANNELS.activity,
     name: 'Group activity',
     description: 'People joining or leaving your groups, and other group changes.',
-    importance: Notifications.AndroidImportance.LOW,
-    privacy: Notifications.AndroidNotificationVisibility.PRIVATE,
+    importance: Notifications.AndroidImportance.MAX,
+    privacy: Notifications.AndroidNotificationVisibility.PUBLIC,
   },
   {
     id: CHANNELS.general,
     name: 'General',
-    description: 'Anything that does not fit the other categories.',
-    importance: Notifications.AndroidImportance.LOW,
-    privacy: Notifications.AndroidNotificationVisibility.PRIVATE,
+    description: 'General system announcements and updates.',
+    importance: Notifications.AndroidImportance.MAX,
+    privacy: Notifications.AndroidNotificationVisibility.PUBLIC,
   },
 ];
 
 /**
- * Creates every channel. Safe to call on each launch — Android treats a repeat as an
- * update of the name and description and leaves the user's own choices alone.
+ * Creates every channel. Safe to call on each launch.
  */
 export const registerChannels = async (): Promise<void> => {
   if (Platform.OS !== 'android') return;
@@ -99,13 +91,13 @@ export const registerChannels = async (): Promise<void> => {
       Notifications.setNotificationChannelAsync(spec.id, {
         name: spec.name,
         description: spec.description,
-        importance: spec.importance,
+        importance: Notifications.AndroidImportance.MAX,
         lockscreenVisibility: spec.privacy,
-        // The small icon is monochrome by Android's rules; this tints it and the LED.
+        sound: 'default',
+        enableVibrate: true,
+        vibrationPattern: [0, 250, 250, 250],
         lightColor: accent,
-        vibrationPattern: spec.importance === Notifications.AndroidImportance.HIGH
-          ? [0, 250, 250, 250]
-          : [0, 150],
+        enableLights: true,
         showBadge: true,
       }),
     ),

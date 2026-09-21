@@ -61,6 +61,9 @@ export default function NotificationSettingsScreen() {
             ? 'Tap to open ' + group.name + '. Delivered via deep-link router.'
             : 'Tap to open SplitMoney.',
           data: group ? { type: 'expense_added', groupId: group.id } : { type: 'expense_added' },
+          sound: 'default',
+          priority: Notifications.AndroidNotificationPriority.MAX,
+          vibrate: [0, 250, 250, 250],
           ...(Platform.OS === 'android' ? { channelId: CHANNELS.financial } : {}),
         },
         trigger: {

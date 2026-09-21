@@ -55,9 +55,9 @@ import { routeForNotification, routeForUrl } from './routing';
  */
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowBanner: false,
+    shouldShowBanner: true,
     shouldShowList: true,
-    shouldPlaySound: false,
+    shouldPlaySound: true,
     shouldSetBadge: true,
   }),
 });

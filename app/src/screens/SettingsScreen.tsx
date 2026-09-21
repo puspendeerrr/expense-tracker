@@ -90,18 +90,22 @@ export default function SettingsScreen() {
           />
         </SettingsGroup>
 
-        {adsConfig.enabled && privacyOptionsRequired ? (
-          <SettingsGroup title="Privacy">
+        {adsConfig.enabled ? (
+          <SettingsGroup title="Advertising">
             <SettingsRow
-              label="Ad Privacy Choices"
-              detail="Review or change advertising personalization"
-              onPress={() => void showPrivacyOptions()}
+              label="Google AdMob"
+              value={adsStatus === 'ready' ? 'Active' : adsStatus}
+              detail={
+                adsStatus === 'ready'
+                  ? 'SDK active · Live inventory'
+                  : 'Status: ' + adsStatus
+              }
             />
-            {adsConfig.useTestAds ? (
+            {privacyOptionsRequired ? (
               <SettingsRow
-                label="Ad Mode"
-                value="Test"
-                detail="Showing test advertisements only."
+                label="Ad Privacy Choices"
+                detail="Review or change advertising personalization"
+                onPress={() => void showPrivacyOptions()}
               />
             ) : null}
           </SettingsGroup>
