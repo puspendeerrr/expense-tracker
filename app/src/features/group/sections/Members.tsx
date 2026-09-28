@@ -1,11 +1,12 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { useGroup } from '../GroupContext';
 import { useAuth } from '@/auth/AuthProvider';
-import { Avatar, Badge, Card, SectionHeader } from '@/components/ui';
+import { SMAvatar, SMBadge, SMSectionHeader } from '@/components/sm';
 import { Icon } from '@/components/Icon';
 import { useTheme } from '@/theme/ThemeProvider';
-import { radius, spacing, typography } from '@/theme/tokens';
+import { motion, radius, spacing, typography } from '@/theme/tokens';
 import { formatPaise } from '@/lib/money';
 
 export function MembersSection() {
@@ -18,107 +19,167 @@ export function MembersSection() {
 
   return (
     <View style={styles.container}>
-      <SectionHeader
-        title={`Group Members (${members.length})`}
-        action={
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Manage members"
-            onPress={() => router.push(('/group/' + groupId + '/members') as never)}
-            hitSlop={8}
-            style={styles.manageBtn}
-          >
-            <Icon name="settings" size={14} tone="primary" />
-            <Text style={{ color: colors.primary, fontSize: typography.caption, fontWeight: '700' }}>
-              Manage
-            </Text>
-          </Pressable>
-        }
+      <SMSectionHeader
+        title={'Group members (' + members.length + ')'}
+        actionLabel="Manage"
+        onAction={() => router.push(('/group/' + groupId + '/members') as never)}
       />
 
-      {members.map((member) => {
-        const isMe = member.id === user?.id;
-        const net = member.netPaise;
-
-        return (
-          <Card
+      <View style={styles.rows}>
+        {members.map((member) => (
+          <MemberRow
             key={member.id}
+            name={member.fullName}
+            email={member.email}
+            netPaise={member.netPaise}
+            isMe={member.id === user?.id}
+            isOwner={member.role === 'creator'}
             onPress={() => router.push(('/group/' + groupId + '/person/' + member.id) as never)}
-            accessibilityLabel={
-              member.fullName +
-              (isMe ? ', you' : '') +
-              ', ' +
-              (net > 0 ? 'is owed ' : net < 0 ? 'owes ' : 'square, ') +
-              (net === 0 ? '' : formatPaise(Math.abs(net), { compact: true }))
-            }
-          >
-            <View style={styles.row}>
-              <Avatar name={member.fullName} size={44} />
+          />
+        ))}
+      </View>
 
-              <View style={styles.body}>
-                <View style={styles.nameRow}>
-                  <Text
-                    numberOfLines={1}
-                    style={{ color: colors.text, fontSize: typography.bodySm, fontWeight: '700' }}
-                  >
-                    {member.fullName}
-                  </Text>
-                  {isMe ? <Badge label="You" tone="info" /> : null}
-                  {member.role === 'creator' ? <Badge label="Owner" tone="positive" /> : null}
-                </View>
-                <Text numberOfLines={1} style={{ color: colors.muted, fontSize: typography.caption }}>
-                  {member.email}
-                </Text>
-              </View>
-
-              <View style={styles.amount}>
-                <Text
-                  style={{
-                    color: net > 0 ? colors.success : net < 0 ? colors.destructive : colors.muted,
-                    fontSize: typography.bodySm,
-                    fontWeight: '800',
-                  }}
-                >
-                  {net === 0 ? 'Settled' : formatPaise(Math.abs(net), { compact: true })}
-                </Text>
-                <Text style={{ color: colors.muted, fontSize: typography.xs }}>
-                  {net > 0 ? 'owed' : net < 0 ? 'owes' : 'in group'}
-                </Text>
-              </View>
-
-              <Icon name="forward" size={14} tone="muted" />
-            </View>
-          </Card>
-        );
-      })}
-
-      <View style={[styles.noteBox, { backgroundColor: colors.subtle }]}>
+      <View
+        style={[
+          styles.noteBox,
+          { backgroundColor: colors.subtle, borderColor: colors.border },
+        ]}
+      >
         <Icon name="info" size={14} tone="muted" />
         <Text style={[styles.note, { color: colors.muted }]}>
-          These balances represent each person&apos;s overall net balance in the group. Tap a member to see pairwise breakdown.
+          These are each person&apos;s overall net position in the group. Tap someone to see
+          the pairwise breakdown behind it.
         </Text>
       </View>
     </View>
   );
 }
 
+/**
+ * One member, as a row.
+ *
+ * The net figure gets a word under it — "owed", "owes", "in group" — rather than relying
+ * on red and green to say which way it points. The two badges are tinted differently on
+ * purpose: "You" is the app's green because it is about the reader, while "Owner" is
+ * neutral because it is a fact about the group.
+ */
+function MemberRow({
+  name,
+  email,
+
+  netPaise,
+  isMe,
+  isOwner,
+  onPress,
+}: {
+  name: string;
+  email: string;
+
+  netPaise: number;
+  isMe: boolean;
+  isOwner: boolean;
+  onPress: () => void;
+}) {
+  const { colors, dark } = useTheme();
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const press = (to: number): void => {
+    Animated.timing(scale, {
+      toValue: to,
+      duration: motion.duration.fast,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const settled = netPaise === 0;
+  const amountColor = settled
+    ? colors.muted
+    : netPaise > 0
+      ? colors.success
+      : colors.destructive;
+
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={
+          name +
+          (isMe ? ', you' : '') +
+          (isOwner ? ', owner' : '') +
+          ', ' +
+          (settled
+            ? 'all square'
+            : (netPaise > 0 ? 'is owed ' : 'owes ') +
+              formatPaise(Math.abs(netPaise), { compact: true }))
+        }
+        onPress={onPress}
+        onPressIn={() => press(motion.scale.pressed)}
+        onPressOut={() => press(1)}
+        style={({ pressed }) => [
+          styles.row,
+          {
+            backgroundColor: colors.surface,
+            borderColor: dark ? colors.borderStrong : colors.border,
+            opacity: pressed ? 0.92 : 1,
+          },
+        ]}
+      >
+        <SMAvatar name={name} size={42} round />
+
+        <View style={styles.body}>
+          <View style={styles.nameRow}>
+            <Text numberOfLines={1} style={[styles.name, { color: colors.text }]}>
+              {name}
+            </Text>
+            {isMe ? <SMBadge label="You" tone="primary" /> : null}
+            {isOwner ? <SMBadge label="Owner" tone="neutral" /> : null}
+          </View>
+          <Text numberOfLines={1} style={[styles.email, { color: colors.muted }]}>
+            {email}
+          </Text>
+        </View>
+
+        <View style={styles.amount}>
+          <Text numberOfLines={1} style={[styles.amountValue, { color: amountColor }]}>
+            {settled ? 'Settled' : formatPaise(Math.abs(netPaise), { compact: true })}
+          </Text>
+          <Text style={[styles.amountWord, { color: colors.muted }]}>
+            {settled ? 'in group' : netPaise > 0 ? 'owed' : 'owes'}
+          </Text>
+        </View>
+
+        <Icon name="forward" size={14} tone="muted" />
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { padding: spacing.base, gap: spacing.sm },
-  manageBtn: {
+  rows: { gap: spacing.sm },
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: spacing.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    minHeight: 68,
   },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  body: { flex: 1, gap: spacing.xxs },
+  body: { flex: 1, gap: 2 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap' },
-  amount: { alignItems: 'flex-end', gap: spacing.xxs },
+  name: { fontSize: typography.bodySm, fontWeight: '700', letterSpacing: -0.1, flexShrink: 1 },
+  email: { fontSize: typography.caption },
+  amount: { alignItems: 'flex-end', gap: 1, maxWidth: '30%' },
+  amountValue: { fontSize: typography.bodySm, fontWeight: '800', letterSpacing: -0.2 },
+  amountWord: { fontSize: typography.xs },
   noteBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs + 2,
     padding: spacing.md,
     borderRadius: radius.md,
+    borderWidth: 1,
     marginTop: spacing.xs,
   },
   note: { fontSize: typography.xs, lineHeight: 16, flex: 1 },

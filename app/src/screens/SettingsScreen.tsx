@@ -1,178 +1,146 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
-import { ScreenHeader, SettingsGroup, SettingsRow } from '@/components/ScreenHeader';
-import { PrimaryButton } from '@/components/PrimaryButton';
-import { Avatar, Card } from '@/components/ui';
-import { Icon } from '@/components/Icon';
 import { useAuth } from '@/auth/AuthProvider';
 import { useNotifications } from '@/notifications/NotificationProvider';
-import { useAds, adsConfig } from '@/features/ads';
-import { useTheme, type ThemeMode } from '@/theme/ThemeProvider';
 import { runtime } from '@/constants/environment';
+import {
+  SMAvatar,
+  SMChipFilter,
+  SMConfirmSheet,
+  SMScreenHeader,
+  SMSettingsGroup,
+  SMSettingsRow,
+} from '@/components/sm';
+import { useTheme, type ThemeMode } from '@/theme/ThemeProvider';
 import { spacing, typography } from '@/theme/tokens';
 
-const MODE_LABEL: Record<ThemeMode, string> = { system: 'System', light: 'Light', dark: 'Dark' };
+const THEMES: { value: ThemeMode; label: string }[] = [
+  { value: 'system', label: 'Match phone' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+];
 
+/**
+ * The account's control centre.
+ *
+ * Every row leads somewhere that exists; nothing is shown disabled "for later". Identity
+ * (name, UPI, QR) belongs to Profile and is only linked from here, and notification
+ * switches live on their own screen — this hub shows a one-word summary and goes there.
+ *
+ * There is no "Delete account" row because the backend has no route for it. An admin can
+ * deactivate an account, but that is not something the account holder can do themselves.
+ */
 export default function SettingsScreen() {
-  const { colors, mode } = useTheme();
+  const { colors, mode, setMode } = useTheme();
   const { user, signOut } = useAuth();
-  const { unreadCount, push, permission } = useNotifications();
-  const { status: adsStatus, privacyOptionsRequired, showPrivacyOptions } = useAds();
+  const { push, permission } = useNotifications();
   const router = useRouter();
 
-  const notificationsSummary = (): string => {
-    if (!permission.granted) return 'Disabled in Android settings';
-    if (push.status === 'registered') return 'Active on this device';
-    if (push.status === 'unsupported') return 'In-app notification centre only';
-    if (push.status === 'error') return 'Registration error — tap to retry';
-    return 'Tap to enable';
-  };
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
+  const back = (): void => (router.canGoBack() ? router.back() : router.replace('/home'));
+
+  // A summary only from state the app actually knows — permission and registration.
+  const notificationSummary = permission.granted
+    ? push.status === 'registered'
+      ? 'On'
+      : push.status === 'unsupported'
+        ? 'In-app only'
+        : 'Setting up'
+    : permission.canAskAgain
+      ? 'Off'
+      : 'Blocked';
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      <ScreenHeader title="Settings" />
+      <SMScreenHeader title="Settings" onBack={back} />
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        {/* User Card Shortcut */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Open profile"
-          onPress={() => router.push('/profile')}
-        >
-          <Card style={styles.identityCard}>
-            <Avatar name={user?.fullName ?? '?'} size={52} />
-            <View style={styles.identityBody}>
-              <Text style={{ color: colors.text, fontSize: typography.body, fontWeight: '700' }}>
-                {user?.fullName ?? 'User'}
-              </Text>
-              <Text numberOfLines={1} style={{ color: colors.muted, fontSize: typography.caption }}>
-                {user?.email ?? ''}
-              </Text>
-            </View>
-            <Icon name="forward" size={18} tone="muted" />
-          </Card>
-        </Pressable>
-
-        <SettingsGroup title="Account">
-          <SettingsRow
-            label="Your Profile"
-            detail="Name, email and account status"
+        <SMSettingsGroup title="Account">
+          <SMSettingsRow
+            title={user?.fullName ?? 'Profile'}
+            subtitle="Name, UPI ID and payment QR"
+            leading={<SMAvatar name={user?.fullName ?? '?'} size={32} round />}
             onPress={() => router.push('/profile')}
           />
-        </SettingsGroup>
-
-        <SettingsGroup title="Notifications">
-          <SettingsRow
-            label="Notification Preferences"
-            detail={notificationsSummary()}
+          <SMSettingsRow
+            title="Notifications"
+            subtitle="What reaches this phone"
+            icon="bell"
+            value={notificationSummary}
             onPress={() => router.push('/settings/notifications')}
           />
-          <SettingsRow
-            label="Notification Centre"
-            value={unreadCount > 0 ? String(unreadCount) : undefined}
-            detail={unreadCount > 0 ? unreadCount + ' unread alerts' : 'View all updates'}
-            onPress={() => router.push('/notifications')}
-          />
-        </SettingsGroup>
+        </SMSettingsGroup>
 
-        <SettingsGroup title="Security & Access">
-          <SettingsRow
-            label="Devices & Active Sessions"
-            detail="Manage phones and browsers signed into your account"
-            onPress={() => router.push('/settings/devices')}
-          />
-          <SettingsRow
-            label="Security Event Log"
-            detail="Review recent sign-ins and security events"
+        <SMSettingsGroup title="Security">
+          <SMSettingsRow
+            title="Password & security"
+            subtitle="Change your password, recent sign-ins"
+            icon="shield"
             onPress={() => router.push('/settings/security')}
           />
-        </SettingsGroup>
-
-        {adsConfig.enabled ? (
-          <SettingsGroup title="Advertising">
-            <SettingsRow
-              label="Google AdMob"
-              value={adsStatus === 'ready' ? 'Active' : adsStatus}
-              detail={
-                adsStatus === 'ready'
-                  ? 'SDK active · Live inventory'
-                  : 'Status: ' + adsStatus
-              }
-            />
-            {privacyOptionsRequired ? (
-              <SettingsRow
-                label="Ad Privacy Choices"
-                detail="Review or change advertising personalization"
-                onPress={() => void showPrivacyOptions()}
-              />
-            ) : null}
-          </SettingsGroup>
-        ) : null}
-
-        {adsConfig.enabled && adsConfig.useTestAds && !privacyOptionsRequired ? (
-          <SettingsGroup title="Privacy">
-            <SettingsRow
-              label="Ad Mode"
-              value={adsStatus === 'ready' ? 'Test' : 'Off'}
-              detail="Showing test advertisements only."
-            />
-          </SettingsGroup>
-        ) : null}
-
-        <SettingsGroup title="Appearance">
-          <SettingsRow
-            label="Theme"
-            value={MODE_LABEL[mode]}
-            detail="System, Light, or Dark mode"
-            onPress={() => router.push('/profile')}
+          <SMSettingsRow
+            title="Devices & sessions"
+            subtitle="Where you’re signed in"
+            icon="smartphone"
+            onPress={() => router.push('/settings/devices')}
           />
-        </SettingsGroup>
+        </SMSettingsGroup>
 
-        <View style={styles.signOutSection}>
-          <PrimaryButton
-            label="Sign Out"
-            variant="danger"
-            icon="close"
-            onPress={() => void signOut()}
-          />
+        <View style={styles.appearance}>
+          <Text accessibilityRole="header" style={[styles.groupTitle, { color: colors.muted }]}>
+            Appearance
+          </Text>
+          <SMChipFilter accessibilityLabel="Theme" options={THEMES} value={mode} onChange={setMode} />
         </View>
 
-        <Text style={[styles.version, { color: colors.muted }]}>
-          {'SplitMoney v' + (Constants.expoConfig?.version ?? '0.1.0') + '  ·  ' + runtime.environment}
-        </Text>
+        <SMSettingsGroup title="About">
+          <SMSettingsRow title="SplitMoney" icon="info" value={'Version ' + (Constants.expoConfig?.version ?? '—')} />
+          {__DEV__ ? (
+            <SMSettingsRow title="Environment (dev only)" icon="settings" value={runtime.environment} />
+          ) : null}
+        </SMSettingsGroup>
+
+        <SMSettingsGroup>
+          <SMSettingsRow
+            title="Sign out"
+            icon="signOut"
+            destructive
+            onPress={() => setConfirmSignOut(true)}
+            accessibilityHint="Asks for confirmation first"
+          />
+        </SMSettingsGroup>
       </ScrollView>
+
+      <SMConfirmSheet
+        visible={confirmSignOut}
+        onCancel={() => setConfirmSignOut(false)}
+        onConfirm={async () => {
+          setSigningOut(true);
+          try {
+            await signOut();
+          } finally {
+            setSigningOut(false);
+            setConfirmSignOut(false);
+          }
+        }}
+        loading={signingOut}
+        icon="signOut"
+        title="Sign out of SplitMoney?"
+        description="You can sign back in anytime with your email and password. Your AI conversation on this phone will be cleared."
+        confirmLabel="Sign out"
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  body: {
-    padding: spacing.lg,
-    gap: spacing.xl,
-    paddingBottom: spacing.xxl * 1.5,
-    maxWidth: 600,
-    width: '100%',
-    alignSelf: 'center',
-  },
-  identityCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    padding: spacing.md,
-  },
-  identityBody: {
-    flex: 1,
-    gap: 2,
-  },
-  signOutSection: {
-    paddingTop: spacing.xs,
-  },
-  version: {
-    fontSize: typography.caption,
-    textAlign: 'center',
-    paddingVertical: spacing.xs,
-  },
+  body: { padding: spacing.base, gap: spacing.lg, paddingBottom: spacing.xxl },
+  appearance: { gap: spacing.sm },
+  groupTitle: { fontSize: typography.xs, fontWeight: '800', letterSpacing: 1.1, textTransform: 'uppercase', paddingHorizontal: spacing.xs },
 });

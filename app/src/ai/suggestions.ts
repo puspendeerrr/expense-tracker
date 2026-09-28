@@ -53,8 +53,8 @@ export const suggestionsFor = (context: AiScreenContext): string[] => {
   if (context.kind === 'settlement' && name) {
     return [
       'Explain the settlement ' + name + '.',
-      'How much do I still owe after this?',
-      'Why is this payment still pending?',
+      'How much do I still owe after ' + name + '?',
+      'Has ' + name + ' been confirmed?',
     ];
   }
 

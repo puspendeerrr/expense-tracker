@@ -348,6 +348,17 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
     .set({ passwordHash, updatedAt: new Date() })
     .where(eq(users.id, userId));
 
+  /*
+   * A new password must end every OTHER sign-in. Without this, anyone already holding a
+   * session — the usual reason to change a password — stays signed in afterwards.
+   *
+   * The caller's own session is kept. Guarded on `req.sessionId`: passing an empty id
+   * would match no session to keep, and would sign the caller out as well.
+   */
+  const otherSessionsSignedOut = req.sessionId
+    ? await securityService.revokeOtherSessions(userId, req.sessionId)
+    : 0;
+
   await securityService.recordEvent({
     userId,
     type: 'password_changed',
@@ -360,11 +371,12 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
     type: 'security_password_changed',
     title: 'Your password was changed',
     message:
-      'The password on your account was changed. If this was not you, reset it and sign out every device.',
+      'The password on your account was changed and your other devices were signed out. If this was not you, reset your password now.',
   });
 
   logger.info('password.changed', { userId });
-  sendOk(res, { passwordChanged: true });
+  // Additive: existing clients read only `passwordChanged`.
+  sendOk(res, { passwordChanged: true, otherSessionsSignedOut });
 };
 
 

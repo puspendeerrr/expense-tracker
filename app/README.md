@@ -1276,6 +1276,8 @@ balance, settlement, group name or account detail.
 
 ### Release process
 
+> **The full, current build guide is [BUILD.md](BUILD.md)**: Android signed builds on Windows, EAS, and iOS (EAS from Windows or Xcode on a Mac). The notes below are the original summary.
+
 ```bash
 # 1. Point the build at production and give it a fresh version code.
 #    (versionCode must increase on every upload; Play rejects a duplicate.)

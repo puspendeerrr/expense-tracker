@@ -24,6 +24,31 @@ export type UploadResult = { url: string; publicId: string };
 /** What `expo-image-picker` hands back for one chosen image. */
 export type PickedImage = { uri: string; mimeType?: string | null; fileName?: string | null };
 
+/**
+ * What to tell a person when Cloudinary refuses an upload.
+ *
+ * Matches on the shape of the refusal, not its exact wording, since that wording is
+ * Cloudinary's to change. Anything unrecognised gets the generic retry message — which is
+ * the honest answer when we do not know what went wrong.
+ */
+const friendlyUploadMessage = (status: number, detail: string): string => {
+  const text = detail.toLowerCase();
+
+  if (status === 413 || /too large|file size|exceeds/.test(text)) {
+    return 'That image is too large. Try a smaller photo.';
+  }
+  if (/format|invalid image|unsupported|not allowed/.test(text)) {
+    return 'That file type is not supported. Choose a JPG or PNG image.';
+  }
+  if (status === 429 || /rate limit/.test(text)) {
+    return 'Too many uploads just now. Wait a moment and try again.';
+  }
+  if (status >= 500) {
+    return 'The image service is having trouble. Please try again shortly.';
+  }
+  return 'The image could not be uploaded. Please try again.';
+};
+
 const extensionOf = (uri: string): string => {
   const match = uri.split('?')[0]?.match(/\.(\w+)$/);
   return match?.[1]?.toLowerCase() ?? 'jpg';
@@ -46,7 +71,10 @@ export const uploadImage = (
     if (!isConfigured || !cloudName || !uploadPreset) {
       reject(
         new UploadError(
-          'Image uploads are not configured in this build. Set EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME and EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET.',
+          // Variable names help a developer and mean nothing to anyone else.
+          __DEV__
+            ? 'Image uploads are not configured in this build. Set EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME and EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET.'
+            : 'Image uploads are not available right now.',
         ),
       );
       return;
@@ -84,15 +112,19 @@ export const uploadImage = (
 
     request.addEventListener('load', () => {
       if (request.status < 200 || request.status >= 300) {
-        // Cloudinary explains refusals in its own body -- wrong preset, file too large,
-        // format not allowed -- and that wording is far more useful than a status code.
+        /*
+         * Cloudinary's own wording ("Upload preset must be whitelisted for unsigned
+         * uploads", "Invalid image file") describes our configuration, not anything the
+         * person can act on, and it names our infrastructure. It is translated into what
+         * the person can do about it; the raw text never reaches the screen.
+         */
         let detail: string;
         try {
           detail = (JSON.parse(request.responseText) as { error?: { message?: string } }).error?.message ?? '';
         } catch {
           detail = '';
         }
-        reject(new UploadError(detail || 'The image could not be uploaded. Please try again.'));
+        reject(new UploadError(friendlyUploadMessage(request.status, detail)));
         return;
       }
 

@@ -14,4 +14,7 @@ export {
   preloadInterstitial,
   showInterstitialIfEligible,
   resetInterstitialState,
+  getInterstitialState,
 } from './interstitial';
+export { AdsDebugCard } from './AdsDebugCard';
+

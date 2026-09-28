@@ -4,125 +4,88 @@ import { useRouter } from 'expo-router';
 import { groups as groupsApi } from '@/api/endpoints';
 import type { Activity, ActivityFilters, ActivityListPayload } from '@/api/types';
 import { useRequest } from '@/hooks/useRequest';
+import { useAuth } from '@/auth/AuthProvider';
 import { useGroup } from '../GroupContext';
-import { Card, CardSkeleton, OptionRow, SectionHeader } from '@/components/ui';
-import { EmptyState, ErrorState } from '@/components/StateViews';
-import { PrimaryButton } from '@/components/PrimaryButton';
-import { Sheet } from '@/components/Sheet';
-import { Icon, type IconName } from '@/components/Icon';
+import { groupByDay } from '../ledger';
+import {
+  ACTIVITY_TYPE_GROUPS,
+  activityTypeLabel,
+  describeActivityEntry,
+} from '../activityFeed';
+import {
+  SMActivityRow,
+  SMAvatar,
+  SMButton,
+  SMCard,
+  SMDateHeader,
+  SMEmptyState,
+  SMErrorState,
+  SMFilterChip,
+  SMOptionRow,
+  SMRowSkeleton,
+  SMSelectField,
+  SMSheet,
+} from '@/components/sm';
 import { useTheme } from '@/theme/ThemeProvider';
-import { radius, spacing, typography } from '@/theme/tokens';
-import { dayBucket, formatPaise } from '@/lib/money';
+import { spacing, typography } from '@/theme/tokens';
+import { formatPaise } from '@/lib/money';
 import { AdBanner, AD_PLACEMENTS } from '@/features/ads';
-
-const FALLBACK: Record<string, string> = {
-  group_created: 'created the group',
-  member_joined: 'joined the group',
-  member_left: 'left the group',
-  member_removed: 'removed a member',
-  invite_regenerated: 'regenerated the group invite',
-  payday_updated: 'updated the payday',
-  expense_created: 'added an expense',
-  expense_updated: 'updated an expense',
-  expense_deleted: 'deleted an expense',
-  settlement_created: 'recorded a payment',
-  settlement_approved: 'confirmed a payment',
-  settlement_rejected: 'could not confirm a payment',
-  settlement_cancelled: 'cancelled a settlement',
-};
-
-export const activityTypeLabel = (type: string): string => {
-  const base = FALLBACK[type] ?? type.replace(/_/g, ' ');
-  return base.charAt(0).toUpperCase() + base.slice(1);
-};
-
-const iconForActivity = (type: string): IconName => {
-  if (type.startsWith('expense')) return 'expense';
-  if (type.startsWith('settlement')) return 'settlement';
-  if (type.includes('member') || type.includes('group')) return 'group';
-  return 'activity';
-};
-
-const describe = (entry: Activity): string => {
-  const legacy = entry.metadata?.legacyAction;
-  if (typeof legacy === 'string' && legacy.trim()) return legacy.trim();
-
-  const title = entry.metadata?.title;
-  if (typeof title === 'string' && title.trim()) {
-    if (entry.type === 'expense_created') return 'added "' + title + '"';
-    if (entry.type === 'expense_updated') return 'updated "' + title + '"';
-    if (entry.type === 'expense_deleted') return 'deleted "' + title + '"';
-  }
-
-  return FALLBACK[entry.type] ?? entry.type.replace(/_/g, ' ');
-};
-
-const amountOf = (entry: Activity): number | null => {
-  for (const key of ['amountPaise', 'amount_paise', 'sharePaise']) {
-    const value = entry.metadata?.[key];
-    if (typeof value === 'number' && Number.isInteger(value) && value !== 0) return value;
-  }
-  return null;
-};
-
-const destinationFor = (entry: Activity, groupId: string): string | null => {
-  const base = '/group/' + groupId;
-
-  if (entry.entityType === 'expense' && entry.entityId) {
-    return entry.type === 'expense_deleted' ? null : base + '/expense/' + entry.entityId;
-  }
-  if (entry.entityType === 'settlement' && entry.entityId) {
-    return base + '/settlement/' + entry.entityId;
-  }
-  if (entry.entityType === 'user' && entry.entityId) {
-    return base + '/person/' + entry.entityId;
-  }
-  return null;
-};
-
-export function ActivityRow({ entry, groupId }: { entry: Activity; groupId: string }) {
-  const { colors } = useTheme();
-  const router = useRouter();
-
-  const destination = destinationFor(entry, groupId);
-  const amount = amountOf(entry);
-  const who = entry.isMe ? 'You' : entry.actor.fullName;
-  const sentence = who + ' ' + describe(entry);
-  const icon = iconForActivity(entry.type);
-
-  return (
-    <Card
-      onPress={destination ? () => router.push(destination as never) : undefined}
-      accessibilityLabel={sentence + (amount ? ', ' + formatPaise(amount, { compact: true }) : '')}
-    >
-      <View style={styles.row}>
-        <View style={[styles.iconBadge, { backgroundColor: colors.subtle }]}>
-          <Icon name={icon} size={18} tone="primary" />
-        </View>
-        <View style={styles.rowBody}>
-          <Text style={{ color: colors.text, fontSize: typography.bodySm, fontWeight: '600' }} numberOfLines={2}>
-            {sentence}
-          </Text>
-          <Text style={{ color: colors.muted, fontSize: typography.caption }}>
-            {new Date(entry.createdAt).toLocaleTimeString(undefined, {
-              hour: 'numeric',
-              minute: '2-digit',
-            })}
-          </Text>
-        </View>
-        {amount ? (
-          <Text style={{ color: colors.text, fontSize: typography.bodySm, fontWeight: '700' }}>
-            {formatPaise(amount, { compact: true })}
-          </Text>
-        ) : null}
-        {destination ? <Icon name="forward" size={14} tone="muted" /> : null}
-      </View>
-    </Card>
-  );
-}
 
 const PAGE = 30;
 
+const timeOf = (iso: string): string =>
+  new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+
+/**
+ * One activity entry, bound to the data. Used by this section and by Overview's short
+ * "recent activity" list, so an event reads the same in both places.
+ *
+ * Opening an entry goes to the record's own screen — Expense Detail, Settlement Detail —
+ * which decides what the viewer may do there. The feed itself offers no edit, delete,
+ * approve or cancel of its own, so it cannot drift from those screens' permissions.
+ */
+export function ActivityRow({ entry, groupId }: { entry: Activity; groupId: string }) {
+  const router = useRouter();
+  const { detail } = useGroup();
+  const { user } = useAuth();
+
+  // Null for anyone no longer in the group, so they are described generically.
+  const nameOf = useCallback(
+    (id: string) => detail?.members.find((member) => member.id === id)?.fullName ?? null,
+    [detail?.members],
+  );
+
+  const view = describeActivityEntry(entry, groupId, nameOf, user?.id);
+  const destination = view.destination;
+
+  return (
+    <SMActivityRow
+      actorName={entry.actor.fullName}
+      actorLabel={entry.isMe ? 'You' : entry.actor.fullName || 'Someone'}
+      action={view.action}
+      icon={view.icon}
+      tone={view.tone}
+      timeLabel={timeOf(entry.createdAt)}
+      {...(view.amountPaise !== null ? { amount: formatPaise(view.amountPaise, { compact: true }) } : {})}
+      {...(view.note ? { note: view.note } : {})}
+      emphasis={view.emphasis}
+      {...(destination ? { onPress: () => router.push(destination as never) } : {})}
+    />
+  );
+}
+
+/**
+ * What happened in this group, newest first.
+ *
+ * FILTERS ARE THE SERVER'S. The activity endpoint filters by one exact event type and by
+ * who did it, so those are the two controls. The type list is grouped under headings for
+ * reading, but every option is still one exact type, and only types that have actually
+ * occurred in this group (the `activities/types` endpoint) are offered.
+ *
+ * NO DUPLICATES ON REFRESH. A realtime event bumps `revision`, which re-reads the list from
+ * offset zero with the same limit and REPLACES it. Nothing is appended by hand, so an event
+ * arriving mid-refresh cannot appear twice.
+ */
 export function ActivitySection() {
   const { colors } = useTheme();
   const { groupId, detail, revision } = useGroup();
@@ -147,97 +110,119 @@ export function ActivitySection() {
   );
 
   const entries = request.data?.activities ?? [];
+  const total = request.data?.pagination.total ?? entries.length;
   const hasMore = request.data?.pagination.hasMore ?? false;
 
-  const days = useMemo(() => {
-    const out: { label: string; rows: Activity[] }[] = [];
-    for (const entry of entries) {
-      const label = dayBucket(entry.createdAt);
-      const last = out[out.length - 1];
-      if (last && last.label === label) last.rows.push(entry);
-      else out.push({ label, rows: [entry] });
-    }
-    return out;
-  }, [entries]);
+  // Same day grouping as the expense ledger: Today, Yesterday, then real dates.
+  const days = useMemo(() => groupByDay(entries, (entry) => entry.createdAt), [entries]);
 
-  const activeFilters = [
-    filters.type ? activityTypeLabel(filters.type) : null,
-    filters.actorId ? detail?.members.find((m) => m.id === filters.actorId)?.fullName ?? 'One person' : null,
-  ].filter(Boolean);
+  const present = new Set(types.data?.types ?? []);
+  const typeGroups = ACTIVITY_TYPE_GROUPS.map((group) => ({
+    ...group,
+    types: group.types.filter((type) => present.size === 0 || present.has(type)),
+  })).filter((group) => group.types.length > 0);
+
+  const personName = filters.actorId
+    ? detail?.members.find((member) => member.id === filters.actorId)?.fullName ?? 'One person'
+    : null;
+
+  const filtered = Boolean(filters.type || filters.actorId);
+
+  const update = (next: ActivityFilters): void => {
+    setFilters(next);
+    setLimit(PAGE);
+  };
 
   return (
     <View style={styles.container}>
-      <View style={styles.filterBar}>
-        <PrimaryButton
-          label={filters.type ? activityTypeLabel(filters.type) : 'All Activity'}
-          icon="filter"
-          variant="secondary"
-          onPress={() => setSheet('type')}
-          style={{ flex: 1 }}
-        />
-        <PrimaryButton
-          label={
-            filters.actorId
-              ? (detail?.members.find((m) => m.id === filters.actorId)?.fullName ?? 'Person')
-              : 'All Members'
-          }
-          icon="person"
-          variant="secondary"
-          onPress={() => setSheet('person')}
-          style={{ flex: 1 }}
-        />
-        {activeFilters.length > 0 ? (
-          <PrimaryButton
-            label="Clear"
-            variant="secondary"
-            onPress={() => {
-              setFilters({});
-              setLimit(PAGE);
-            }}
+      {/* ---- Filters: what kind, and by whom ---- */}
+      <View style={styles.filterRow}>
+        <View style={styles.filterCell}>
+          <SMSelectField
+            label="Type"
+            value={filters.type ? activityTypeLabel(filters.type) : 'Everything'}
+            icon="filter"
+            onPress={() => setSheet('type')}
           />
-        ) : null}
+        </View>
+        <View style={styles.filterCell}>
+          <SMSelectField
+            label="By"
+            value={personName ?? 'Anyone'}
+            icon="user"
+            onPress={() => setSheet('person')}
+          />
+        </View>
       </View>
 
+      {filtered ? (
+        <View style={styles.chips}>
+          {filters.type ? (
+            <SMFilterChip
+              label={activityTypeLabel(filters.type)}
+              icon="filter"
+              onPress={() => setSheet('type')}
+              onRemove={() => update({ ...filters, type: undefined })}
+            />
+          ) : null}
+          {personName ? (
+            <SMFilterChip
+              label={personName}
+              icon="user"
+              onPress={() => setSheet('person')}
+              onRemove={() => update({ ...filters, actorId: undefined })}
+            />
+          ) : null}
+        </View>
+      ) : null}
+
+      {/* ---- The feed ---- */}
       {request.loading && !request.data ? (
-        <CardSkeleton rows={5} />
+        <SMRowSkeleton rows={6} bordered={false} />
       ) : request.error && !request.data ? (
-        <ErrorState error={request.error} onRetry={() => void request.refresh()} />
+        <SMErrorState error={request.error} onRetry={() => void request.refresh()} />
       ) : entries.length === 0 ? (
-        <EmptyState
-          title="No activity recorded"
-          message={
-            activeFilters.length > 0
-              ? 'No activity matches your active filters.'
-              : 'Expenses, settlements, and group changes will appear here.'
-          }
-          icon="activity"
-          {...(activeFilters.length > 0
-            ? { action: { label: 'Clear filters', onPress: () => setFilters({}), variant: 'secondary' } }
-            : {})}
-        />
+        filtered ? (
+          <SMEmptyState
+            icon="filter"
+            title="No activity matches this filter"
+            description="There is activity in this group, just none that fits."
+            primaryAction={{ label: 'Reset filters', onPress: () => update({}) }}
+          />
+        ) : (
+          <SMEmptyState
+            icon="activity"
+            title="No activity yet"
+            description="Expenses, payments and changes in this group will appear here."
+          />
+        )
       ) : (
-        <View style={styles.list}>
+        <View style={styles.feed}>
           {days.map((day) => (
             <View key={day.label} style={styles.day}>
-              <SectionHeader title={day.label} />
-              {day.rows.map((entry) => (
-                <ActivityRow key={entry.id} entry={entry} groupId={groupId} />
-              ))}
+              <SMDateHeader label={day.label} />
+              <SMCard style={styles.dayCard}>
+                {day.rows.map((entry) => (
+                  <ActivityRow key={entry.id} entry={entry} groupId={groupId} />
+                ))}
+              </SMCard>
             </View>
           ))}
 
           {hasMore ? (
-            <PrimaryButton
-              label={request.refreshing ? 'Loading…' : 'Load more'}
+            <SMButton
+              label={request.refreshing ? 'Loading…' : 'Load older activity'}
               variant="secondary"
               loading={request.refreshing}
               onPress={() => setLimit((value) => value + PAGE)}
-              style={{ marginTop: spacing.sm }}
+              style={styles.more}
             />
           ) : (
             <>
               <Text style={[styles.end, { color: colors.muted }]}>
-                {entries.length === 1 ? '1 activity recorded' : `${entries.length} activities recorded`}
+                {filtered
+                  ? total === 1 ? '1 matching event' : total + ' matching events'
+                  : 'That’s everything since the group began'}
               </Text>
               <AdBanner placement={AD_PLACEMENTS.activity} />
             </>
@@ -245,83 +230,80 @@ export function ActivitySection() {
         </View>
       )}
 
-      <Sheet visible={sheet === 'type'} onClose={() => setSheet(null)} title="Filter Activity">
-        <OptionRow
-          label="All activity"
+      {/* ---- Type sheet: grouped for reading, one exact type per option ---- */}
+      <SMSheet visible={sheet === 'type'} onClose={() => setSheet(null)} title="Show activity">
+        <SMOptionRow
+          label="Everything"
+          icon="activity"
           selected={!filters.type}
           onPress={() => {
-            setFilters((f) => {
-              const { type, ...rest } = f;
-              void type;
-              return rest;
-            });
-            setLimit(PAGE);
+            update({ ...filters, type: undefined });
             setSheet(null);
           }}
         />
-        {(types.data?.types ?? []).map((type) => (
-          <OptionRow
-            key={type}
-            label={activityTypeLabel(type)}
-            selected={filters.type === type}
-            onPress={() => {
-              setFilters((f) => ({ ...f, type }));
-              setLimit(PAGE);
-              setSheet(null);
-            }}
-          />
+        {typeGroups.map((group) => (
+          <View key={group.title} style={styles.sheetGroup}>
+            <Text style={[styles.sheetGroupTitle, { color: colors.muted }]}>{group.title}</Text>
+            {group.types.map((type) => (
+              <SMOptionRow
+                key={type}
+                label={activityTypeLabel(type)}
+                selected={filters.type === type}
+                onPress={() => {
+                  update({ ...filters, type });
+                  setSheet(null);
+                }}
+              />
+            ))}
+          </View>
         ))}
-      </Sheet>
+      </SMSheet>
 
-      <Sheet visible={sheet === 'person'} onClose={() => setSheet(null)} title="Filter by Member">
-        <OptionRow
+      {/* ---- Person sheet ---- */}
+      <SMSheet visible={sheet === 'person'} onClose={() => setSheet(null)} title="Activity by">
+        <SMOptionRow
           label="Anyone"
+          icon="users"
           selected={!filters.actorId}
           onPress={() => {
-            setFilters((f) => {
-              const { actorId, ...rest } = f;
-              void actorId;
-              return rest;
-            });
-            setLimit(PAGE);
+            update({ ...filters, actorId: undefined });
             setSheet(null);
           }}
         />
         {(detail?.members ?? []).map((member) => (
-          <OptionRow
+          <SMOptionRow
             key={member.id}
             label={member.fullName}
+            leading={<SMAvatar name={member.fullName} size={30} round />}
             selected={filters.actorId === member.id}
             onPress={() => {
-              setFilters((f) => ({ ...f, actorId: member.id }));
-              setLimit(PAGE);
+              update({ ...filters, actorId: member.id });
               setSheet(null);
             }}
           />
         ))}
-      </Sheet>
+      </SMSheet>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { gap: spacing.base, paddingBottom: spacing.lg },
-  filterBar: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.base,
-    paddingTop: spacing.xs,
+  container: { padding: spacing.base, gap: spacing.md },
+  filterRow: { flexDirection: 'row', gap: spacing.sm },
+  filterCell: { flex: 1 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  feed: { gap: spacing.xs },
+  day: { gap: spacing.xs },
+  dayCard: { paddingVertical: spacing.xs, paddingHorizontal: spacing.xs },
+  more: { marginTop: spacing.sm },
+  end: { textAlign: 'center', fontSize: typography.caption, paddingVertical: spacing.md },
+  sheetGroup: { paddingTop: spacing.md, gap: 2 },
+  sheetGroupTitle: {
+    fontSize: typography.xs,
+    fontWeight: '800',
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.xs,
   },
-  list: { paddingHorizontal: spacing.base, gap: spacing.base },
-  day: { gap: spacing.sm },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  iconBadge: {
-    width: 38,
-    height: 38,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowBody: { flex: 1, gap: 2 },
-  end: { fontSize: typography.caption, textAlign: 'center', paddingVertical: spacing.md },
 });

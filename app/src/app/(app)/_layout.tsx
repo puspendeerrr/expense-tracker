@@ -1,5 +1,5 @@
 import { Redirect, Stack } from 'expo-router';
-import { AiFab } from '@/components/AiFab';
+import { SMAiFab } from '@/components/sm/SMAiFab';
 import { useAuth } from '@/auth/AuthProvider';
 
 /**
@@ -18,7 +18,7 @@ export default function AppLayout() {
     <>
       <Stack screenOptions={{ headerShown: false }} />
       {/* One instance for every signed-in screen; it hides itself where it would intrude. */}
-      <AiFab />
+      <SMAiFab />
     </>
   );
 }

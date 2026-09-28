@@ -1,5 +1,19 @@
 import { request } from './client';
 import type {
+  AdminActivity,
+  AdminSearchResults,
+  AdminUserPermissions,
+  AdminAudit,
+  AdminExpense,
+  AdminGroup,
+  AdminGroupDetail,
+  AdminPage,
+  AdminSettlement,
+  AdminSettlementStatus,
+  AdminStats,
+  AdminUser,
+  SearchResults,
+  GroupMediaInput,
   AccountEvent,
   GroupShareInfo,
   InvitePreview,
@@ -104,6 +118,20 @@ export const auth = {
     confirmPassword: string;
   }): Promise<{ passwordReset: boolean }> =>
     request('/auth/password/reset', { method: 'POST', body: input, anonymous: true }),
+
+  /**
+   * Updates the signed-in user's own profile. The server's schema is `.strict()`: only
+   * these three fields. An empty string clears UPI ID or QR; omitting a field leaves it alone.
+   */
+  updateProfile: (input: { fullName?: string; upiId?: string | null; qrCodeUrl?: string | null }): Promise<{ user: User }> =>
+    request('/auth/profile', { method: 'PATCH', body: input }),
+
+  /**
+   * Changes the password. Requires the current one. On success the server signs out every
+   * OTHER session (this one stays signed in) and reports how many it ended.
+   */
+  changePassword: (input: { currentPassword: string; newPassword: string; confirmPassword: string }): Promise<{ passwordChanged: boolean; otherSessionsSignedOut: number }> =>
+    request('/auth/profile/password', { method: 'POST', body: input }),
 };
 
 export const groups = {
@@ -157,7 +185,18 @@ export const groups = {
   setPayday: (groupId: string, payday: number | null): Promise<{ group: Group }> =>
     request('/groups/' + groupId + '/payday', { method: 'PATCH', body: { payday } }),
 
-  setMedia: (groupId: string, input: { avatarUrl?: string | null; coverUrl?: string | null }): Promise<{ group: Group }> =>
+  /**
+   * Sets or clears the group's photo and/or cover. Creator only (`requireGroupCreator`).
+   *
+   * The server's schema is `.strict()` and takes `{ avatar?, cover? }`, each a
+   * `{ url, publicId }` pair from Cloudinary — both set, or both null to remove the image.
+   * This binding previously sent `{ avatarUrl, coverUrl }`, which that schema rejects; it
+   * had never been called, so the mismatch never surfaced.
+   *
+   * `publicId` is what lets the server delete the old image when it is replaced, which is
+   * why the upload result is passed through whole rather than as a bare URL.
+   */
+  setMedia: (groupId: string, input: GroupMediaInput): Promise<{ group: Group }> =>
     request('/groups/' + groupId + '/media', { method: 'PATCH', body: input }),
 
   share: (groupId: string, signal?: AbortSignal): Promise<GroupShareInfo> =>
@@ -178,6 +217,12 @@ export const groups = {
     request('/groups/' + groupId + '/members/' + userId, { method: 'DELETE' }),
 
   /** Nudges someone who owes you. Rate limited per sender on the server. */
+  /**
+   * Creator only. A HARD delete: the server cascades away the group's members, expenses,
+   * settlements and activity. There is no undo and no outstanding-balance check.
+   */
+  remove: (groupId: string): Promise<unknown> => request('/groups/' + groupId, { method: 'DELETE' }),
+
   remind: (groupId: string, userId: string): Promise<{ reminded: boolean }> =>
     request('/groups/' + groupId + '/members/' + userId + '/remind', { method: 'POST' }),
 };
@@ -394,3 +439,64 @@ export const ai = {
 };
 
 export type { Activity };
+
+/** Search across everything the signed-in user can see. The server needs at least 2 characters. */
+export const search = {
+  query: (q: string, options: { limit?: number } = {}, signal?: AbortSignal): Promise<SearchResults> =>
+    request('/search' + query({ q, limit: options.limit }), { signal }),
+};
+
+/* -------------------------------------------------------------------------- */
+/* Admin console (read-only)                                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The read side of /api/admin. Every route sits behind `admin.access` on the server, so
+ * these fail with 403 for anyone else, whatever the app shows. Nothing here writes.
+ */
+export const admin = {
+  stats: (signal?: AbortSignal): Promise<AdminStats> => request('/admin/stats', { signal }),
+
+  users: (
+    page: AdminPage & { role?: 'admin' | 'user'; status?: 'active' | 'disabled' },
+    signal?: AbortSignal,
+  ): Promise<{ users: AdminUser[]; pagination: Pagination }> =>
+    request('/admin/users' + query({ ...page }), { signal }),
+
+  groups: (
+    page: AdminPage & { status?: 'active' | 'disabled' },
+    signal?: AbortSignal,
+  ): Promise<{ groups: AdminGroup[]; pagination: Pagination }> =>
+    request('/admin/groups' + query({ ...page }), { signal }),
+
+  group: (groupId: string, signal?: AbortSignal): Promise<AdminGroupDetail> =>
+    request('/admin/groups/' + encodeURIComponent(groupId), { signal }),
+
+  expenses: (
+    page: AdminPage & { groupId?: string },
+    signal?: AbortSignal,
+  ): Promise<{ expenses: AdminExpense[]; totalValuePaise: number; pagination: Pagination }> =>
+    request('/admin/expenses' + query({ ...page }), { signal }),
+
+  settlements: (
+    page: AdminPage & { groupId?: string; status?: AdminSettlementStatus },
+    signal?: AbortSignal,
+  ): Promise<{ settlements: AdminSettlement[]; pagination: Pagination }> =>
+    request('/admin/settlements' + query({ ...page }), { signal }),
+
+  userPermissions: (userId: string, signal?: AbortSignal): Promise<AdminUserPermissions> =>
+    request('/admin/users/' + encodeURIComponent(userId) + '/permissions', { signal }),
+
+  activity: (
+    page: AdminPage & { groupId?: string },
+    signal?: AbortSignal,
+  ): Promise<{ activities: AdminActivity[]; pagination: Pagination }> =>
+    request('/admin/activity' + query({ ...page }), { signal }),
+
+  /** Needs at least one character; the server caps it at 100. */
+  search: (q: string, signal?: AbortSignal): Promise<AdminSearchResults> =>
+    request('/admin/search' + query({ q }), { signal }),
+
+  audit: (page: AdminPage, signal?: AbortSignal): Promise<{ audits: AdminAudit[]; pagination: Pagination }> =>
+    request('/admin/audit' + query({ ...page }), { signal }),
+};

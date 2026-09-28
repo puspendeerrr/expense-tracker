@@ -140,6 +140,9 @@ type RequestOptions = {
 };
 
 const baseUrl = (): string => {
+  if (Platform.OS === 'web') {
+    return '/api';
+  }
   if (!runtime.api.url) {
     throw new ConfigurationError(
       'The API address is ' +
@@ -154,12 +157,15 @@ export const request = async <T>(path: string, options: RequestOptions = {}): Pr
   const url = baseUrl() + path;
   const headers: Record<string, string> = {
     Accept: 'application/json',
-    'User-Agent': userAgent,
   };
+
+  if (Platform.OS !== 'web') {
+    headers['User-Agent'] = userAgent;
+  }
 
   if (options.body !== undefined) headers['Content-Type'] = 'application/json';
 
-  if (!options.anonymous) {
+  if (!options.anonymous && Platform.OS !== 'web') {
     const token = await loadStoredToken();
     if (token) headers.Cookie = SESSION_COOKIE + '=' + encodeURIComponent(token);
   }
@@ -178,6 +184,7 @@ export const request = async <T>(path: string, options: RequestOptions = {}): Pr
       method: options.method ?? 'GET',
       headers,
       ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
+      ...(Platform.OS === 'web' ? { credentials: 'include' as const } : {}),
       signal: controller.signal,
     });
   } catch (error: unknown) {

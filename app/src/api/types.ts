@@ -36,6 +36,12 @@ export type PersonRef = {
   role?: GroupRole;
 };
 
+/** One image slot as the media endpoint takes it: both fields set, or both null to remove. */
+export type MediaPair = { url: string; publicId: string } | { url: null; publicId: null };
+
+/** The body of `PATCH /groups/:groupId/media`. At least one slot must be present. */
+export type GroupMediaInput = { avatar?: MediaPair; cover?: MediaPair };
+
 export type Group = {
   id: string;
   name: string;
@@ -515,10 +521,17 @@ export type GroupShareInfo = {
 };
 
 /** A look at a group before committing to join it. */
+/**
+ * `GET /groups/invite/:invite/preview` — mirrors the server's `getInvitePreview` exactly.
+ * Public: only the group's name, description and size, never anything financial.
+ * `isAlreadyMember` is only meaningful when the request carries a session.
+ */
 export type InvitePreview = {
-  group?: { id: string; name: string; description: string | null; memberCount?: number };
-  alreadyMember?: boolean;
-  [key: string]: unknown;
+  groupId: string;
+  groupName: string;
+  description: string | null;
+  memberCount: number;
+  isAlreadyMember: boolean;
 };
 
 /**
@@ -535,4 +548,202 @@ export type OtpChallenge = {
   resendAvailableAt: string;
   serverTime: string;
   maxAttempts: number;
+};
+
+/**
+ * `GET /api/search` — mirrors `SearchResults` in server/src/services/searchService.ts.
+ *
+ * Scoped on the server to the caller's own group memberships. Each branch is capped
+ * separately (`limit`, 1–10, default 5), so one busy type cannot crowd out the others.
+ */
+export type SearchResults = {
+  groups: { id: string; name: string; memberCount: number; avatarUrl: string | null }[];
+  members: { id: string; fullName: string; email: string; groupId: string; groupName: string }[];
+  expenses: {
+    id: string;
+    title: string;
+    amountPaise: number;
+    expenseDate: string;
+    groupId: string;
+    groupName: string;
+    payerName: string;
+  }[];
+  settlements: {
+    id: string;
+    amountPaise: number;
+    status: string;
+    groupId: string;
+    groupName: string;
+    payerName: string;
+    receiverName: string | null;
+  }[];
+  activity: {
+    id: string;
+    type: string;
+    groupId: string;
+    groupName: string;
+    actorName: string;
+    createdAt: string;
+  }[];
+};
+
+/* -------------------------------------------------------------------------- */
+/* Admin console (read-only)                                                  */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Shapes of the /admin read routes, as the server sends them. Fields the console never
+ * shows (invite codes, UPI IDs, audit metadata) are left out on purpose, so no screen can
+ * start displaying them by accident.
+ */
+
+export type AdminStats = {
+  users: { total: number; verified: number; admins: number; disabled: number; newLast30Days: number };
+  groups: { total: number; active30Days: number; disabled: number };
+  expenses: { total: number; totalValuePaise: number; last30Days: number };
+  settlements: { total: number; completed: number; pending: number; completedValuePaise: number };
+};
+
+export type AdminAccountStatus = 'active' | 'disabled';
+
+export type AdminUser = {
+  id: string;
+  fullName: string;
+  email: string;
+  role: 'admin' | 'user';
+  status: AdminAccountStatus;
+  disabledAt: string | null;
+  disabledReason: string | null;
+  permissionOverrideCount: number;
+  isVerified: boolean;
+  createdAt: string;
+  groupCount: number;
+  expenseCount: number;
+  activeSessions: number;
+};
+
+export type AdminGroup = {
+  id: string;
+  name: string;
+  status: AdminAccountStatus;
+  disabledAt: string | null;
+  payday: number | null;
+  creatorName: string;
+  creatorEmail: string;
+  memberCount: number;
+  expenseCount: number;
+  totalValuePaise: number;
+  lastActivityAt: string | null;
+  createdAt: string | null;
+};
+
+export type AdminPerson = { id: string; fullName: string; email: string };
+
+export type AdminGroupDetail = {
+  group: {
+    id: string;
+    name: string;
+    description: string | null;
+    status: AdminAccountStatus;
+    disabledAt: string | null;
+    payday: number | null;
+    createdAt: string;
+  };
+  creator: AdminPerson;
+  members: (AdminPerson & { status: AdminAccountStatus; role: 'creator' | 'member'; joinedAt: string })[];
+  stats: {
+    memberCount: number;
+    expenseCount: number;
+    expenseValuePaise: number;
+    settlementCount: number;
+    settledValuePaise: number;
+    pendingSettlements: number;
+    activityCount: number;
+    openDebtCount: number;
+    openDebtValuePaise: number;
+  };
+  /** Straight from the balance engine; never recomputed here. */
+  debts: { debtorId: string; debtorName: string; creditorId: string; creditorName: string; owedPaise: number }[];
+};
+
+export type AdminExpense = {
+  id: string;
+  title: string;
+  amountPaise: number;
+  expenseDate: string;
+  paymentMode: string;
+  category: string | null;
+  groupId: string;
+  groupName: string;
+  payerName: string;
+  participantCount: number;
+  createdAt: string;
+};
+
+export type AdminSettlementStatus =
+  | 'paid_pending_approval'
+  | 'will_pay_soon'
+  | 'completed'
+  | 'rejected'
+  | 'cancelled';
+
+export type AdminSettlement = {
+  id: string;
+  group: { id: string; name: string };
+  payer: AdminPerson;
+  receiver: AdminPerson | null;
+  amountPaise: number;
+  status: AdminSettlementStatus;
+  paymentMethod: string;
+  hasProof: boolean;
+  note: string;
+  paidAt: string;
+  createdAt: string;
+  /** Live debt between the two, from the balance engine. */
+  outstandingPaise: number;
+};
+
+export type AdminAudit = {
+  id: string;
+  action: string;
+  actor: AdminPerson | null;
+  actorEmail: string;
+  targetType: string | null;
+  targetId: string | null;
+  targetLabel: string | null;
+  createdAt: string;
+};
+
+export type AdminPage = { limit?: number; offset?: number; search?: string };
+
+export type AdminPermissionDefinition = {
+  key: string;
+  label: string;
+  description: string;
+  category: 'platform' | 'groups' | 'money' | 'insights';
+  defaultGranted: boolean;
+  sensitive?: boolean;
+};
+
+/** One person's effective permissions: registry defaults plus explicit overrides. */
+export type AdminUserPermissions = {
+  role: 'admin' | 'user';
+  permissions: string[];
+  overrides: { permission: string; effect: 'allow' | 'deny'; updatedAt: string }[];
+  dashboardScope: { kind: 'none' } | { kind: 'all_groups' } | { kind: 'selected_groups'; groupIds: string[] };
+  registry: AdminPermissionDefinition[];
+};
+
+export type AdminActivity = {
+  id: string;
+  type: string;
+  createdAt: string;
+  actor: AdminPerson;
+  group: { id: string; name: string };
+};
+
+export type AdminSearchResults = {
+  users: { id: string; fullName: string; email: string; status: AdminAccountStatus }[];
+  groups: { id: string; name: string; status: AdminAccountStatus }[];
+  expenses: { id: string; title: string; amountPaise: number; groupId: string }[];
 };

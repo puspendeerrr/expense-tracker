@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { expenses as expensesApi } from '@/api/endpoints';
@@ -7,15 +7,26 @@ import { describeError } from '@/api/errors';
 import type { Expense } from '@/api/types';
 import { useRequest } from '@/hooks/useRequest';
 import { useGroup, useMemberLookup } from '@/features/group/GroupContext';
+import { canModifyExpense } from '@/features/group/permissions';
 import { useAuth } from '@/auth/AuthProvider';
-import { Avatar, Badge, Card, CardSkeleton, DetailRow, SectionHeader } from '@/components/ui';
-import { ErrorState } from '@/components/StateViews';
-import { PrimaryButton } from '@/components/PrimaryButton';
-import { ScreenHeader } from '@/components/ScreenHeader';
-import { Sheet } from '@/components/Sheet';
+
+import {
+  SMAvatar,
+  SMBadge,
+  SMButton,
+  SMCard,
+  SMConfirmSheet,
+  SMDetailRow,
+  SMErrorState,
+  SMRowSkeleton,
+  SMScreenHeader,
+  SMSectionHeader,
+  SMSheet,
+} from '@/components/sm';
 import { Icon } from '@/components/Icon';
 import { useTheme } from '@/theme/ThemeProvider';
 import { radius, shadows, spacing, typography } from '@/theme/tokens';
+import { useAiScreenContext } from '@/ai/useAiScreenContext';
 import {
   categoryLabel,
   formatExpenseDate,
@@ -33,6 +44,7 @@ export default function ExpenseDetailScreen() {
   const { expenseId } = useLocalSearchParams<{ expenseId: string }>();
 
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [viewReceipt, setViewReceipt] = useState(false);
 
@@ -45,20 +57,22 @@ export default function ExpenseDetailScreen() {
   );
 
   const expense = request.data?.expense;
+  useAiScreenContext('expense', expense?.title);
   const back = (): void =>
     router.canGoBack() ? router.back() : router.replace(('/group/' + groupId) as never);
 
   const remove = async (): Promise<void> => {
     if (deleting) return;
     setDeleting(true);
+    setDeleteError(null);
     try {
       await expensesApi.remove(groupId, expenseId);
       setConfirmDelete(false);
       void refresh();
       back();
     } catch (caught: unknown) {
-      setConfirmDelete(false);
-      Alert.alert('Could not delete', describeError(caught).message);
+      // The server owns this rule; its sentence stays in the sheet that asked.
+      setDeleteError(describeError(caught).message);
     } finally {
       setDeleting(false);
     }
@@ -66,20 +80,20 @@ export default function ExpenseDetailScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      <ScreenHeader title="Expense Details" onBack={back} />
+      <SMScreenHeader title="Expense details" onBack={back} />
 
       {request.loading && !expense ? (
-        <CardSkeleton rows={5} />
+        <SMRowSkeleton rows={5} />
       ) : request.error && !expense ? (
-        <ErrorState error={request.error} onRetry={() => void request.refresh()} />
+        <SMErrorState error={request.error} onRetry={() => void request.refresh()} />
       ) : expense ? (
         <ScrollView contentContainerStyle={styles.body}>
           {/* ---- Headline Card ---- */}
-          <Card>
+          <SMCard>
             <View style={styles.headlineTop}>
-              <Badge label={categoryLabel(expense.category)} />
-              <Badge label={expense.paymentMode === 'upi' ? 'UPI' : 'Cash'} />
-              <Badge label={SPLIT_LABELS[expense.splitType] ?? expense.splitType} />
+              <SMBadge label={categoryLabel(expense.category)} />
+              <SMBadge label={expense.paymentMode === 'upi' ? 'UPI' : 'Cash'} />
+              <SMBadge label={SPLIT_LABELS[expense.splitType] ?? expense.splitType} />
             </View>
 
             <Text
@@ -101,7 +115,7 @@ export default function ExpenseDetailScreen() {
               }
               style={[styles.payerRow, { backgroundColor: colors.subtle }]}
             >
-              <Avatar name={expense.payer?.fullName ?? '?'} size={32} />
+              <SMAvatar name={expense.payer?.fullName ?? '?'} size={32} />
               <Text style={{ color: colors.text, fontSize: typography.bodySm, fontWeight: '600', flex: 1 }}>
                 {(expense.paidBy === user?.id ? 'You' : (expense.payer?.fullName ?? 'Someone')) +
                   ' paid ' +
@@ -109,11 +123,11 @@ export default function ExpenseDetailScreen() {
               </Text>
               <Icon name="forward" size={14} tone="muted" />
             </Pressable>
-          </Card>
+          </SMCard>
 
           {/* ---- Your Share Card ---- */}
           {expense.involvement !== 'not_involved' ? (
-            <Card
+            <SMCard
               style={{
                 backgroundColor:
                   expense.involvement === 'paid_by_me'
@@ -125,7 +139,7 @@ export default function ExpenseDetailScreen() {
                     : colors.destructive,
               }}
             >
-              <SectionHeader title="Your Share" />
+              <SMSectionHeader title="Your share" />
               <Text
                 style={{
                   color: expense.involvement === 'paid_by_me' ? colors.success : colors.destructive,
@@ -143,33 +157,36 @@ export default function ExpenseDetailScreen() {
                     ' is owed back to you by other members.'
                   : 'This is your share of this expense.'}
               </Text>
-            </Card>
+            </SMCard>
           ) : null}
 
           {/* ---- The Split Breakdown ---- */}
           <View style={styles.block}>
-            <SectionHeader title={`Split Breakdown (${expense.participantCount} ways)`} />
+            <SMSectionHeader title={'Split breakdown (' + expense.participantCount + ' ways)'} />
             {expense.participants.map((participant) => {
               const person = lookup(participant.userId);
               const isMe = participant.userId === user?.id;
               return (
-                <Card
+                <Pressable
                   key={participant.userId}
-                  onPress={() =>
-                    router.push(('/group/' + groupId + '/person/' + participant.userId) as never)
-                  }
+                  accessibilityRole="button"
                   accessibilityLabel={
                     person.fullName + ', ' + formatPaise(participant.sharePaise, { compact: true })
                   }
+                  onPress={() =>
+                    router.push(('/group/' + groupId + '/person/' + participant.userId) as never)
+                  }
+                  style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
                 >
+                  <SMCard>
                   <View style={styles.row}>
-                    <Avatar name={person.fullName} size={36} />
+                    <SMAvatar name={person.fullName} size={36} />
                     <View style={styles.rowBody}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
                         <Text style={{ color: colors.text, fontSize: typography.bodySm, fontWeight: '700' }}>
                           {isMe ? 'You' : person.fullName}
                         </Text>
-                        {isMe ? <Badge label="You" tone="info" /> : null}
+                        {isMe ? <SMBadge label="You" tone="primary" /> : null}
                       </View>
                       {participant.splitValue !== null ? (
                         <Text style={{ color: colors.muted, fontSize: typography.caption }}>
@@ -186,26 +203,27 @@ export default function ExpenseDetailScreen() {
                     </Text>
                     <Icon name="forward" size={14} tone="muted" />
                   </View>
-                </Card>
+                  </SMCard>
+                </Pressable>
               );
             })}
           </View>
 
           {/* ---- Metadata Details ---- */}
-          <Card>
-            <SectionHeader title="Expense Details" />
-            <DetailRow label="Expense date" value={formatExpenseDate(expense.expenseDate)} />
-            <DetailRow label="Added on" value={formatInstant(expense.createdAt)} />
+          <SMCard>
+            <SMSectionHeader title="Expense details" />
+            <SMDetailRow label="Expense date" value={formatExpenseDate(expense.expenseDate)} />
+            <SMDetailRow label="Added on" value={formatInstant(expense.createdAt)} />
             {expense.updatedAt !== expense.createdAt ? (
-              <DetailRow label="Last edited" value={formatInstant(expense.updatedAt)} />
+              <SMDetailRow label="Last edited" value={formatInstant(expense.updatedAt)} />
             ) : null}
-            {expense.notes ? <DetailRow label="Notes" value={expense.notes} /> : null}
-          </Card>
+            {expense.notes ? <SMDetailRow label="Notes" value={expense.notes} /> : null}
+          </SMCard>
 
           {/* ---- Attached Receipt ---- */}
           {expense.receiptUrl ? (
             <View style={styles.block}>
-              <SectionHeader title="Attached Receipt" />
+              <SMSectionHeader title="Attached receipt" />
               <Pressable
                 accessibilityRole="imagebutton"
                 accessibilityLabel="View receipt full size"
@@ -228,56 +246,66 @@ export default function ExpenseDetailScreen() {
             </View>
           ) : null}
 
-          {/* ---- Actions ---- */}
-          <View style={styles.actions}>
-            <PrimaryButton
-              label="Edit Expense"
-              icon="edit"
-              variant="secondary"
-              onPress={() =>
-                router.push(('/group/' + groupId + '/expense/' + expense.id + '/edit') as never)
-              }
-              style={{ flex: 1 }}
-            />
-            <PrimaryButton
-              label="Delete"
-              icon="trash"
-              variant="danger"
-              onPress={() => setConfirmDelete(true)}
-              style={{ flex: 1 }}
-            />
-          </View>
+          {/*
+            ---- Actions: rendered for the payer only ----
+
+            Not disabled, not greyed — absent. A disabled Delete invites a tap to find out
+            why, and the answer is always the same rule. Everyone else sees who paid, just
+            above, which is the explanation.
+          */}
+          {canModifyExpense(expense, user?.id) ? (
+            <View style={styles.actions}>
+              <SMButton
+                label="Edit expense"
+                icon="edit"
+                variant="secondary"
+                onPress={() =>
+                  router.push(('/group/' + groupId + '/expense/' + expense.id + '/edit') as never)
+                }
+                style={{ flex: 1 }}
+              />
+              <SMButton
+                label="Delete"
+                icon="trash"
+                variant="danger"
+                onPress={() => {
+                  setDeleteError(null);
+                  setConfirmDelete(true);
+                }}
+                style={{ flex: 1 }}
+                accessibilityHint="Asks for confirmation before deleting"
+              />
+            </View>
+          ) : null}
         </ScrollView>
       ) : null}
 
-      {/* Delete Confirmation Sheet */}
-      <Sheet
+      {/* ---- Delete confirmation ---- */}
+      <SMConfirmSheet
         visible={confirmDelete}
-        onClose={() => setConfirmDelete(false)}
+        onCancel={() => {
+          setConfirmDelete(false);
+          setDeleteError(null);
+        }}
+        onConfirm={() => void remove()}
+        destructive
+        loading={deleting}
+        icon="trash"
         title="Delete this expense?"
-        subtitle="Everyone's balances in this group will be adjusted. This action cannot be undone."
-        footer={
-          <View style={{ gap: spacing.sm }}>
-            <PrimaryButton
-              label={deleting ? 'Deleting…' : 'Confirm Delete'}
-              icon="trash"
-              variant="danger"
-              loading={deleting}
-              onPress={() => void remove()}
-            />
-            <PrimaryButton label="Cancel" variant="secondary" onPress={() => setConfirmDelete(false)} />
-          </View>
+        description={
+          expense
+            ? '“' + expense.title + '” for ' +
+              formatPaise(expense.amountPaise, { compact: true }) +
+              ' will be removed from this group for everyone.'
+            : ''
         }
-      >
-        <Text style={{ color: colors.muted, fontSize: typography.bodySm, lineHeight: 22, paddingVertical: spacing.xs }}>
-          {expense
-            ? `"${expense.title}" for ${formatPaise(expense.amountPaise, { compact: true })} will be permanently removed.`
-            : ''}
-        </Text>
-      </Sheet>
+        detail="The expense is deleted outright, not archived, and this cannot be undone. Balances for everyone who shared it will be recalculated by the server."
+        errorMessage={deleteError}
+        confirmLabel="Delete expense"
+      />
 
-      {/* Full Receipt Modal */}
-      <Sheet visible={viewReceipt} onClose={() => setViewReceipt(false)} title="Attached Receipt">
+      {/* ---- Full receipt ---- */}
+      <SMSheet visible={viewReceipt} onClose={() => setViewReceipt(false)} title="Attached receipt">
         {expense?.receiptUrl ? (
           <Image
             source={{ uri: expense.receiptUrl }}
@@ -287,7 +315,7 @@ export default function ExpenseDetailScreen() {
             accessibilityLabel="Receipt image"
           />
         ) : null}
-      </Sheet>
+      </SMSheet>
     </SafeAreaView>
   );
 }

@@ -1,76 +1,109 @@
-import { useCallback, useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { notifications as notificationsApi } from '@/api/endpoints';
-import type { AppNotification, NotificationListPayload } from '@/api/types';
+import { describeError } from '@/api/errors';
+import type { AppNotification, NotificationListPayload, NotificationType } from '@/api/types';
 import { useRequest } from '@/hooks/useRequest';
 import { useNotifications } from '@/notifications/NotificationProvider';
 import { routeForNotification } from '@/notifications/routing';
-import { Badge, Card, CardSkeleton, SectionHeader } from '@/components/ui';
-import { EmptyState, ErrorState } from '@/components/StateViews';
-import { PrimaryButton } from '@/components/PrimaryButton';
-import { ScreenHeader } from '@/components/ScreenHeader';
-import { Icon, type IconName } from '@/components/Icon';
+import { groupByDay } from '@/features/group/ledger';
+import {
+  SMButton,
+  SMCard,
+  SMDateHeader,
+  SMEmptyState,
+  SMErrorState,
+  SMInlineNotice,
+  SMNotificationItem,
+  SMRowSkeleton,
+  SMScreenHeader,
+  type SMNotificationKind,
+} from '@/components/sm';
+import type { IconName } from '@/components/Icon';
 import { useTheme } from '@/theme/ThemeProvider';
-import { radius, spacing, typography } from '@/theme/tokens';
-import { dayBucket, formatInstant } from '@/lib/money';
+import { spacing, typography } from '@/theme/tokens';
+import { relativeTime } from '@/lib/time';
+
+const PAGE = 30;
+
+/** The server's eleven notification types, and how each is marked. */
+const LOOK: Record<NotificationType, { kind: SMNotificationKind; icon: IconName }> = {
+  expense_added: { kind: 'expense', icon: 'add' },
+  expense_updated: { kind: 'expense', icon: 'edit' },
+  expense_deleted: { kind: 'expense', icon: 'trash' },
+  settlement_requested: { kind: 'payment', icon: 'settlement' },
+  settlement_approved: { kind: 'payment', icon: 'checkCircle' },
+  settlement_rejected: { kind: 'payment', icon: 'alertCircle' },
+  payment_reminder: { kind: 'reminder', icon: 'bell' },
+  member_joined: { kind: 'member', icon: 'userPlus' },
+  security_new_device: { kind: 'security', icon: 'smartphone' },
+  security_password_changed: { kind: 'security', icon: 'lock' },
+  security_session_revoked: { kind: 'security', icon: 'shield' },
+};
 
 /**
- * Notifications Inbox with day grouping, category iconography, and tactile cards.
+ * What was sent to you.
+ *
+ * Not the activity feed: that is what happened in a group; this is what the server chose
+ * to tell YOU, in its own words. Titles and messages are shown exactly as stored.
+ *
+ * READ STATE STAYS THE SERVER'S. Opening an unread notification marks it read straight
+ * away on screen and asks the server to do the same. If the server refuses, the row goes
+ * back to unread and the badge is re-read — the previous screen ignored that failure, so
+ * the row looked read while the badge still counted it.
+ *
+ * LIVE WITHOUT GUESSING. The provider keeps the authoritative unread count (from push and
+ * realtime). When it rises while this screen is open, the list is re-read from the server
+ * and replaced. Nothing is built from a push payload, so nothing can appear twice.
  */
-
-const PAGE = 20;
-
-type CategoryConfig = {
-  label: string;
-  tone: 'neutral' | 'negative' | 'info' | 'warning';
-  icon: IconName;
-};
-
-const CATEGORY: Record<string, CategoryConfig> = {
-  expense_added: { label: 'Expense', tone: 'neutral', icon: 'tag' },
-  expense_updated: { label: 'Expense', tone: 'neutral', icon: 'edit' },
-  expense_deleted: { label: 'Expense', tone: 'neutral', icon: 'trash' },
-  settlement_requested: { label: 'Settlement', tone: 'warning', icon: 'clock' },
-  settlement_approved: { label: 'Settlement', tone: 'info', icon: 'check' },
-  settlement_rejected: { label: 'Settlement', tone: 'negative', icon: 'close' },
-  payment_reminder: { label: 'Reminder', tone: 'warning', icon: 'bell' },
-  member_joined: { label: 'Group', tone: 'neutral', icon: 'users' },
-  security_new_device: { label: 'Security', tone: 'negative', icon: 'shield' },
-  security_password_changed: { label: 'Security', tone: 'negative', icon: 'shield' },
-  security_session_revoked: { label: 'Security', tone: 'negative', icon: 'shield' },
-};
-
 export default function NotificationsScreen() {
   const { colors } = useTheme();
   const router = useRouter();
-  const { setUnreadCount, refreshUnread } = useNotifications();
+  const { unreadCount, setUnreadCount, refreshUnread, permission, push, enablePush } = useNotifications();
 
   const [limit, setLimit] = useState(PAGE);
-  const [busy, setBusy] = useState(false);
+  const [markingAll, setMarkingAll] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
   const [readLocally, setReadLocally] = useState<Set<string>>(new Set());
+  const [enabling, setEnabling] = useState(false);
 
   const request = useRequest<NotificationListPayload>(
-    useCallback(
-      (signal: AbortSignal) => notificationsApi.list({ limit }, signal),
-      [limit],
-    ),
+    useCallback((signal: AbortSignal) => notificationsApi.list({ limit }, signal), [limit]),
     [limit],
   );
 
-  const rows = request.data?.notifications ?? [];
-  const unread = Math.max(0, (request.data?.unreadCount ?? 0) - readLocally.size);
-  const hasMore = request.data?.pagination.hasMore ?? false;
+  // Something new arrived while we were looking: read the list again.
+  const lastCount = useRef(unreadCount);
+  useEffect(() => {
+    if (unreadCount > lastCount.current) void request.refresh();
+    lastCount.current = unreadCount;
+  }, [unreadCount]);
 
+  const rows = request.data?.notifications ?? [];
+  const hasMore = request.data?.pagination.hasMore ?? false;
   const isRead = (item: AppNotification): boolean => item.isRead || readLocally.has(item.id);
+  const unread = rows.filter((item) => !isRead(item)).length;
+  const totalUnread = Math.max(unread, request.data ? unreadCount : 0);
+
+  const days = useMemo(() => groupByDay(rows, (item) => item.createdAt), [rows]);
 
   const open = (item: AppNotification): void => {
     if (!isRead(item)) {
       setReadLocally((current) => new Set(current).add(item.id));
-      void notificationsApi.markRead([item.id]).then(({ unreadCount }) => {
-        setUnreadCount(unreadCount);
-      });
+      notificationsApi
+        .markRead([item.id])
+        .then(({ unreadCount: count }) => setUnreadCount(count))
+        .catch(() => {
+          // Put it back as the server has it, and re-read the badge.
+          setReadLocally((current) => {
+            const next = new Set(current);
+            next.delete(item.id);
+            return next;
+          });
+          void refreshUnread();
+        });
     }
 
     const target = routeForNotification({
@@ -83,58 +116,43 @@ export default function NotificationsScreen() {
   };
 
   const markAll = async (): Promise<void> => {
-    if (busy) return;
-    setBusy(true);
+    if (markingAll) return;
+    setMarkingAll(true);
+    setProblem(null);
     try {
-      const { unreadCount } = await notificationsApi.markAllRead();
-      setUnreadCount(unreadCount);
+      const { unreadCount: count } = await notificationsApi.markAllRead();
+      setUnreadCount(count);
       await request.refresh();
       setReadLocally(new Set());
+    } catch (caught: unknown) {
+      setProblem(describeError(caught).message);
     } finally {
-      setBusy(false);
+      setMarkingAll(false);
     }
   };
 
-  const days = useMemo(() => {
-    const out: { label: string; items: AppNotification[] }[] = [];
-    for (const item of rows) {
-      const label = dayBucket(item.createdAt);
-      const last = out[out.length - 1];
-      if (last && last.label === label) last.items.push(item);
-      else out.push({ label, items: [item] });
-    }
-    return out;
-  }, [rows]);
+  const back = (): void => (router.canGoBack() ? router.back() : router.replace('/home'));
+
+  const askable = !permission.granted && permission.canAskAgain && push.status !== 'unsupported';
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      <ScreenHeader
+      <SMScreenHeader
         title="Notifications"
-        subtitle={unread > 0 ? unread + ' unread' : 'All caught up'}
-        right={
-          unread > 0 ? (
-            <PrimaryButton
-              label="Mark all read"
-              variant="secondary"
-              loading={busy}
-              onPress={() => void markAll()}
-              style={styles.headerButton}
-            />
-          ) : undefined
-        }
+        onBack={back}
+        action={{
+          icon: 'settings',
+          label: 'Notification settings',
+          onPress: () => router.push('/settings/notifications' as never),
+        }}
       />
 
       {request.loading && !request.data ? (
         <View style={styles.body}>
-          <CardSkeleton rows={5} />
+          <SMRowSkeleton rows={6} bordered={false} />
         </View>
       ) : request.error && !request.data ? (
-        <ErrorState error={request.error} onRetry={() => void request.refresh()} />
-      ) : rows.length === 0 ? (
-        <EmptyState
-          title="No notifications yet"
-          message="When expenses or settlements are recorded in your groups, they will appear here."
-        />
+        <SMErrorState error={request.error} onRetry={() => void request.refresh()} />
       ) : (
         <ScrollView
           contentContainerStyle={styles.body}
@@ -145,97 +163,105 @@ export default function NotificationsScreen() {
                 void request.refresh();
                 void refreshUnread();
               }}
-              colors={[colors.primary]}
               tintColor={colors.primary}
-              progressBackgroundColor={colors.surface}
+              colors={[colors.primary]}
             />
           }
-          showsVerticalScrollIndicator={false}
         >
-          {days.map((day) => (
-            <View key={day.label} style={styles.dayGroup}>
-              <SectionHeader title={day.label} />
-              {day.items.map((item) => {
-                const read = isRead(item);
-                const cat = CATEGORY[item.type] ?? { label: 'Update', tone: 'neutral' as const, icon: 'bell' as IconName };
+          {askable ? (
+            <SMCard style={styles.permission}>
+              <Text style={[styles.permissionTitle, { color: colors.text }]}>Get notified on this phone</Text>
+              <Text style={[styles.permissionText, { color: colors.muted }]}>
+                Payments waiting for you, new expenses and security alerts, without opening the app.
+              </Text>
+              <SMButton
+                label="Turn on notifications"
+                icon="bell"
+                variant="primary"
+                loading={enabling}
+                onPress={async () => {
+                  setEnabling(true);
+                  try {
+                    await enablePush();
+                  } finally {
+                    setEnabling(false);
+                  }
+                }}
+              />
+            </SMCard>
+          ) : null}
 
-                return (
-                  <Card
-                    key={item.id}
-                    onPress={() => open(item)}
-                    accessibilityLabel={
-                      (read ? '' : 'Unread. ') + item.title + '. ' + item.message
-                    }
-                  >
-                    <View style={styles.row}>
-                      {/* Icon Circle */}
-                      <View
-                        style={[
-                          styles.iconBadge,
-                          {
-                            backgroundColor: read ? colors.subtle : colors.primarySubtle,
-                          },
-                        ]}
-                      >
-                        <Icon
-                          name={cat.icon}
-                          size={18}
-                          tone={read ? 'muted' : 'primary'}
-                        />
-                      </View>
-
-                      {/* Content */}
-                      <View style={styles.rowBody}>
-                        <View style={styles.titleRow}>
-                          <Text
-                            numberOfLines={1}
-                            style={{
-                              color: colors.text,
-                              fontSize: typography.bodySm,
-                              fontWeight: read ? '600' : '800',
-                              flex: 1,
-                            }}
-                          >
-                            {item.title}
-                          </Text>
-                          {!read ? (
-                            <View style={[styles.unreadDot, { backgroundColor: colors.primary }]} />
-                          ) : null}
-                        </View>
-
-                        <Text
-                          numberOfLines={3}
-                          style={{ color: colors.muted, fontSize: typography.caption, lineHeight: 18 }}
-                        >
-                          {item.message}
-                        </Text>
-
-                        <View style={styles.metaRow}>
-                          <Badge label={cat.label} tone={cat.tone} />
-                          <Text style={{ color: colors.muted, fontSize: typography.xs }}>
-                            {formatInstant(item.createdAt)}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  </Card>
-                );
-              })}
+          {rows.length > 0 ? (
+            <View style={styles.context}>
+              <Text style={[styles.contextText, { color: colors.muted }]}>
+                {totalUnread > 0 ? totalUnread + ' unread' : 'All caught up'}
+              </Text>
+              {unread > 0 ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Mark all as read"
+                  accessibilityState={{ busy: markingAll }}
+                  disabled={markingAll}
+                  onPress={() => void markAll()}
+                  hitSlop={10}
+                  style={({ pressed }) => ({ opacity: pressed || markingAll ? 0.5 : 1 })}
+                >
+                  <Text style={[styles.markAll, { color: colors.primary }]}>
+                    {markingAll ? 'Marking…' : 'Mark all as read'}
+                  </Text>
+                </Pressable>
+              ) : null}
             </View>
-          ))}
+          ) : null}
 
-          {hasMore ? (
-            <PrimaryButton
-              label={request.refreshing ? 'Loading…' : 'Load more notifications'}
-              variant="secondary"
-              loading={request.refreshing}
-              onPress={() => setLimit((val) => val + PAGE)}
+          {problem ? <SMInlineNotice type="error" message={problem} /> : null}
+
+          {rows.length === 0 ? (
+            <SMEmptyState
+              icon="bell"
+              title="You’re all caught up"
+              description="Payments that need you, new expenses and security alerts will show up here."
             />
           ) : (
-            <Text style={[styles.endText, { color: colors.muted }]}>
-              {rows.length === 1 ? '1 notification' : rows.length + ' notifications'}
-            </Text>
+            days.map((day) => (
+              <View key={day.label} style={styles.day}>
+                <SMDateHeader label={day.label} />
+                <SMCard style={styles.dayCard}>
+                  {day.rows.map((item) => {
+                    const look = LOOK[item.type] ?? { kind: 'member' as const, icon: 'bell' as IconName };
+                    const target = routeForNotification({
+                      type: item.type,
+                      groupId: item.groupId,
+                      entityType: item.entityType,
+                      entityId: item.entityId,
+                    });
+                    return (
+                      <SMNotificationItem
+                        key={item.id}
+                        title={item.title}
+                        message={item.message}
+                        timeLabel={relativeTime(item.createdAt)}
+                        kind={look.kind}
+                        icon={look.icon}
+                        unread={!isRead(item)}
+                        // Always openable when unread, so tapping can at least mark it read.
+                        {...(target || !isRead(item) ? { onPress: () => open(item) } : {})}
+                      />
+                    );
+                  })}
+                </SMCard>
+              </View>
+            ))
           )}
+
+          {hasMore ? (
+            <SMButton
+              label={request.refreshing ? 'Loading…' : 'Load older notifications'}
+              variant="secondary"
+              loading={request.refreshing}
+              onPress={() => setLimit((value) => value + PAGE)}
+            />
+          ) : null}
         </ScrollView>
       )}
     </SafeAreaView>
@@ -244,58 +270,13 @@ export default function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  body: {
-    padding: spacing.lg,
-    gap: spacing.lg,
-    paddingBottom: spacing.xxl * 1.5,
-    maxWidth: 600,
-    width: '100%',
-    alignSelf: 'center',
-  },
-  headerButton: {
-    minHeight: 34,
-    paddingVertical: spacing.xxs,
-    paddingHorizontal: spacing.sm,
-  },
-  dayGroup: {
-    gap: spacing.sm,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
-  },
-  iconBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 2,
-  },
-  rowBody: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingTop: 2,
-  },
-  endText: {
-    fontSize: typography.caption,
-    textAlign: 'center',
-    paddingVertical: spacing.md,
-  },
+  body: { padding: spacing.base, gap: spacing.md, paddingBottom: spacing.xxl },
+  permission: { padding: spacing.base, gap: spacing.sm },
+  permissionTitle: { fontSize: typography.body, fontWeight: '800' },
+  permissionText: { fontSize: typography.caption, lineHeight: 18 },
+  context: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  contextText: { fontSize: typography.caption, fontWeight: '600' },
+  markAll: { fontSize: typography.caption, fontWeight: '700' },
+  day: { gap: spacing.xs },
+  dayCard: { padding: spacing.xs, gap: 2 },
 });

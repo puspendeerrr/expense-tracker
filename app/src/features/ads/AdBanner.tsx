@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { BannerAd, BannerAdSize } from 'react-native-google-mobile-ads';
 import { useAds } from './AdProvider';
@@ -25,7 +25,7 @@ import { radius, spacing, typography } from '@/theme/tokens';
  */
 export function AdBanner({ placement }: { placement: AdPlacement }) {
   const { colors } = useTheme();
-  const { canShowAds, setBannerHeight } = useAds();
+  const { canShowAds, setBannerHeight, setLastBannerError } = useAds();
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -45,8 +45,17 @@ export function AdBanner({ placement }: { placement: AdPlacement }) {
    */
   const allowed = (Object.values(AD_PLACEMENTS) as string[]).includes(placement);
 
+  const shouldRequest = allowed && canShowAds && !failed;
+
+  // Safe diagnostic log
+  useEffect(() => {
+    if (shouldRequest) {
+      console.log(`[Ads] banner requested (${placement})`);
+    }
+  }, [shouldRequest, placement]);
+
   // Nothing at all: not allow-listed, disabled, no consent, ad-free, or already failed.
-  if (!allowed || !canShowAds || failed) return null;
+  if (!shouldRequest) return null;
 
   return (
     <View
@@ -87,12 +96,17 @@ export function AdBanner({ placement }: { placement: AdPlacement }) {
             requestNonPersonalizedAdsOnly: false,
           }}
           onAdLoaded={() => {
-            console.log('[AdMob] Banner ad loaded successfully for placement:', placement);
+            console.log(`[Ads] banner loaded (${placement})`);
             setLoaded(true);
             setFailed(false);
+            setLastBannerError(null);
           }}
-          onAdFailedToLoad={(error) => {
-            console.warn('[AdMob] Banner failed to load (' + placement + '):', error);
+          onAdFailedToLoad={(error: unknown) => {
+            const err = error as { code?: string; message?: string };
+            const code = err?.code ?? 'unknown';
+            const message = err?.message ?? String(error);
+            console.warn(`[Ads] banner failed (${placement}) [${code}]: ${message}`);
+            setLastBannerError(`${code}: ${message}`);
             // Covers no-fill as well as errors. Either way the slot disappears and the
             // screen carries on; nothing retries in a loop.
             setLoaded(false);

@@ -1,26 +1,23 @@
-import { useRef, useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useRef, useState } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { auth as authApi } from '@/api/endpoints';
 import { ApiError, describeError } from '@/api/errors';
 import type { OtpChallenge } from '@/api/types';
-import { PrimaryButton } from '@/components/PrimaryButton';
-import { TextField } from '@/components/TextField';
-import { OtpInput } from '@/components/OtpInput';
-import { Icon } from '@/components/Icon';
 import { useCountdown } from '@/hooks/useCountdown';
 import { useTheme } from '@/theme/ThemeProvider';
 import { radius, shadows, spacing, typography } from '@/theme/tokens';
+import { Icon } from '@/components/Icon';
+import {
+  SMButton,
+  SMTextInput,
+  SMPasswordInput,
+  SMOTPInput,
+  SMCard,
+  SMHeader,
+  SMInlineNotice,
+  SMAuthContainer,
+} from '@/components/sm';
 
 export default function ForgotPasswordScreen() {
   const { colors, dark } = useTheme();
@@ -56,7 +53,9 @@ export default function ForgotPasswordScreen() {
       await fn();
     } catch (caught: unknown) {
       setError(caught);
-      if (caught instanceof ApiError && caught.fields) setFieldErrors(caught.fields);
+      if (caught instanceof ApiError && caught.fields) {
+        setFieldErrors(caught.fields);
+      }
     } finally {
       inFlight.current = false;
       setSubmitting(false);
@@ -69,28 +68,47 @@ export default function ForgotPasswordScreen() {
         setFieldErrors({ email: 'Enter your email address.' });
         return;
       }
-      setChallenge(await authApi.passwordRequest(email.trim()));
+      const next = await authApi.passwordRequest(email.trim());
+      setChallenge(next);
       setStep('code');
     });
 
   const verify = (code: string): Promise<void> =>
     run(async () => {
       if (code.length !== 6) return;
-      const { resetToken: token } = await authApi.passwordVerify(challenge?.email ?? email.trim(), code);
+      const { resetToken: token } = await authApi.passwordVerify(
+        challenge?.email ?? email.trim(),
+        code,
+      );
       resetToken.current = token;
       setStep('password');
     });
 
+  const resend = (): Promise<void> =>
+    run(async () => {
+      if (resendIn > 0) return;
+      const next = await authApi.passwordRequest(challenge?.email ?? email.trim());
+      setChallenge(next);
+      setOtp('');
+    });
+
   const submitPassword = (): Promise<void> =>
     run(async () => {
+      const problems: Record<string, string> = {};
       if (!password) {
-        setFieldErrors({ password: 'Choose a new password.' });
-        return;
+        problems.password = 'Choose a new password.';
+      } else if (password.length < 8) {
+        problems.password = 'Password must be at least 8 characters.';
       }
       if (password !== confirmPassword) {
-        setFieldErrors({ confirmPassword: 'The passwords do not match.' });
+        problems.confirmPassword = 'The passwords do not match.';
+      }
+
+      if (Object.keys(problems).length > 0) {
+        setFieldErrors(problems);
         return;
       }
+
       if (!resetToken.current) {
         setStep('email');
         return;
@@ -108,494 +126,323 @@ export default function ForgotPasswordScreen() {
       setStep('done');
     });
 
-  const goBack = (): void => {
+  const handleBack = (): void => {
+    setError(undefined);
     if (step === 'code') setStep('email');
     else if (step === 'password') setStep('code');
+    else if (step === 'done') router.replace('/sign-in');
     else router.back();
   };
 
-  return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
-      <KeyboardAvoidingView
-        style={styles.safe}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          contentContainerStyle={styles.container}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-        >
-          <View style={styles.top}>
-            {step !== 'done' ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Go back"
-                onPress={goBack}
-                hitSlop={12}
-                style={[
-                  styles.backBtn,
-                  { backgroundColor: colors.surface, borderColor: colors.border },
-                ]}
-              >
-                <Icon name="back" size={18} tone="default" />
-              </Pressable>
-            ) : <View style={{ width: 36 }} />}
+  const stepLabels = {
+    email: 'STEP 1 OF 4',
+    code: 'STEP 2 OF 4',
+    password: 'STEP 3 OF 4',
+    done: 'STEP 4 OF 4',
+  };
 
-            <View style={styles.stepBadge}>
-              <Text style={{ color: colors.primary, fontSize: typography.xs, fontWeight: '700' }}>
-                {step === 'email'
-                  ? 'STEP 1 OF 3'
-                  : step === 'code'
-                    ? 'STEP 2 OF 3'
-                    : step === 'password'
-                      ? 'STEP 3 OF 3'
-                      : 'COMPLETE'}
-              </Text>
-            </View>
+  return (
+    <SMAuthContainer>
+      {/* Top Header */}
+      <SMHeader
+        onBack={step !== 'done' ? handleBack : undefined}
+        stepText={stepLabels[step]}
+      />
+
+      {step === 'email' ? (
+        <>
+          <View style={styles.heroBlock}>
+            <Text
+              accessibilityRole="header"
+              style={[styles.headline, { color: colors.text }]}
+            >
+              Reset password
+            </Text>
+            <Text style={[styles.subheadline, { color: colors.muted }]}>
+              Enter the email associated with your SplitMoney account, and we will send you a verification code.
+            </Text>
           </View>
 
-          {step === 'email' ? (
-            <>
-              <View style={styles.hero}>
-                <Text
-                  accessibilityRole="header"
-                  style={{
-                    color: colors.text,
-                    fontSize: typography.hero,
-                    lineHeight: 40,
-                    fontWeight: '800',
-                  }}
-                >
-                  Reset password
-                </Text>
-                <Text
-                  style={{
-                    color: colors.muted,
-                    fontSize: typography.bodySm,
-                    lineHeight: 22,
-                    marginTop: spacing.xxs,
-                  }}
-                >
-                  Enter the email associated with your SplitMoney account, and we will send you a verification code.
-                </Text>
-              </View>
+          <SMCard elevated>
+            <SMTextInput
+              label="Email Address"
+              leftIcon="mail"
+              value={email}
+              onChangeText={(text) => {
+                setEmail(text);
+                if (fieldErrors.email) setFieldErrors((p) => ({ ...p, email: '' }));
+              }}
+              error={fieldErrors.email}
+              placeholder="you@example.com"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="email"
+              keyboardType="email-address"
+              textContentType="emailAddress"
+              returnKeyType="go"
+              blurOnSubmit={true}
+              editable={!submitting}
+              onSubmitEditing={() => void requestCode()}
+            />
 
-              <View
-                style={[
-                  styles.card,
-                  {
-                    backgroundColor: colors.surface,
-                    borderColor: colors.border,
-                  },
-                  !dark ? shadows.sm : null,
-                ]}
-              >
-                <TextField
-                  label="Email Address"
-                  leftIcon="notifications"
-                  value={email}
-                  onChangeText={setEmail}
-                  error={fieldErrors.email}
-                  placeholder="you@example.com"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  autoComplete="email"
-                  keyboardType="email-address"
-                  textContentType="emailAddress"
-                  returnKeyType="go"
-                  editable={!submitting}
-                  onSubmitEditing={() => void requestCode()}
-                />
-
-                {problem ? (
-                  <View
-                    accessibilityLiveRegion="polite"
-                    style={[
-                      styles.alert,
-                      {
-                        backgroundColor: colors.destructiveLight,
-                        borderColor: colors.destructive,
-                      },
-                    ]}
-                  >
-                    <Icon name="alert" size={18} tone="danger" />
-                    <View style={{ flex: 1, gap: 2 }}>
-                      <Text
-                        style={{
-                          color: colors.destructive,
-                          fontSize: typography.caption,
-                          fontWeight: '700',
-                        }}
-                      >
-                        {problem.title}
-                      </Text>
-                      <Text
-                        style={{
-                          color: colors.muted,
-                          fontSize: typography.xs,
-                          lineHeight: 16,
-                        }}
-                      >
-                        {problem.message}
-                      </Text>
-                    </View>
-                  </View>
-                ) : null}
-
-                <PrimaryButton
-                  label="Send Code"
-                  onPress={() => void requestCode()}
-                  loading={submitting}
-                  style={styles.submitButton}
-                />
-              </View>
-            </>
-          ) : step === 'code' ? (
-            <>
-              <View style={styles.hero}>
-                <Text
-                  accessibilityRole="header"
-                  style={{
-                    color: colors.text,
-                    fontSize: typography.hero,
-                    lineHeight: 40,
-                    fontWeight: '800',
-                  }}
-                >
-                  Enter code
-                </Text>
-                <Text
-                  style={{
-                    color: colors.muted,
-                    fontSize: typography.bodySm,
-                    lineHeight: 22,
-                    marginTop: spacing.xxs,
-                  }}
-                >
-                  We sent a 6-digit code to{' '}
-                  <Text style={{ color: colors.text, fontWeight: '700' }}>
-                    {challenge?.email ?? email}
-                  </Text>
-                </Text>
-              </View>
-
-              <View
-                style={[
-                  styles.card,
-                  {
-                    backgroundColor: colors.surface,
-                    borderColor: colors.border,
-                  },
-                  !dark ? shadows.sm : null,
-                ]}
-              >
-                <OtpInput
-                  value={otp}
-                  onChange={setOtp}
-                  onComplete={(code) => void verify(code)}
-                  disabled={submitting}
-                />
-
-                {problem ? (
-                  <View
-                    accessibilityLiveRegion="polite"
-                    style={[
-                      styles.alert,
-                      {
-                        backgroundColor: colors.destructiveLight,
-                        borderColor: colors.destructive,
-                      },
-                    ]}
-                  >
-                    <Icon name="alert" size={18} tone="danger" />
-                    <View style={{ flex: 1, gap: 2 }}>
-                      <Text
-                        style={{
-                          color: colors.destructive,
-                          fontSize: typography.caption,
-                          fontWeight: '700',
-                        }}
-                      >
-                        {problem.title}
-                      </Text>
-                      <Text
-                        style={{
-                          color: colors.muted,
-                          fontSize: typography.xs,
-                          lineHeight: 16,
-                        }}
-                      >
-                        {problem.message}
-                      </Text>
-                    </View>
-                  </View>
-                ) : null}
-
-                <PrimaryButton
-                  label="Verify Code"
-                  onPress={() => void verify(otp)}
-                  disabled={otp.length !== 6}
-                  loading={submitting}
-                  style={styles.submitButton}
-                />
-
-                <View style={styles.resendBlock}>
-                  {resendIn > 0 ? (
-                    <Text style={{ color: colors.muted, fontSize: typography.caption }}>
-                      Resend code in {resendIn}s
-                    </Text>
-                  ) : (
-                    <Pressable
-                      accessibilityRole="button"
-                      onPress={() => void requestCode()}
-                      disabled={submitting}
-                      hitSlop={8}
-                    >
-                      <Text
-                        style={{
-                          color: colors.primary,
-                          fontSize: typography.caption,
-                          fontWeight: '700',
-                        }}
-                      >
-                        Resend code
-                      </Text>
-                    </Pressable>
-                  )}
-                </View>
-              </View>
-            </>
-          ) : step === 'password' ? (
-            <>
-              <View style={styles.hero}>
-                <Text
-                  accessibilityRole="header"
-                  style={{
-                    color: colors.text,
-                    fontSize: typography.hero,
-                    lineHeight: 40,
-                    fontWeight: '800',
-                  }}
-                >
-                  New password
-                </Text>
-                <Text
-                  style={{
-                    color: colors.muted,
-                    fontSize: typography.bodySm,
-                    lineHeight: 22,
-                    marginTop: spacing.xxs,
-                  }}
-                >
-                  Choose a secure password with at least 8 characters.
-                </Text>
-              </View>
-
-              <View
-                style={[
-                  styles.card,
-                  {
-                    backgroundColor: colors.surface,
-                    borderColor: colors.border,
-                  },
-                  !dark ? shadows.sm : null,
-                ]}
-              >
-                <TextField
-                  label="New Password"
-                  leftIcon="security"
-                  secure
-                  value={password}
-                  onChangeText={setPassword}
-                  error={fieldErrors.password}
-                  placeholder="At least 8 characters"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  autoComplete="new-password"
-                  textContentType="newPassword"
-                  returnKeyType="next"
-                  editable={!submitting}
-                  onSubmitEditing={() => confirmRef.current?.focus()}
-                />
-
-                <TextField
-                  ref={confirmRef}
-                  label="Confirm New Password"
-                  leftIcon="security"
-                  secure
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  error={fieldErrors.confirmPassword}
-                  placeholder="Re-enter your password"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  autoComplete="new-password"
-                  textContentType="newPassword"
-                  returnKeyType="go"
-                  editable={!submitting}
-                  onSubmitEditing={() => void submitPassword()}
-                />
-
-                {problem ? (
-                  <View
-                    accessibilityLiveRegion="polite"
-                    style={[
-                      styles.alert,
-                      {
-                        backgroundColor: colors.destructiveLight,
-                        borderColor: colors.destructive,
-                      },
-                    ]}
-                  >
-                    <Icon name="alert" size={18} tone="danger" />
-                    <View style={{ flex: 1, gap: 2 }}>
-                      <Text
-                        style={{
-                          color: colors.destructive,
-                          fontSize: typography.caption,
-                          fontWeight: '700',
-                        }}
-                      >
-                        {problem.title}
-                      </Text>
-                      <Text
-                        style={{
-                          color: colors.muted,
-                          fontSize: typography.xs,
-                          lineHeight: 16,
-                        }}
-                      >
-                        {problem.message}
-                      </Text>
-                    </View>
-                  </View>
-                ) : null}
-
-                <PrimaryButton
-                  label="Set New Password"
-                  onPress={() => void submitPassword()}
-                  loading={submitting}
-                  style={styles.submitButton}
-                />
-              </View>
-            </>
-          ) : (
-            <View
-              style={[
-                styles.card,
-                styles.doneCard,
-                {
-                  backgroundColor: colors.surface,
-                  borderColor: colors.border,
-                },
-                !dark ? shadows.sm : null,
-              ]}
-            >
-              <View style={[styles.doneIcon, { backgroundColor: colors.successLight }]}>
-                <Icon name="check" size={32} tone="success" />
-              </View>
-
-              <Text
-                accessibilityRole="header"
-                style={{
-                  color: colors.text,
-                  fontSize: typography.title,
-                  fontWeight: '800',
-                  textAlign: 'center',
-                }}
-              >
-                Password updated
-              </Text>
-              <Text
-                style={{
-                  color: colors.muted,
-                  fontSize: typography.bodySm,
-                  lineHeight: 22,
-                  textAlign: 'center',
-                }}
-              >
-                Your password has been changed. For security, all other sessions have been signed out. Please sign in with your new password.
-              </Text>
-
-              <PrimaryButton
-                label="Sign In"
-                onPress={() => router.replace('/sign-in')}
-                style={styles.doneBtn}
+            {problem ? (
+              <SMInlineNotice
+                type="error"
+                title={problem.title}
+                message={problem.message}
               />
+            ) : null}
+
+            <SMButton
+              label="Send Verification Code"
+              loadingLabel="Sending code…"
+              variant="primary"
+              size="lg"
+              loading={submitting}
+              onPress={() => void requestCode()}
+              style={styles.submitBtn}
+            />
+          </SMCard>
+        </>
+      ) : step === 'code' ? (
+        <>
+          <View style={styles.heroBlock}>
+            <Text
+              accessibilityRole="header"
+              style={[styles.headline, { color: colors.text }]}
+            >
+              Enter verification code
+            </Text>
+            <Text style={[styles.subheadline, { color: colors.muted }]}>
+              We sent a 6-digit code to{' '}
+              <Text style={{ color: colors.text, fontWeight: '700' }}>
+                {challenge?.email ?? email.trim()}
+              </Text>
+              . Enter it below to proceed.
+            </Text>
+          </View>
+
+          <SMCard elevated>
+            <SMOTPInput
+              value={otp}
+              onChange={(code) => {
+                setOtp(code);
+                if (error) setError(undefined);
+              }}
+              onComplete={(code) => void verify(code)}
+              disabled={submitting}
+            />
+
+            {problem ? (
+              <SMInlineNotice
+                type="error"
+                title={problem.title}
+                message={problem.message}
+              />
+            ) : null}
+
+            <SMButton
+              label="Verify Code"
+              loadingLabel="Verifying code…"
+              variant="primary"
+              size="lg"
+              disabled={otp.length !== 6}
+              loading={submitting}
+              onPress={() => void verify(otp)}
+              style={styles.submitBtn}
+            />
+
+            <View style={styles.resendBlock}>
+              {resendIn > 0 ? (
+                <Text style={[styles.resendTimer, { color: colors.muted }]}>
+                  Resend code in <Text style={{ color: colors.text, fontWeight: '700' }}>{resendIn}s</Text>
+                </Text>
+              ) : (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Resend password reset verification code"
+                  onPress={() => void resend()}
+                  disabled={submitting}
+                  hitSlop={12}
+                >
+                  <Text style={[styles.resendAction, { color: colors.primary }]}>
+                    Resend code
+                  </Text>
+                </Pressable>
+              )}
             </View>
-          )}
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+          </SMCard>
+        </>
+      ) : step === 'password' ? (
+        <>
+          <View style={styles.heroBlock}>
+            <Text
+              accessibilityRole="header"
+              style={[styles.headline, { color: colors.text }]}
+            >
+              Set new password
+            </Text>
+            <Text style={[styles.subheadline, { color: colors.muted }]}>
+              Choose a strong, secure password with at least 8 characters.
+            </Text>
+          </View>
+
+          <SMCard elevated>
+            <SMPasswordInput
+              label="New Password"
+              value={password}
+              onChangeText={(text) => {
+                setPassword(text);
+                if (fieldErrors.password) setFieldErrors((p) => ({ ...p, password: '' }));
+              }}
+              error={fieldErrors.password}
+              showStrengthHint
+              placeholder="At least 8 characters"
+              autoComplete="new-password"
+              textContentType="newPassword"
+              returnKeyType="next"
+              blurOnSubmit={false}
+              editable={!submitting}
+              onSubmitEditing={() => confirmRef.current?.focus()}
+            />
+
+            <SMPasswordInput
+              ref={confirmRef}
+              label="Confirm New Password"
+              value={confirmPassword}
+              onChangeText={(text) => {
+                setConfirmPassword(text);
+                if (fieldErrors.confirmPassword) setFieldErrors((p) => ({ ...p, confirmPassword: '' }));
+              }}
+              error={fieldErrors.confirmPassword}
+              placeholder="Re-enter your password"
+              autoComplete="new-password"
+              textContentType="newPassword"
+              returnKeyType="go"
+              blurOnSubmit={true}
+              editable={!submitting}
+              onSubmitEditing={() => void submitPassword()}
+            />
+
+            {problem ? (
+              <SMInlineNotice
+                type="error"
+                title={problem.title}
+                message={problem.message}
+              />
+            ) : null}
+
+            <SMButton
+              label="Update Password"
+              loadingLabel="Updating password…"
+              variant="primary"
+              size="lg"
+              loading={submitting}
+              onPress={() => void submitPassword()}
+              style={styles.submitBtn}
+            />
+          </SMCard>
+        </>
+      ) : (
+        /* Step 4: Success / Confirmation */
+        <SMCard elevated style={styles.doneCard}>
+          <View
+            style={[
+              styles.doneBadge,
+              {
+                backgroundColor: dark ? '#064E3B55' : '#ECFDF5',
+                borderColor: dark ? '#065F46' : '#A7F3D0',
+              },
+              !dark ? shadows.sm : null,
+            ]}
+          >
+            <Icon name="check" size={32} tone="primary" />
+          </View>
+
+          <Text
+            accessibilityRole="header"
+            style={[styles.doneTitle, { color: colors.text }]}
+          >
+            Password updated
+          </Text>
+
+          <Text style={[styles.doneDescription, { color: colors.muted }]}>
+            Your SplitMoney password has been changed successfully. For security, all other sessions have been signed out. Please sign in with your new password.
+          </Text>
+
+          <SMButton
+            label="Continue to Sign In"
+            variant="primary"
+            size="lg"
+            onPress={() => router.replace('/sign-in')}
+            style={styles.doneBtn}
+          />
+        </SMCard>
+      )}
+    </SMAuthContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  container: {
-    flexGrow: 1,
-    padding: spacing.base,
-    gap: spacing.lg,
-    maxWidth: 500,
+  heroBlock: {
+    gap: spacing.xs,
     width: '100%',
-    alignSelf: 'center',
-    justifyContent: 'center',
   },
-  top: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.xs,
+  headline: {
+    fontSize: typography.hero,
+    lineHeight: 38,
+    fontWeight: '800',
+    letterSpacing: -0.5,
   },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+  subheadline: {
+    fontSize: typography.bodySm,
+    lineHeight: 22,
+    fontWeight: '500',
   },
-  stepBadge: {
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: spacing.xxs + 2,
-    borderRadius: radius.pill,
-  },
-  hero: { gap: spacing.xxs },
-  card: {
-    padding: spacing.lg,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    gap: spacing.base,
-  },
-  doneCard: {
-    alignItems: 'center',
-    paddingVertical: spacing.xl,
-    gap: spacing.md,
-  },
-  doneIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  doneBtn: {
-    width: '100%',
-    marginTop: spacing.sm,
-  },
-  alert: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-  },
-  submitButton: {
+  submitBtn: {
     marginTop: spacing.xs,
   },
   resendBlock: {
     alignItems: 'center',
+    justifyContent: 'center',
     paddingTop: spacing.xs,
+  },
+  resendTimer: {
+    fontSize: typography.caption,
+    fontWeight: '500',
+  },
+  resendAction: {
+    fontSize: typography.caption,
+    fontWeight: '700',
+  },
+  doneCard: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl,
+    gap: spacing.base,
+  },
+  doneBadge: {
+    width: 68,
+    height: 68,
+    borderRadius: radius.pill,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+  },
+  doneTitle: {
+    fontSize: typography.title,
+    fontWeight: '800',
+    textAlign: 'center',
+    letterSpacing: -0.3,
+  },
+  doneDescription: {
+    fontSize: typography.bodySm,
+    lineHeight: 22,
+    textAlign: 'center',
+    maxWidth: 360,
+  },
+  doneBtn: {
+    width: '100%',
+    marginTop: spacing.md,
   },
 });

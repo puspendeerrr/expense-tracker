@@ -31,9 +31,11 @@ const ICONS = {
   activity: 'clock',
   receipt: 'image',
   camera: 'camera',
+  image: 'image',
   money: 'dollar-sign',
 
   /* Navigation and chrome */
+  menu: 'menu',
   back: 'chevron-left',
   forward: 'chevron-right',
   close: 'x',
@@ -58,6 +60,11 @@ const ICONS = {
   eye: 'eye',
   eyeOff: 'eye-off',
   signOut: 'log-out',
+  mail: 'mail',
+  lock: 'lock',
+  key: 'key',
+  userCheck: 'user-check',
+  userPlus: 'user-plus',
 
   /* Domain & Elements */
   tag: 'tag',
@@ -74,9 +81,12 @@ const ICONS = {
 
   /* Feedback */
   check: 'check',
+  checkCircle: 'check-circle',
   clock: 'clock',
   alert: 'alert-circle',
+  alertCircle: 'alert-circle',
   info: 'info',
+  helpCircle: 'help-circle',
   copy: 'copy',
   send: 'send',
   stop: 'square',

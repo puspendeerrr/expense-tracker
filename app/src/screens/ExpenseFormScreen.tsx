@@ -1,14 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { expenses as expensesApi } from '@/api/endpoints';
@@ -16,14 +7,25 @@ import { ApiError, describeError } from '@/api/errors';
 import type { Expense, ExpenseInput, PaymentMode, SplitType } from '@/api/types';
 import { useRequest } from '@/hooks/useRequest';
 import { useGroup } from '@/features/group/GroupContext';
+import { canModifyExpense } from '@/features/group/permissions';
+import { categoryIcon } from '@/features/group/ledger';
 import { useAuth } from '@/auth/AuthProvider';
-import { PrimaryButton } from '@/components/PrimaryButton';
-import { TextField } from '@/components/TextField';
-import { ReceiptField } from '@/components/ReceiptField';
-import { Sheet } from '@/components/Sheet';
-import { Card, CardSkeleton, OptionRow, SectionHeader } from '@/components/ui';
-import { ErrorState } from '@/components/StateViews';
-import { Icon } from '@/components/Icon';
+import {
+  SMAmountInput,
+  SMAvatar,
+  SMButton,
+  SMDateField,
+  SMEmptyState,
+  SMErrorState,
+  SMScreenHeader,
+  SMImagePicker,
+  SMInlineNotice,
+  SMOptionRow,
+  SMRowSkeleton,
+  SMSelectField,
+  SMSheet,
+  SMTextInput,
+} from '@/components/sm';
 import { useTheme } from '@/theme/ThemeProvider';
 import { radius, spacing, typography } from '@/theme/tokens';
 import {
@@ -34,6 +36,7 @@ import {
   SPLIT_MODES,
   todayIso,
 } from '@/lib/money';
+import { MAX_AMOUNT_PAISE, sanitizeAmount, sanitizeShares } from '@/lib/amountInput';
 
 /**
  * Add or edit an expense.
@@ -48,6 +51,15 @@ import {
  */
 
 type SheetName = 'payer' | 'split' | 'category' | 'payment' | 'participants' | null;
+
+/** One line under each split mode, so the choice is understood before it is made. */
+const SPLIT_HINTS: Record<SplitType, string> = {
+  everyone: 'Divided equally between everyone in the group',
+  specific: 'Divided equally between the people you pick',
+  exact: 'You enter exactly how much each person owes',
+  percentage: 'You enter a percentage for each person',
+  shares: 'You enter a weight — 2 counts double, 1 is normal',
+};
 
 export default function ExpenseFormScreen() {
   const { colors } = useTheme();
@@ -70,11 +82,15 @@ export default function ExpenseFormScreen() {
     [groupId, expenseId],
   );
 
+  const leave = (): void =>
+    router.canGoBack() ? router.back() : router.replace(('/group/' + groupId) as never);
+
   if (editing && existing.loading && !existing.data) {
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
-        <View style={styles.skeletonContainer}>
-          <CardSkeleton rows={6} />
+        <SMScreenHeader title="Edit expense" onBack={leave} />
+        <View style={styles.skeleton}>
+          <SMRowSkeleton rows={5} />
         </View>
       </SafeAreaView>
     );
@@ -83,7 +99,32 @@ export default function ExpenseFormScreen() {
   if (editing && existing.error) {
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
-        <ErrorState error={existing.error} onRetry={() => void existing.refresh()} />
+        <SMScreenHeader title="Edit expense" onBack={leave} />
+        <SMErrorState error={existing.error} onRetry={() => void existing.refresh()} />
+      </SafeAreaView>
+    );
+  }
+
+  /*
+   * Only the payer may edit. The detail screen already hides the Edit button from everyone
+   * else, but this route can still be reached by a link or the back stack, so it guards
+   * itself too: a non-payer is told why, rather than handed a form that will be refused
+   * the moment they save. The server's check is the one that actually decides.
+   */
+  const loaded = existing.data?.expense;
+  if (editing && loaded && !canModifyExpense(loaded, user?.id)) {
+    return (
+      <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+        <SMScreenHeader title="Edit expense" onBack={leave} />
+        <SMEmptyState
+          icon="lock"
+          title="Only the payer can edit this"
+          description={
+            (loaded.payer?.fullName ?? 'The person who paid') +
+            ' paid for this expense, so only they can change or delete it.'
+          }
+          primaryAction={{ label: 'Go back', onPress: leave }}
+        />
       </SafeAreaView>
     );
   }
@@ -94,13 +135,12 @@ export default function ExpenseFormScreen() {
       groupId={groupId}
       members={members}
       meId={user?.id ?? ''}
-      expense={editing ? existing.data?.expense : undefined}
+      expense={editing ? loaded : undefined}
       onSaved={() => {
         void refresh();
-        if (router.canGoBack()) router.back();
-        else router.replace(('/group/' + groupId) as never);
+        leave();
       }}
-      onCancel={() => (router.canGoBack() ? router.back() : router.replace(('/group/' + groupId) as never))}
+      onCancel={leave}
     />
   );
 }
@@ -126,7 +166,8 @@ function Form({
   onSaved: () => void;
   onCancel: () => void;
 }) {
-  const { colors, isDark } = useTheme();
+  const { colors, dark } = useTheme();
+  const amountRef = useRef<TextInput>(null);
 
   /* State seeded once from props */
   const [title, setTitle] = useState(expense?.title ?? '');
@@ -272,27 +313,48 @@ function Form({
 
   const problem = error ? describeError(error) : undefined;
 
+  /*
+   * ======================================================================
+   * Everything above this line is the form's original logic, unchanged.
+   * Everything below is presentation only: it reads that state and calls
+   * the same setters and the same `submit`.
+   * ======================================================================
+   */
+
+  // Past the server's ceiling the save would be refused; say so before it is attempted.
+  const overMax = Number.isFinite(amountPaise) && amountPaise > MAX_AMOUNT_PAISE;
+  const amountError =
+    fieldErrors.amount ??
+    (overMax ? 'The most one expense can be is ' + formatPaise(MAX_AMOUNT_PAISE) + '.' : undefined);
+
+  const confirmation =
+    Number.isFinite(amountPaise) && amountPaise > 0 && !overMax ? formatPaise(amountPaise) : undefined;
+
+  const splitSanitize = splitType === 'shares' ? sanitizeShares : sanitizeAmount;
+
+  const participantSummary =
+    participantIds.length === members.length
+      ? 'Everyone (' + members.length + ')'
+      : participantIds.length === 0
+        ? 'Nobody selected'
+        : participantIds.length === 1
+          ? nameOf(participantIds[0] ?? '')
+          : participantIds.length + ' people';
+
+  const splitHeading =
+    splitType === 'exact'
+      ? 'Amount per person'
+      : splitType === 'percentage'
+        ? 'Percentage per person'
+        : 'Shares per person';
+
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      {/* Modern Header */}
-      <View style={[styles.header, { borderBottomColor: colors.border, backgroundColor: colors.surface }]}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Cancel"
-          onPress={onCancel}
-          hitSlop={12}
-          style={styles.headerButton}
-        >
-          <Icon name="close" size={20} tone="muted" />
-        </Pressable>
-        <Text
-          accessibilityRole="header"
-          style={{ color: colors.text, fontSize: typography.titleSm, fontWeight: '800' }}
-        >
-          {expense ? 'Edit Expense' : 'Add Expense'}
-        </Text>
-        <View style={styles.headerSpacer} />
-      </View>
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top', 'left', 'right', 'bottom']}>
+      <SMScreenHeader
+        title={expense ? 'Edit expense' : 'Add expense'}
+        onBack={onCancel}
+        variant="close"
+      />
 
       <KeyboardAvoidingView
         style={styles.safe}
@@ -301,304 +363,241 @@ function Form({
         <ScrollView
           contentContainerStyle={styles.body}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
-          {/* Hero Amount & Description Card */}
-          <Card style={styles.heroCard}>
-            <View style={styles.amountHero}>
-              <Text style={[styles.currencyPrefix, { color: colors.primary }]}>₹</Text>
-              <TextInput
-                value={amount}
-                onChangeText={setAmount}
-                placeholder="0"
-                placeholderTextColor={isDark ? colors.border : '#CBD5E1'}
-                keyboardType="decimal-pad"
-                inputMode="decimal"
-                editable={!submitting}
-                style={[styles.amountInput, { color: colors.text }]}
-                selectionColor={colors.primary}
-              />
-            </View>
-            {fieldErrors.amount ? (
-              <Text style={[styles.errorText, { color: colors.destructive }]}>
-                {fieldErrors.amount}
-              </Text>
-            ) : null}
-
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-            <TextField
-              label="Expense Title"
+          {/* ---- What, and how much ---- */}
+          <Section title="What was it?">
+            <SMTextInput
+              label="Description"
+              required
               value={title}
               onChangeText={setTitle}
-              error={fieldErrors.title}
-              placeholder="What was this for? (e.g. Dinner, Grocery, Fuel)"
+              {...(fieldErrors.title ? { error: fieldErrors.title } : {})}
+              placeholder="Dinner, groceries, fuel…"
               leftIcon="tag"
               maxLength={120}
               returnKeyType="next"
+              onSubmitEditing={() => amountRef.current?.focus()}
+              blurOnSubmit={false}
+              editable={!submitting}
+              autoCapitalize="sentences"
+            />
+
+            <SMAmountInput
+              ref={amountRef}
+              label="Amount"
+              value={amount}
+              onChangeText={setAmount}
+              {...(amountError ? { error: amountError } : {})}
+              {...(confirmation ? { confirmation } : {})}
               editable={!submitting}
             />
-          </Card>
+          </Section>
 
-          {/* Quick Category Selector */}
-          <View style={styles.quickCategoryContainer}>
-            <Text style={[styles.fieldLabel, { color: colors.muted }]}>CATEGORY</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.categoryPills}
-            >
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => setCategory(null)}
-                style={[
-                  styles.categoryPill,
-                  {
-                    backgroundColor: category === null ? colors.primary : colors.surface,
-                    borderColor: category === null ? colors.primary : colors.border,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.categoryPillText,
-                    { color: category === null ? colors.onPrimary : colors.text },
-                  ]}
-                >
-                  General
-                </Text>
-              </Pressable>
-              {CATEGORIES.map((cat) => {
-                const selected = category === cat;
-                return (
-                  <Pressable
-                    key={cat}
-                    accessibilityRole="button"
-                    onPress={() => setCategory(cat)}
-                    style={[
-                      styles.categoryPill,
-                      {
-                        backgroundColor: selected ? colors.primary : colors.surface,
-                        borderColor: selected ? colors.primary : colors.border,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.categoryPillText,
-                        { color: selected ? colors.onPrimary : colors.text },
-                      ]}
-                    >
-                      {categoryLabel(cat)}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </View>
-
-          {/* Split Configuration Card */}
-          <Card>
-            <SectionHeader title="Payment & Split Details" />
-
-            {/* Paid By Tile */}
-            <PickerTile
-              icon="user"
-              label="Paid By"
+          {/* ---- Who paid, and how it divides ---- */}
+          <Section title="Paid by and split">
+            <SMSelectField
+              label="Paid by"
               value={paidBy === meId ? 'You' : nameOf(paidBy)}
+              leading={<SMAvatar name={nameOf(paidBy)} size={36} round />}
               onPress={() => setSheet('payer')}
+              disabled={submitting}
             />
 
-            {/* Split Mode Tile */}
-            <PickerTile
-              icon="pie-chart"
-              label="Split Mode"
+            <SMSelectField
+              label="Split"
               value={SPLIT_LABELS[splitType]}
+              detail={SPLIT_HINTS[splitType]}
+              icon="balance"
               onPress={() => setSheet('split')}
+              disabled={submitting}
             />
 
-            {/* If Split Type is Specific */}
             {splitType === 'specific' ? (
-              <PickerTile
-                icon="users"
+              <SMSelectField
                 label="Between"
-                value={
-                  participantIds.length === members.length
-                    ? 'Everyone in group (' + members.length + ')'
-                    : participantIds.length + (participantIds.length === 1 ? ' person' : ' people')
-                }
+                value={participantSummary}
+                icon="users"
                 onPress={() => setSheet('participants')}
+                {...(splitProblem ? { error: splitProblem } : {})}
+                disabled={submitting}
               />
             ) : null}
 
-            {/* Paid With Tile */}
-            <PickerTile
-              icon="credit-card"
-              label="Payment Method"
-              value={paymentMode === 'upi' ? 'UPI' : 'Cash'}
-              onPress={() => setSheet('payment')}
-            />
-
-            {/* Date Tile */}
-            <TextField
-              label="Expense Date"
-              value={expenseDate}
-              onChangeText={setExpenseDate}
-              error={fieldErrors.expenseDate}
-              placeholder="YYYY-MM-DD"
-              leftIcon="calendar"
-              keyboardType="numbers-and-punctuation"
-              maxLength={10}
-              editable={!submitting}
-            />
-          </Card>
-
-          {/* Unequal Split Breakdown Card */}
-          {unequal ? (
-            <Card>
-              <SectionHeader
-                title={
-                  splitType === 'exact'
-                    ? 'Exact Amounts (₹)'
+            {unequal ? (
+              <View style={styles.splitBlock}>
+                <Text style={[styles.splitHeading, { color: colors.text }]}>{splitHeading}</Text>
+                <Text style={[styles.splitHint, { color: colors.muted }]}>
+                  {splitType === 'exact'
+                    ? 'Leave someone blank to leave them out. The amounts must add up to the total.'
                     : splitType === 'percentage'
-                      ? 'Percentages (%)'
-                      : 'Relative Shares'
-                }
-              />
-              <Text style={{ color: colors.muted, fontSize: typography.caption, marginBottom: spacing.sm }}>
-                {splitType === 'exact'
-                  ? 'Enter exact rupees per person. The sum must match total ₹' + (amount || '0') + '.'
-                  : splitType === 'percentage'
-                    ? 'Enter percentages. Total must equal 100%.'
-                    : 'Enter share ratio weights (e.g. 2 for 2x share, 1 for normal).'}
-              </Text>
+                      ? 'Leave someone blank to leave them out. The percentages must add up to 100%.'
+                      : 'Leave someone blank to leave them out.'}
+                </Text>
 
-              {members.map((member) => (
-                <TextField
-                  key={member.id}
-                  label={member.id === meId ? member.fullName + ' (You)' : member.fullName}
-                  value={splitValues[member.id] ?? ''}
-                  onChangeText={(val) =>
-                    setSplitValues((current) => ({ ...current, [member.id]: val }))
-                  }
-                  placeholder={splitType === 'shares' ? '1' : '0'}
-                  keyboardType={splitType === 'shares' ? 'number-pad' : 'decimal-pad'}
-                  inputMode={splitType === 'shares' ? 'numeric' : 'decimal'}
-                  editable={!submitting}
-                />
-              ))}
+                {members.map((member) => (
+                  <View key={member.id} style={styles.splitRow}>
+                    <SMAvatar name={member.fullName} size={34} round />
+                    <Text numberOfLines={1} style={[styles.splitName, { color: colors.text }]}>
+                      {member.id === meId ? 'You' : member.fullName}
+                    </Text>
+                    <View
+                      style={[
+                        styles.splitInputBox,
+                        {
+                          borderColor: dark ? colors.borderStrong : colors.border,
+                          backgroundColor: dark ? colors.surface : colors.surfaceElevated ?? colors.surface,
+                        },
+                      ]}
+                    >
+                      {splitType === 'exact' ? (
+                        <Text style={[styles.splitAffix, { color: colors.muted }]}>₹</Text>
+                      ) : null}
+                      <TextInput
+                        value={splitValues[member.id] ?? ''}
+                        onChangeText={(value) =>
+                          setSplitValues((current) => ({ ...current, [member.id]: splitSanitize(value) }))
+                        }
+                        placeholder={splitType === 'shares' ? '1' : '0'}
+                        placeholderTextColor={colors.muted}
+                        keyboardType={splitType === 'shares' ? 'number-pad' : 'decimal-pad'}
+                        inputMode={splitType === 'shares' ? 'numeric' : 'decimal'}
+                        editable={!submitting}
+                        accessibilityLabel={
+                          (member.id === meId ? 'Your ' : member.fullName + '’s ') +
+                          (splitType === 'exact' ? 'amount' : splitType === 'percentage' ? 'percentage' : 'shares')
+                        }
+                        style={[styles.splitInput, { color: colors.text }]}
+                      />
+                      {splitType === 'percentage' ? (
+                        <Text style={[styles.splitAffix, { color: colors.muted }]}>%</Text>
+                      ) : null}
+                    </View>
+                  </View>
+                ))}
 
-              {splitProblem ? (
-                <View style={[styles.warn, { backgroundColor: colors.subtle, borderColor: colors.destructive }]}>
-                  <Icon name="alert-circle" size={16} tone="destructive" />
-                  <Text style={{ color: colors.destructive, fontSize: typography.caption, flex: 1 }}>
-                    {splitProblem}
-                  </Text>
-                </View>
-              ) : (
-                <View style={[styles.successNotice, { backgroundColor: colors.primarySubtle }]}>
-                  <Icon name="check" size={16} tone="primary" />
-                  <Text style={{ color: colors.primary, fontSize: typography.caption, fontWeight: '600' }}>
-                    Shares add up correctly
-                  </Text>
-                </View>
-              )}
-            </Card>
-          ) : null}
+                {splitProblem ? (
+                  <SMInlineNotice type="error" message={splitProblem} />
+                ) : (
+                  <SMInlineNotice
+                    type="success"
+                    message={
+                      splitType === 'shares' ? 'Shares are set.' : 'Everything adds up.'
+                    }
+                  />
+                )}
+              </View>
+            ) : null}
+          </Section>
 
-          {/* Notes and Receipt Card */}
-          <Card>
-            <SectionHeader title="Notes & Receipt" />
-            <TextField
+          {/* ---- When, what kind, how ---- */}
+          <Section title="Details">
+            <SMDateField
+              label="Date"
+              value={expenseDate}
+              onChange={setExpenseDate}
+              {...(fieldErrors.expenseDate ? { error: fieldErrors.expenseDate } : {})}
+              disabled={submitting}
+            />
+
+            <SMSelectField
+              label="Category"
+              value={category ? categoryLabel(category) : 'General'}
+              icon={categoryIcon(category)}
+              onPress={() => setSheet('category')}
+              disabled={submitting}
+            />
+
+            <SMSelectField
+              label="Paid with"
+              value={paymentMode === 'upi' ? 'UPI' : 'Cash'}
+              icon="money"
+              onPress={() => setSheet('payment')}
+              disabled={submitting}
+            />
+          </Section>
+
+          {/* ---- Optional extras, visually quieter ---- */}
+          <Section title="Notes and receipt" optional>
+            <SMTextInput
               label="Notes"
               value={notes}
               onChangeText={setNotes}
-              error={fieldErrors.notes}
-              placeholder="Any details or remarks..."
-              leftIcon="file-text"
+              {...(fieldErrors.notes ? { error: fieldErrors.notes } : {})}
+              placeholder="Anything worth remembering"
               multiline
               maxLength={500}
               editable={!submitting}
               style={styles.notes}
             />
 
-            <ReceiptField
+            <SMImagePicker
+              variant="receipt"
+              label="Receipt"
               url={receiptUrl}
-              onChange={setReceiptUrl}
               folder="splitwise/receipts"
+              onChange={(image) => setReceiptUrl(image ? image.url : null)}
+              disabled={submitting}
             />
-          </Card>
+          </Section>
 
-          {/* Submission Error Banner */}
           {problem ? (
-            <View style={[styles.warn, { backgroundColor: colors.subtle, borderColor: colors.destructive }]}>
-              <Icon name="alert-circle" size={18} tone="destructive" />
-              <View style={styles.warnTextContainer}>
-                <Text style={{ color: colors.destructive, fontSize: typography.caption, fontWeight: '700' }}>
-                  {problem.title}
-                </Text>
-                <Text style={{ color: colors.muted, fontSize: typography.caption, lineHeight: 18 }}>
-                  {problem.message}
-                </Text>
-              </View>
-              {problem.retryable ? (
-                <PrimaryButton
-                  label="Retry"
-                  variant="secondary"
-                  loading={submitting}
-                  onPress={() => void submit()}
-                  style={styles.smallRetry}
-                />
-              ) : null}
-            </View>
+            <SMInlineNotice type="error" title={problem.title} message={problem.message} />
           ) : null}
-
-          {/* Submit Button */}
-          <PrimaryButton
-            label={expense ? 'Update Expense' : 'Save Expense'}
-            loading={submitting}
-            disabled={!canSubmit}
-            onPress={() => void submit()}
-          />
         </ScrollView>
+
+        {/* ---- The action stays reachable above the keyboard ---- */}
+        <View
+          style={[
+            styles.footer,
+            {
+              backgroundColor: colors.background,
+              borderTopColor: dark ? colors.borderStrong : colors.border,
+            },
+          ]}
+        >
+          <SMButton
+            label={expense ? 'Save changes' : 'Add expense'}
+            loadingLabel="Saving…"
+            icon={expense ? 'check' : 'add'}
+            variant="primary"
+            fullWidth
+            loading={submitting}
+            disabled={!canSubmit || overMax}
+            onPress={() => void submit()}
+            accessibilityHint={
+              canSubmit && !overMax
+                ? undefined
+                : 'Add a description and an amount, and make sure the split adds up'
+            }
+          />
+        </View>
       </KeyboardAvoidingView>
 
-      {/* Pickers Sheets */}
-      <Sheet visible={sheet === 'payer'} onClose={() => setSheet(null)} title="Who paid?">
+      {/* ---- Sheets ---- */}
+
+      <SMSheet visible={sheet === 'payer'} onClose={() => setSheet(null)} title="Who paid?">
         {members.map((member) => (
-          <OptionRow
+          <SMOptionRow
             key={member.id}
-            label={member.id === meId ? member.fullName + ' (You)' : member.fullName}
+            label={member.id === meId ? 'You' : member.fullName}
             selected={paidBy === member.id}
+            leading={<SMAvatar name={member.fullName} size={32} round />}
             onPress={() => {
               setPaidBy(member.id);
               setSheet(null);
             }}
           />
         ))}
-      </Sheet>
+      </SMSheet>
 
-      <Sheet
-        visible={sheet === 'split'}
-        onClose={() => setSheet(null)}
-        title="Split Method"
-        subtitle="The server calculates exact paise distribution."
-      >
+      <SMSheet visible={sheet === 'split'} onClose={() => setSheet(null)} title="How should it be split?">
         {SPLIT_MODES.map((mode) => (
-          <OptionRow
+          <SMOptionRow
             key={mode}
             label={SPLIT_LABELS[mode]}
-            detail={
-              mode === 'everyone'
-                ? 'Equally divided among all members'
-                : mode === 'specific'
-                  ? 'Equally divided among chosen members'
-                  : mode === 'exact'
-                    ? 'Enter exact rupees per person'
-                    : mode === 'percentage'
-                      ? 'Enter percentage share per person'
-                      : 'Relative weights (e.g. 2 : 1 : 1)'
-            }
+            detail={SPLIT_HINTS[mode]}
             selected={splitType === mode}
             onPress={() => {
               setSplitType(mode);
@@ -606,53 +605,64 @@ function Form({
             }}
           />
         ))}
-      </Sheet>
+      </SMSheet>
 
-      <Sheet visible={sheet === 'participants'} onClose={() => setSheet(null)} title="Select Participants">
+      <SMSheet
+        visible={sheet === 'participants'}
+        onClose={() => setSheet(null)}
+        title="Split between"
+        subtitle={participantIds.length + ' of ' + members.length + ' selected'}
+        footer={<SMButton label="Done" variant="primary" fullWidth onPress={() => setSheet(null)} />}
+      >
         {members.map((member) => {
-          const chosen = participantIds.includes(member.id);
+          const on = participantIds.includes(member.id);
           return (
-            <OptionRow
+            <SMOptionRow
               key={member.id}
-              label={member.id === meId ? member.fullName + ' (You)' : member.fullName}
-              selected={chosen}
+              mode="checkbox"
+              label={member.id === meId ? 'You' : member.fullName}
+              selected={on}
+              leading={<SMAvatar name={member.fullName} size={32} round />}
               onPress={() =>
                 setParticipantIds((current) =>
-                  chosen ? current.filter((id) => id !== member.id) : [...current, member.id],
+                  on ? current.filter((id) => id !== member.id) : [...current, member.id],
                 )
               }
             />
           );
         })}
-      </Sheet>
+      </SMSheet>
 
-      <Sheet visible={sheet === 'category'} onClose={() => setSheet(null)} title="Select Category">
-        <OptionRow
-          label="Uncategorised"
+      <SMSheet visible={sheet === 'category'} onClose={() => setSheet(null)} title="Category">
+        <SMOptionRow
+          label="General"
+          icon="expense"
           selected={category === null}
           onPress={() => {
             setCategory(null);
             setSheet(null);
           }}
         />
-        {CATEGORIES.map((cat) => (
-          <OptionRow
-            key={cat}
-            label={categoryLabel(cat)}
-            selected={category === cat}
+        {CATEGORIES.map((value) => (
+          <SMOptionRow
+            key={value}
+            label={categoryLabel(value)}
+            icon={categoryIcon(value)}
+            selected={category === value}
             onPress={() => {
-              setCategory(cat);
+              setCategory(value);
               setSheet(null);
             }}
           />
         ))}
-      </Sheet>
+      </SMSheet>
 
-      <Sheet visible={sheet === 'payment'} onClose={() => setSheet(null)} title="Payment Method">
+      <SMSheet visible={sheet === 'payment'} onClose={() => setSheet(null)} title="Paid with">
         {(['cash', 'upi'] as PaymentMode[]).map((mode) => (
-          <OptionRow
+          <SMOptionRow
             key={mode}
             label={mode === 'upi' ? 'UPI' : 'Cash'}
+            icon="money"
             selected={paymentMode === mode}
             onPress={() => {
               setPaymentMode(mode);
@@ -660,199 +670,86 @@ function Form({
             }}
           />
         ))}
-      </Sheet>
+      </SMSheet>
     </SafeAreaView>
   );
 }
 
-/** Modern Picker Tile Component */
-function PickerTile({
-  icon,
-  label,
-  value,
-  onPress,
+/**
+ * A titled group of fields.
+ *
+ * Titles are small and muted: they orient, and the fields beneath them are the content.
+ * An optional section says so in its title, so nobody wonders whether a receipt is required
+ * before they can save.
+ */
+function Section({
+  title,
+  optional = false,
+  children,
 }: {
-  icon: 'user' | 'users' | 'pie-chart' | 'credit-card' | 'tag';
-  label: string;
-  value: string;
-  onPress: () => void;
+  title: string;
+  optional?: boolean;
+  children: React.ReactNode;
 }) {
   const { colors } = useTheme();
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label + ': ' + value}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.pickerTile,
-        {
-          borderColor: colors.border,
-          backgroundColor: colors.surface,
-          opacity: pressed ? 0.85 : 1,
-        },
-      ]}
-    >
-      <View style={styles.pickerTileLeft}>
-        <View style={[styles.iconCircle, { backgroundColor: colors.subtle }]}>
-          <Icon name={icon} size={18} tone="primary" />
-        </View>
-        <View style={styles.pickerTileText}>
-          <Text style={[styles.pickerLabel, { color: colors.muted }]}>{label}</Text>
-          <Text style={[styles.pickerValue, { color: colors.text }]} numberOfLines={1}>
-            {value}
-          </Text>
-        </View>
+    <View style={styles.section}>
+      <View style={styles.sectionHead}>
+        <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.muted }]}>
+          {title}
+        </Text>
+        {optional ? (
+          <Text style={[styles.sectionOptional, { color: colors.muted }]}>Optional</Text>
+        ) : null}
       </View>
-      <Icon name="forward" size={16} tone="muted" />
-    </Pressable>
+      <View style={styles.sectionBody}>{children}</View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  skeletonContainer: { padding: spacing.lg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-  },
-  headerButton: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerSpacer: { width: 36 },
-  body: {
-    padding: spacing.lg,
-    gap: spacing.lg,
-    paddingBottom: spacing.xxl * 1.5,
-    maxWidth: 600,
-    width: '100%',
-    alignSelf: 'center',
-  },
-  heroCard: {
-    padding: spacing.xl,
-    gap: spacing.md,
-  },
-  amountHero: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    paddingVertical: spacing.sm,
-  },
-  currencyPrefix: {
-    fontSize: typography.hero,
+  skeleton: { padding: spacing.base },
+  body: { padding: spacing.base, gap: spacing.lg, paddingBottom: spacing.xxl },
+  section: { gap: spacing.sm },
+  sectionHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  sectionTitle: {
+    fontSize: typography.xs,
     fontWeight: '800',
-  },
-  amountInput: {
-    fontSize: typography.display,
-    fontWeight: '900',
-    minWidth: 100,
-    textAlign: 'center',
-    padding: 0,
-  },
-  divider: {
-    height: 1,
-    marginVertical: spacing.xs,
-  },
-  quickCategoryContainer: {
-    gap: spacing.xs,
-  },
-  fieldLabel: {
-    fontSize: typography.xs,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-  },
-  categoryPills: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-    paddingVertical: spacing.xxs,
-  },
-  categoryPill: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-  },
-  categoryPillText: {
-    fontSize: typography.caption,
-    fontWeight: '600',
-  },
-  pickerTile: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    minHeight: 56,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    marginBottom: spacing.xs,
-  },
-  pickerTileLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    flex: 1,
-  },
-  iconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pickerTileText: {
-    flex: 1,
-    gap: 2,
-  },
-  pickerLabel: {
-    fontSize: typography.xs,
-    fontWeight: '600',
+    letterSpacing: 1.1,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
-  pickerValue: {
+  sectionOptional: { fontSize: typography.xs, fontWeight: '600' },
+  sectionBody: { gap: spacing.md },
+  notes: { minHeight: 84, textAlignVertical: 'top' },
+  splitBlock: { gap: spacing.sm, paddingTop: spacing.xs },
+  splitHeading: { fontSize: typography.bodySm, fontWeight: '700' },
+  splitHint: { fontSize: typography.caption, lineHeight: 18 },
+  splitRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 52 },
+  splitName: { flex: 1, fontSize: typography.bodySm, fontWeight: '600' },
+  splitInputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: 128,
+    minHeight: 46,
+    paddingHorizontal: spacing.md,
+    borderWidth: 1.5,
+    borderRadius: radius.md,
+    gap: 4,
+  },
+  splitAffix: { fontSize: typography.bodySm, fontWeight: '700' },
+  splitInput: {
+    flex: 1,
     fontSize: typography.body,
     fontWeight: '700',
+    textAlign: 'right',
+    fontVariant: ['tabular-nums'],
+    paddingVertical: spacing.xs,
   },
-  notes: {
-    minHeight: 80,
-    textAlignVertical: 'top',
-  },
-  warn: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-  },
-  warnTextContainer: {
-    flex: 1,
-    gap: 2,
-  },
-  successNotice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    padding: spacing.sm,
-    borderRadius: radius.sm,
-  },
-  smallRetry: {
-    minHeight: 32,
-    paddingVertical: spacing.xxs,
-    paddingHorizontal: spacing.sm,
-  },
-  errorText: {
-    fontSize: typography.caption,
-    fontWeight: '600',
-    textAlign: 'center',
+  footer: {
+    paddingHorizontal: spacing.base,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+    borderTopWidth: 1,
   },
 });

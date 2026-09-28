@@ -87,9 +87,22 @@ const BLOCKED_PERMISSIONS = [
 
 const plugins: ExpoConfig['plugins'] = [
   'expo-router',
+  // Release builds are signed with the upload key, never the debug key. See BUILD.md.
+  './plugins/withReleaseSigning',
   // The development launcher has no place in a store build.
   ...(isProduction ? [] : ['expo-dev-client']),
   'expo-secure-store',
+  [
+    'expo-splash-screen',
+    {
+      // The SplitMoney mark on white, and on the dark surface in dark mode.
+      image: './assets/splash-icon.png',
+      imageWidth: 180,
+      resizeMode: 'contain',
+      backgroundColor: '#FFFFFF',
+      dark: { image: './assets/splash-icon.png', backgroundColor: '#09090B' },
+    },
+  ],
   [
     'expo-notifications',
     {
@@ -101,6 +114,8 @@ const plugins: ExpoConfig['plugins'] = [
       icon: './assets/notification-icon.png',
       color: '#087F5B',
       defaultChannel: 'general',
+      // iOS push entitlement: Apple's production gateway for store builds.
+      mode: isProduction ? 'production' : 'development',
     },
   ],
   [
@@ -160,14 +175,30 @@ const config: ExpoConfig = {
      */
     googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? './google-services.json',
     versionCode: Number(process.env.ANDROID_VERSION_CODE ?? '1'),
-    adaptiveIcon: { foregroundImage: './assets/adaptive-icon.png', backgroundColor: '#087F5B' },
+    /*
+     * The SplitMoney mark on white. The foreground sits inside the 66% safe zone so no
+     * launcher mask (circle, squircle, teardrop) clips it; the monochrome layer is what
+     * Android 13+ tints for themed icons. All generated from client/public's logo SVG.
+     */
+    adaptiveIcon: {
+      foregroundImage: './assets/adaptive-icon.png',
+      monochromeImage: './assets/adaptive-icon-monochrome.png',
+      backgroundColor: '#FFFFFF',
+    },
     predictiveBackGestureEnabled: true,
     permissions: ANDROID_PERMISSIONS,
     blockedPermissions: BLOCKED_PERMISSIONS,
   },
 
   ios: {
-    bundleIdentifier: 'com.chaten.splitwise.mobile',
+    /*
+     * iOS has never been built, so it takes the SplitMoney identifier now, while that is
+     * free. Android keeps its id: Firebase (google-services.json) is registered for it,
+     * and changing it means registering a new Android app in Firebase first.
+     */
+    bundleIdentifier: 'com.chaten.splitmoney',
+    icon: './assets/icon.png',
+    config: { usesNonExemptEncryption: false },
     buildNumber: process.env.IOS_BUILD_NUMBER ?? '1',
     supportsTablet: false,
   },

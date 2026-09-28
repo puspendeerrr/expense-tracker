@@ -52,6 +52,8 @@ type AdsContextValue = {
   status: AdsStatus;
   /** The single question every ad component asks before rendering anything. */
   canShowAds: boolean;
+  /** Whether consent or region permits requesting ads. */
+  canRequestAds: boolean;
   /**
    * Reserved for a future paid tier. Always false today.
    *
@@ -71,6 +73,8 @@ type AdsContextValue = {
    */
   bannerHeight: number;
   setBannerHeight: (height: number) => void;
+  lastBannerError: string | null;
+  setLastBannerError: (err: string | null) => void;
 };
 
 const AdsContext = createContext<AdsContextValue | null>(null);
@@ -79,8 +83,10 @@ export function AdProvider({ children }: PropsWithChildren) {
   const [status, setStatus] = useState<AdsStatus>(
     adsConfig.enabled ? 'preparing' : 'disabled',
   );
+  const [canRequestAds, setCanRequestAds] = useState(false);
   const [privacyOptionsRequired, setPrivacyOptionsRequired] = useState(false);
   const [bannerHeight, setBannerHeight] = useState(0);
+  const [lastBannerError, setLastBannerError] = useState<string | null>(null);
 
   /** Initialisation must happen once per process, however often this remounts. */
   const started = useRef(false);
@@ -109,6 +115,7 @@ export function AdProvider({ children }: PropsWithChildren) {
          * console (common for new apps), we catch the error gracefully and continue to initialize
          * the SDK so ads can load.
          */
+        let permitted = true;
         try {
           await AdsConsent.requestInfoUpdate(
             adsConfig.useTestAds
@@ -117,21 +124,29 @@ export function AdProvider({ children }: PropsWithChildren) {
           );
 
           const consent = await AdsConsent.gatherConsent();
+          permitted = consent.canRequestAds;
           if (!cancelled) {
+            setCanRequestAds(consent.canRequestAds);
             setPrivacyOptionsRequired(Boolean(consent.privacyOptionsRequirementStatus === 'REQUIRED'));
           }
-        } catch (consentError) {
-          console.warn('[AdMob] UMP Consent gathering note:', consentError);
+        } catch (consentError: unknown) {
+          const msg = consentError instanceof Error ? consentError.message : String(consentError);
+          console.warn('[Ads] UMP Consent gathering note:', msg);
         }
+
+        console.log(`[Ads] canRequestAds=${permitted}`);
+        if (!cancelled) setCanRequestAds(permitted);
 
         if (cancelled) return;
 
         // Always initialize Google Mobile Ads SDK
         await mobileAds().initialize();
+        console.log('[Ads] SDK initialized');
         if (cancelled) return;
         setStatus('ready');
-      } catch (error) {
-        console.warn('[AdMob] SDK initialization failed:', error);
+      } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : String(error);
+        console.warn('[Ads] SDK initialization failed:', msg);
         if (!cancelled) setStatus('error');
       }
     })();
@@ -158,13 +173,16 @@ export function AdProvider({ children }: PropsWithChildren) {
     () => ({
       status,
       canShowAds: adsConfig.enabled && status === 'ready' && !hasAdFreeAccess,
+      canRequestAds,
       hasAdFreeAccess,
       privacyOptionsRequired,
       showPrivacyOptions,
       bannerHeight,
       setBannerHeight,
+      lastBannerError,
+      setLastBannerError,
     }),
-    [status, privacyOptionsRequired, showPrivacyOptions, bannerHeight],
+    [status, canRequestAds, privacyOptionsRequired, showPrivacyOptions, bannerHeight, lastBannerError],
   );
 
   return <AdsContext.Provider value={value}>{children}</AdsContext.Provider>;
@@ -182,11 +200,14 @@ export function useAds(): AdsContextValue {
     useContext(AdsContext) ?? {
       status: 'disabled',
       canShowAds: false,
+      canRequestAds: false,
       hasAdFreeAccess: false,
       privacyOptionsRequired: false,
       showPrivacyOptions: async () => {},
       bannerHeight: 0,
       setBannerHeight: () => {},
+      lastBannerError: null,
+      setLastBannerError: () => {},
     }
   );
 }

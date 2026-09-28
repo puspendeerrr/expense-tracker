@@ -47,6 +47,10 @@ export const routeForNotification = (data: unknown): string | null => {
   // where something can actually be done about them.
   if (type && type.startsWith('security_')) return DEVICES_ROUTE;
 
+  // A deleted expense still carries its old id, which now leads nowhere. Its group is the
+  // useful destination: that is where the change is visible.
+  if (type === 'expense_deleted' && groupId) return '/group/' + groupId;
+
   if (groupId && entityId) {
     if (entityType === 'expense') return '/group/' + groupId + '/expense/' + entityId;
     if (entityType === 'settlement') return '/group/' + groupId + '/settlement/' + entityId;

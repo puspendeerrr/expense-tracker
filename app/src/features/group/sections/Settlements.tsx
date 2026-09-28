@@ -5,36 +5,44 @@ import { settlements as settlementsApi } from '@/api/endpoints';
 import type { SettlementListPayload } from '@/api/types';
 import { useRequest } from '@/hooks/useRequest';
 import { useGroup, useMemberLookup } from '../GroupContext';
-import { SettlementCard } from '../cards';
-import { Card, CardSkeleton, OptionRow } from '@/components/ui';
-import { EmptyState, ErrorState } from '@/components/StateViews';
-import { PrimaryButton } from '@/components/PrimaryButton';
-import { Sheet } from '@/components/Sheet';
-import { Icon } from '@/components/Icon';
+import { useAuth } from '@/auth/AuthProvider';
+import { describeSettlement, settlementChips } from '../chips';
+import {
+  SMButton,
+  SMChipFilter,
+  SMEmptyState,
+  SMErrorState,
+  SMInlineNotice,
+  SMRowSkeleton,
+  SMSettlementListItem,
+} from '@/components/sm';
 import { useTheme } from '@/theme/ThemeProvider';
 import { spacing, typography } from '@/theme/tokens';
-import { SETTLEMENT_STATUS_LABELS } from '@/lib/money';
+import { formatInstant, formatPaise } from '@/lib/money';
 
 const PAGE = 20;
 
-const STATUSES = [
-  'all',
-  'paid_pending_approval',
-  'will_pay_soon',
-  'completed',
-  'rejected',
-  'cancelled',
-] as const;
+type StatusFilter = 'all' | 'paid_pending_approval' | 'will_pay_soon' | 'completed' | 'rejected' | 'cancelled';
+
+/** Exactly the values the server's list endpoint accepts for `status`, nothing more. */
+const FILTERS: { value: StatusFilter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'paid_pending_approval', label: 'Waiting' },
+  { value: 'will_pay_soon', label: 'Promised' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'rejected', label: 'Rejected' },
+  { value: 'cancelled', label: 'Cancelled' },
+];
 
 export function SettlementsSection() {
   const { colors } = useTheme();
   const { groupId, live, revision } = useGroup();
   const lookup = useMemberLookup();
+  const { user } = useAuth();
   const router = useRouter();
 
-  const [status, setStatus] = useState<string>('all');
+  const [status, setStatus] = useState<StatusFilter>('all');
   const [limit, setLimit] = useState(PAGE);
-  const [sheet, setSheet] = useState(false);
 
   const request = useRequest<SettlementListPayload>(
     useCallback(
@@ -54,87 +62,80 @@ export function SettlementsSection() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.toolbar}>
-        <PrimaryButton
-          label="Settle Up"
-          icon="settlement"
-          variant="primary"
-          onPress={() => router.push(('/group/' + groupId + '/settle') as never)}
-          style={{ flex: 1.2 }}
-        />
-        <PrimaryButton
-          label={status === 'all' ? 'Status filter' : (SETTLEMENT_STATUS_LABELS[status] ?? status)}
-          icon="filter"
-          variant="secondary"
-          onPress={() => setSheet(true)}
-          style={{ flex: 1 }}
-        />
-      </View>
+      <SMButton
+        label="Settle up"
+        icon="settlement"
+        variant="primary"
+        fullWidth
+        onPress={() => router.push(('/group/' + groupId + '/settle') as never)}
+      />
 
       {actionable > 0 ? (
-        <View style={styles.notice}>
-          <Card
-            style={{
-              backgroundColor: colors.warningLight,
-              borderColor: colors.warning,
-            }}
-          >
-            <View style={styles.noticeHeader}>
-              <Icon name="alert" size={18} tone="warning" />
-              <Text style={{ color: colors.text, fontSize: typography.bodySm, fontWeight: '700' }}>
-                {actionable === 1 ? '1 payment requires your approval' : `${actionable} payments require your approval`}
-              </Text>
-            </View>
-            <Text style={{ color: colors.muted, fontSize: typography.caption, lineHeight: 18 }}>
-              Someone sent you a payment request. Inspect the proof and confirm or reject it below.
-            </Text>
-          </Card>
-        </View>
+        <SMInlineNotice
+          type="warning"
+          title={actionable === 1 ? '1 payment needs your confirmation' : actionable + ' payments need your confirmation'}
+          message="Someone says they've paid you. Open it, check the proof, and confirm or reject it."
+        />
       ) : null}
 
+      <SMChipFilter
+        accessibilityLabel="Filter settlements by status"
+        options={FILTERS}
+        value={status}
+        onChange={(next) => {
+          setStatus(next);
+          setLimit(PAGE);
+        }}
+      />
+
       {request.loading && !request.data ? (
-        <CardSkeleton rows={4} />
+        <SMRowSkeleton rows={4} />
       ) : request.error && !request.data ? (
-        <ErrorState error={request.error} onRetry={() => void request.refresh()} />
+        <SMErrorState error={request.error} onRetry={() => void request.refresh()} />
       ) : rows.length === 0 ? (
-        <EmptyState
-          title={status === 'all' ? 'No settlements yet' : 'No settlements found'}
-          message={
-            status === 'all'
-              ? 'Recorded payments and settled debts will appear here.'
-              : 'There are no settlements matching the selected status.'
-          }
-          icon="settlement"
-          {...(status === 'all'
-            ? {
-                action: {
-                  label: 'Settle Up',
-                  onPress: () => router.push(('/group/' + groupId + '/settle') as never),
-                  variant: 'primary',
-                },
-              }
-            : {
-                action: {
-                  label: 'Show all',
-                  onPress: () => setStatus('all'),
-                  variant: 'secondary',
-                },
-              })}
-        />
+        status === 'all' ? (
+          <SMEmptyState
+            icon="settlement"
+            title="No settlements yet"
+            description="Payments and promises to pay in this group will show up here."
+            primaryAction={{
+              label: 'Settle up',
+              icon: 'settlement',
+              onPress: () => router.push(('/group/' + groupId + '/settle') as never),
+            }}
+          />
+        ) : (
+          <SMEmptyState
+            icon="filter"
+            title={status === 'paid_pending_approval' ? "You're all caught up" : 'No settlements match this filter'}
+            description={
+              status === 'paid_pending_approval'
+                ? 'Nothing in this group is waiting for confirmation.'
+                : 'There are settlements in this group, just none with this status.'
+            }
+            primaryAction={{ label: 'Show all', onPress: () => setStatus('all') }}
+          />
+        )
       ) : (
         <View style={styles.list}>
-          {rows.map((settlement) => (
-            <SettlementCard
-              key={settlement.id}
-              settlement={settlement}
-              payerName={lookup(settlement.payerId).fullName}
-              receiverName={lookup(settlement.receiverId).fullName}
-              onPress={() => open(settlement.id)}
-            />
-          ))}
+          {rows.map((settlement) => {
+            const described = describeSettlement(settlement, user?.id, (id) => lookup(id).fullName);
+
+            return (
+              <SMSettlementListItem
+                key={settlement.id}
+                title={described.title}
+                amount={formatPaise(settlement.amountPaise, { compact: true })}
+                dateLabel={formatInstant(settlement.paidAt)}
+                tone={described.tone}
+                chips={settlementChips(settlement)}
+                onPress={() => open(settlement.id)}
+              />
+            );
+          })}
 
           {hasMore ? (
-            <PrimaryButton
+            <SMButton
               label={request.refreshing ? 'Loading…' : 'Load more'}
               variant="secondary"
               loading={request.refreshing}
@@ -149,20 +150,6 @@ export function SettlementsSection() {
         </View>
       )}
 
-      <Sheet visible={sheet} onClose={() => setSheet(false)} title="Filter by Status">
-        {STATUSES.map((value) => (
-          <OptionRow
-            key={value}
-            label={value === 'all' ? 'All settlements' : (SETTLEMENT_STATUS_LABELS[value] ?? value)}
-            selected={status === value}
-            onPress={() => {
-              setStatus(value);
-              setLimit(PAGE);
-              setSheet(false);
-            }}
-          />
-        ))}
-      </Sheet>
     </View>
   );
 }

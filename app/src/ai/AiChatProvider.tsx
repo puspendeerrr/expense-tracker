@@ -12,6 +12,7 @@ import { ai as aiApi } from '@/api/endpoints';
 import { ApiError, NetworkError, describeError } from '@/api/errors';
 import type { AiHistoryItem, AiSource } from '@/api/types';
 import { useAuth } from '@/auth/AuthProvider';
+import { buildHistory } from './history';
 
 /**
  * The assistant's conversation. In memory, and nowhere else.
@@ -88,11 +89,6 @@ type AiContextValue = {
 
 const AiChatContext = createContext<AiContextValue | null>(null);
 
-/**
- * The backend bounds history to 10 messages and rejects more with a 400. Matching it here
- * means the limit is enforced before a request is spent finding out.
- */
-const HISTORY_LIMIT = 10;
 
 let counter = 0;
 /** Ids only need to be unique within one process, which a counter guarantees. */
@@ -176,10 +172,7 @@ export function AiChatProvider({ children }: PropsWithChildren) {
        * content worth carrying, and sending an empty assistant turn would spend part of
        * the ten-message budget saying nothing.
        */
-      const history: AiHistoryItem[] = messages
-        .filter((message) => message.status === 'complete' && message.content.trim().length > 0)
-        .slice(-HISTORY_LIMIT)
-        .map((message) => ({ role: message.role, content: message.content }));
+      const history: AiHistoryItem[] = buildHistory(messages);
 
       setMessages((current) => {
         const withoutFailed = existingUserId

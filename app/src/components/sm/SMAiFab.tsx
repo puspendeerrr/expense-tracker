@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Pressable, StyleSheet } from 'react-native';
-import { Icon } from './Icon';
+import { Icon } from '../Icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePathname, useRouter } from 'expo-router';
 import { useAiChat, type AiScreenContext } from '@/ai/AiChatProvider';
@@ -26,7 +26,9 @@ import { radius, spacing } from '@/theme/tokens';
  */
 
 /** Routes where the button would be in the way or make no sense. */
-const HIDDEN = ['/ai', '/sign-in'];
+// Search is a separate tool with its own keyboard-heavy screen; the button would sit on
+// its results.
+const HIDDEN = ['/ai', '/sign-in', '/search'];
 
 /**
  * Reads the current route into a context.
@@ -43,7 +45,7 @@ const kindForPath = (pathname: string): AiScreenContext['kind'] => {
   return 'none';
 };
 
-export function AiFab() {
+export function SMAiFab() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -60,8 +62,10 @@ export function AiFab() {
    */
   const kind = kindForPath(pathname);
   useEffect(() => {
-    if (screen.kind !== kind) setScreen({ kind, ...(kind === 'none' ? {} : { label: screen.label }) });
-  }, [kind, screen.kind, screen.label, setScreen]);
+    // A new kind of screen starts without a label; that screen sets its own once loaded.
+    // Carrying the old one over would word an expense's suggestions with a group's name.
+    if (screen.kind !== kind) setScreen({ kind });
+  }, [kind, screen.kind, setScreen]);
 
   if (HIDDEN.some((route) => pathname.startsWith(route))) return null;
 

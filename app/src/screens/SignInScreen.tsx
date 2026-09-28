@@ -1,27 +1,24 @@
-import { useRef, useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useRef, useState } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { PrimaryButton } from '@/components/PrimaryButton';
-import { TextField } from '@/components/TextField';
-import { ThemeToggle } from '@/components/AppHeader';
-import { Icon } from '@/components/Icon';
 import { useAuth } from '@/auth/AuthProvider';
 import { ApiError, describeError } from '@/api/errors';
 import { useTheme } from '@/theme/ThemeProvider';
-import { radius, shadows, spacing, typography } from '@/theme/tokens';
+import { spacing, typography } from '@/theme/tokens';
+import { ThemeToggle } from '@/components/AppHeader';
+import {
+  SMLogo,
+  SMButton,
+  SMTextInput,
+  SMPasswordInput,
+  SMCard,
+  SMInlineNotice,
+  SMAuthContainer,
+  SMAuthFooter,
+} from '@/components/sm';
 
 export default function SignInScreen() {
-  const { colors, dark } = useTheme();
+  const { colors } = useTheme();
   const { signIn } = useAuth();
   const router = useRouter();
 
@@ -37,11 +34,12 @@ export default function SignInScreen() {
     if (submitting) return;
 
     const trimmed = email.trim();
-    if (!trimmed || !password) {
-      setFieldErrors({
-        ...(trimmed ? {} : { email: 'Enter your email address.' }),
-        ...(password ? {} : { password: 'Enter your password.' }),
-      });
+    const problems: Record<string, string> = {};
+    if (!trimmed) problems.email = 'Enter your email address.';
+    if (!password) problems.password = 'Enter your password.';
+
+    if (Object.keys(problems).length > 0) {
+      setFieldErrors(problems);
       return;
     }
 
@@ -53,7 +51,9 @@ export default function SignInScreen() {
       await signIn(trimmed, password);
     } catch (caught: unknown) {
       setError(caught);
-      if (caught instanceof ApiError && caught.fields) setFieldErrors(caught.fields);
+      if (caught instanceof ApiError && caught.fields) {
+        setFieldErrors(caught.fields);
+      }
       setPassword('');
     } finally {
       setSubmitting(false);
@@ -63,254 +63,146 @@ export default function SignInScreen() {
   const problem = error ? describeError(error) : undefined;
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
-      <KeyboardAvoidingView
-        style={styles.safe}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          contentContainerStyle={styles.container}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
+    <SMAuthContainer>
+      {/* Top row: Brand & Theme toggle */}
+      <View style={styles.topRow}>
+        <SMLogo size="sm" align="left" />
+        <ThemeToggle />
+      </View>
+
+      {/* Hero introduction */}
+      <View style={styles.heroBlock}>
+        <Text
+          accessibilityRole="header"
+          style={[styles.headline, { color: colors.text }]}
         >
-          {/* Top navigation & theme toggle */}
-          <View style={styles.top}>
-            <View style={styles.brand}>
-              <View
-                style={[
-                  styles.mark,
-                  { backgroundColor: colors.primary },
-                  !dark ? shadows.sm : null,
-                ]}
-              >
-                <Text
-                  style={{
-                    fontSize: typography.titleSm,
-                    fontWeight: '800',
-                    color: colors.onPrimary,
-                  }}
-                >
-                  S
-                </Text>
-              </View>
-              <Text style={{ color: colors.text, fontSize: typography.title, fontWeight: '800' }}>
-                SplitMoney
-              </Text>
-            </View>
-            <ThemeToggle />
-          </View>
+          Welcome back
+        </Text>
+        <Text style={[styles.subheadline, { color: colors.muted }]}>
+          Sign in to manage your groups, track expenses, and settle balances effortlessly.
+        </Text>
+      </View>
 
-          {/* Hero text */}
-          <View style={styles.hero}>
-            <Text
-              accessibilityRole="header"
-              style={{
-                color: colors.text,
-                fontSize: typography.hero,
-                lineHeight: 40,
-                fontWeight: '800',
-              }}
-            >
-              Welcome back
-            </Text>
-            <Text
-              style={{
-                color: colors.muted,
-                fontSize: typography.bodySm,
-                lineHeight: 22,
-                marginTop: spacing.xxs,
-              }}
-            >
-              Sign in to manage your groups, track expenses, and settle balances effortlessly.
-            </Text>
-          </View>
+      {/* Interactive Form Card */}
+      <SMCard elevated>
+        <SMTextInput
+          label="Email Address"
+          leftIcon="mail"
+          value={email}
+          onChangeText={(text) => {
+            setEmail(text);
+            if (fieldErrors.email) setFieldErrors((prev) => ({ ...prev, email: '' }));
+          }}
+          error={fieldErrors.email}
+          placeholder="you@example.com"
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="email"
+          keyboardType="email-address"
+          textContentType="emailAddress"
+          returnKeyType="next"
+          blurOnSubmit={false}
+          editable={!submitting}
+          onSubmitEditing={() => passwordRef.current?.focus()}
+        />
 
-          {/* Form card */}
-          <View
-            style={[
-              styles.card,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-              },
-              !dark ? shadows.sm : null,
-            ]}
-          >
-            <TextField
-              label="Email Address"
-              leftIcon="person"
-              value={email}
-              onChangeText={setEmail}
-              error={fieldErrors.email}
-              placeholder="you@example.com"
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="email"
-              keyboardType="email-address"
-              textContentType="emailAddress"
-              returnKeyType="next"
-              editable={!submitting}
-              onSubmitEditing={() => passwordRef.current?.focus()}
-            />
+        <View style={styles.passwordFieldWrap}>
+          <SMPasswordInput
+            ref={passwordRef}
+            label="Password"
+            value={password}
+            onChangeText={(text) => {
+              setPassword(text);
+              if (fieldErrors.password) setFieldErrors((prev) => ({ ...prev, password: '' }));
+            }}
+            error={fieldErrors.password}
+            placeholder="Enter your password"
+            autoComplete="current-password"
+            returnKeyType="go"
+            blurOnSubmit={true}
+            editable={!submitting}
+            onSubmitEditing={() => void submit()}
+          />
 
-            <TextField
-              ref={passwordRef}
-              label="Password"
-              leftIcon="security"
-              secure
-              value={password}
-              onChangeText={setPassword}
-              error={fieldErrors.password}
-              placeholder="Enter your password"
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="current-password"
-              textContentType="password"
-              returnKeyType="go"
-              editable={!submitting}
-              onSubmitEditing={() => void submit()}
-            />
-
-            <View style={styles.forgotRow}>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => router.push('/forgot-password')}
-                hitSlop={8}
-              >
-                <Text
-                  style={{
-                    color: colors.primary,
-                    fontSize: typography.caption,
-                    fontWeight: '700',
-                  }}
-                >
-                  Forgot password?
-                </Text>
-              </Pressable>
-            </View>
-
-            {problem ? (
-              <View
-                accessibilityLiveRegion="polite"
-                style={[
-                  styles.alert,
-                  {
-                    backgroundColor: colors.destructiveLight,
-                    borderColor: colors.destructive,
-                  },
-                ]}
-              >
-                <Icon name="alert" size={18} tone="danger" />
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text
-                    style={{
-                      color: colors.destructive,
-                      fontSize: typography.caption,
-                      fontWeight: '700',
-                    }}
-                  >
-                    {problem.title}
-                  </Text>
-                  <Text
-                    style={{
-                      color: colors.muted,
-                      fontSize: typography.xs,
-                      lineHeight: 16,
-                    }}
-                  >
-                    {problem.message}
-                  </Text>
-                </View>
-              </View>
-            ) : null}
-
-            <PrimaryButton
-              label="Sign In"
-              onPress={() => void submit()}
-              loading={submitting}
-              style={styles.submitButton}
-            />
-          </View>
-
-          {/* Footer alternatives */}
-          <View style={styles.footer}>
-            <Text style={{ color: colors.muted, fontSize: typography.caption }}>
-              Don&apos;t have an account?
-            </Text>
+          <View style={styles.forgotRow}>
             <Pressable
               accessibilityRole="button"
-              onPress={() => router.push('/sign-up')}
-              hitSlop={8}
+              accessibilityLabel="Forgot your password? Recover your account"
+              onPress={() => router.push('/forgot-password')}
+              hitSlop={12}
             >
-              <Text
-                style={{
-                  color: colors.primary,
-                  fontSize: typography.caption,
-                  fontWeight: '700',
-                }}
-              >
-                Create an account
+              <Text style={[styles.forgotText, { color: colors.primary }]}>
+                Forgot password?
               </Text>
             </Pressable>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        </View>
+
+        {problem ? (
+          <SMInlineNotice
+            type="error"
+            title={problem.title}
+            message={problem.message}
+          />
+        ) : null}
+
+        <SMButton
+          label="Sign In"
+          loadingLabel="Signing in…"
+          variant="primary"
+          size="lg"
+          loading={submitting}
+          onPress={() => void submit()}
+          style={styles.submitBtn}
+        />
+      </SMCard>
+
+      {/* Footer Navigation */}
+      <SMAuthFooter
+        promptText="Don't have an account?"
+        actionText="Create an account"
+        onPress={() => router.push('/sign-up')}
+      />
+    </SMAuthContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  container: {
-    flexGrow: 1,
-    padding: spacing.base,
-    gap: spacing.lg,
-    maxWidth: 500,
-    width: '100%',
-    alignSelf: 'center',
-    justifyContent: 'center',
-  },
-  top: {
+  topRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    width: '100%',
     paddingVertical: spacing.xs,
   },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  mark: {
-    width: 38,
-    height: 38,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
+  heroBlock: {
+    gap: spacing.xs,
+    width: '100%',
   },
-  hero: { gap: spacing.xxs },
-  card: {
-    padding: spacing.lg,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    gap: spacing.base,
+  headline: {
+    fontSize: typography.hero,
+    lineHeight: 38,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  subheadline: {
+    fontSize: typography.bodySm,
+    lineHeight: 22,
+    fontWeight: '500',
+  },
+  passwordFieldWrap: {
+    gap: spacing.xs,
+    width: '100%',
   },
   forgotRow: {
     alignItems: 'flex-end',
-    marginTop: -spacing.xs,
-  },
-  alert: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-  },
-  submitButton: {
     marginTop: spacing.xs,
   },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs + 2,
-    paddingVertical: spacing.md,
+  forgotText: {
+    fontSize: typography.caption,
+    fontWeight: '700',
+  },
+  submitBtn: {
+    marginTop: spacing.xs,
   },
 });

@@ -67,6 +67,7 @@ export const preloadInterstitial = (): void => {
 
   teardown();
   state = 'loading';
+  console.log('[Ads] interstitial requested');
 
   const instance = InterstitialAd.createForAdRequest(adsConfig.units.interstitial, {
     requestNonPersonalizedAdsOnly: false,
@@ -75,11 +76,14 @@ export const preloadInterstitial = (): void => {
 
   unsubscribe.push(
     instance.addAdEventListener(AdEventType.LOADED, () => {
+      console.log('[Ads] interstitial loaded');
       state = 'loaded';
     }),
-    instance.addAdEventListener(AdEventType.ERROR, () => {
+    instance.addAdEventListener(AdEventType.ERROR, (error) => {
       // Includes no-fill. Left failed rather than retried: a retry loop against an
       // unfilled unit is a battery drain and achieves nothing.
+      const msg = (error as { message?: string })?.message ?? String(error);
+      console.warn('[Ads] interstitial failed:', msg);
       state = 'failed';
       teardown();
     }),
@@ -109,8 +113,11 @@ export const showInterstitialIfEligible = (): boolean => {
 
   try {
     ad.show();
+    console.log('[Ads] interstitial shown');
     return true;
-  } catch {
+  } catch (error) {
+    const msg = (error as { message?: string })?.message ?? String(error);
+    console.warn('[Ads] interstitial failed to show:', msg);
     state = 'failed';
     teardown();
     return false;
@@ -124,3 +131,13 @@ export const resetInterstitialState = (): void => {
   lastShownAt = 0;
   shownThisSession = 0;
 };
+
+/** Dev-only diagnostic inspection helper */
+export const getInterstitialState = () => ({
+  state,
+  lastShownAt,
+  shownThisSession,
+  maxPerSession: adsConfig.frequency.maxInterstitialsPerSession,
+  cooldownMs: adsConfig.frequency.interstitialCooldownMs,
+});
+

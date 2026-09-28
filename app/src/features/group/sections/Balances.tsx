@@ -1,17 +1,22 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useGroup } from '../GroupContext';
 import { useAuth } from '@/auth/AuthProvider';
-import { PersonBalanceCard } from '../cards';
-import { Avatar, Badge, Card, SectionHeader } from '@/components/ui';
-import { EmptyState } from '@/components/StateViews';
+import {
+  SMBadge,
+  SMCard,
+  SMAvatar,
+  SMEmptyState,
+  SMPersonBalanceRow,
+  SMSectionHeader,
+} from '@/components/sm';
 import { Icon } from '@/components/Icon';
 import { useTheme } from '@/theme/ThemeProvider';
 import { radius, spacing, typography } from '@/theme/tokens';
 import { formatPaise } from '@/lib/money';
 
 export function BalancesSection() {
-  const { colors } = useTheme();
+  const { colors, dark } = useTheme();
   const { groupId, live, detail } = useGroup();
   const { user } = useAuth();
   const router = useRouter();
@@ -34,9 +39,9 @@ export function BalancesSection() {
   if (iOwe.length === 0 && oweMe.length === 0) {
     return (
       <View style={styles.container}>
-        <EmptyState
+        <SMEmptyState
           title="All square"
-          message="Nobody in this group owes anything right now. All balances are settled."
+          description="Nobody in this group owes anything right now. Every balance is settled."
           icon="check"
         />
       </View>
@@ -45,7 +50,7 @@ export function BalancesSection() {
 
   return (
     <View style={styles.container}>
-      <Card>
+      <SMCard style={styles.card}>
         <View style={styles.totals}>
           <View style={styles.total}>
             <Text style={{ color: colors.muted, fontSize: typography.caption, fontWeight: '600' }}>
@@ -84,56 +89,72 @@ export function BalancesSection() {
             Debts are directional and pairwise. They are never netted against each other.
           </Text>
         </View>
-      </Card>
+      </SMCard>
 
       {iOwe.length > 0 ? (
         <View style={styles.block}>
-          <SectionHeader title={`You Owe (${iOwe.length})`} />
-          {iOwe.map((entry) => (
-            <PersonBalanceCard
-              key={'owe-' + entry.user.id}
-              entry={entry}
-              direction="i_owe"
-              onPress={() => open(entry.user.id)}
-            />
-          ))}
+          <SMSectionHeader title={'You owe (' + iOwe.length + ')'} />
+          <View style={styles.rows}>
+            {iOwe.map((entry) => (
+              <SMPersonBalanceRow
+                key={'owe-' + entry.user.id}
+                name={entry.user.fullName}
+                amount={formatPaise(entry.amountPaise, { compact: true })}
+                direction="i_owe"
+                onPress={() => open(entry.user.id)}
+              />
+            ))}
+          </View>
         </View>
       ) : null}
 
       {oweMe.length > 0 ? (
         <View style={styles.block}>
-          <SectionHeader title={`Owed To You (${oweMe.length})`} />
-          {oweMe.map((entry) => (
-            <PersonBalanceCard
-              key={'owed-' + entry.user.id}
-              entry={entry}
-              direction="they_owe"
-              onPress={() => open(entry.user.id)}
-            />
-          ))}
+          <SMSectionHeader title={'Owed to you (' + oweMe.length + ')'} />
+          <View style={styles.rows}>
+            {oweMe.map((entry) => (
+              <SMPersonBalanceRow
+                key={'owed-' + entry.user.id}
+                name={entry.user.fullName}
+                amount={formatPaise(entry.amountPaise, { compact: true })}
+                direction="they_owe"
+                onPress={() => open(entry.user.id)}
+              />
+            ))}
+          </View>
         </View>
       ) : null}
 
       {settled.length > 0 ? (
         <View style={styles.block}>
-          <SectionHeader title={`Settled (${settled.length})`} />
-          {settled.map((member) => (
-            <Card
-              key={member.id}
-              onPress={() => open(member.id)}
-              accessibilityLabel={member.fullName + ', settled'}
-            >
-              <View style={styles.settledRow}>
-                <View style={styles.settledLeft}>
-                  <Avatar name={member.fullName} size={36} />
-                  <Text style={{ color: colors.text, fontSize: typography.bodySm, fontWeight: '600' }}>
-                    {member.fullName}
-                  </Text>
-                </View>
-                <Badge label="Settled" tone="positive" />
-              </View>
-            </Card>
-          ))}
+          <SMSectionHeader title={'Settled (' + settled.length + ')'} />
+          <View style={styles.rows}>
+            {settled.map((member) => (
+              <Pressable
+                key={member.id}
+                accessibilityRole="button"
+                accessibilityLabel={member.fullName + ', all square'}
+                onPress={() => open(member.id)}
+                style={({ pressed }) => [
+                  styles.settledRow,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: dark ? colors.borderStrong : colors.border,
+                    opacity: pressed ? 0.92 : 1,
+                  },
+                ]}
+              >
+                <SMAvatar name={member.fullName} size={34} round />
+                <Text
+                  numberOfLines={1}
+                  style={[styles.settledName, { color: colors.text }]}
+                >
+                  {member.fullName}
+                </Text>
+                <SMBadge label="Settled" tone="success" icon="check" />
+              </Pressable>
+            ))}
+          </View>
         </View>
       ) : null}
     </View>
@@ -154,14 +175,16 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     marginTop: spacing.xs,
   },
+  card: { padding: spacing.base },
+  rows: { gap: spacing.sm },
   settledRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  settledLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: spacing.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    minHeight: 60,
   },
+  settledName: { flex: 1, fontSize: typography.bodySm, fontWeight: '600', letterSpacing: -0.1 },
 });
